@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { MoreHorizontal, Plus, Search, Server, Table2, Settings } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Server, Table2, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,29 +16,37 @@ import {
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useUIStore } from "@/stores/ui-store";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import type { ConnectionProfile } from "@/lib/api/types";
 
 interface ConnectionItemProps {
   connection: ConnectionProfile;
+  isMobileOrTablet: boolean;
 }
 
-const ConnectionItem = React.memo(function ConnectionItem({ connection }: ConnectionItemProps) {
+const ConnectionItem = React.memo(function ConnectionItem({
+  connection,
+  isMobileOrTablet,
+}: ConnectionItemProps) {
   const router = useRouter();
   const pathname = usePathname();
   const selectConnection = useConnectionStore((s) => s.selectConnection);
   const status = useConnectionStore((s) => s.healthStatuses[connection.id]);
   const isChecking = useConnectionStore((s) => s.checkingHealth[connection.id]);
+  const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
 
   const isActive = pathname?.includes(`/${connection.id}`);
 
   const handleClick = () => {
     selectConnection(connection.id);
     router.push(`/browser/${connection.id}`);
+    if (isMobileOrTablet) setMobileNavOpen(false);
   };
 
   const handleNav = (path: string) => {
     selectConnection(connection.id);
     router.push(`/${path}/${connection.id}`);
+    if (isMobileOrTablet) setMobileNavOpen(false);
   };
 
   return (
@@ -80,7 +88,10 @@ const ConnectionItem = React.memo(function ConnectionItem({ connection }: Connec
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+            className={cn(
+              "h-6 w-6 shrink-0 transition-opacity",
+              isMobileOrTablet ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
@@ -98,9 +109,9 @@ const ConnectionItem = React.memo(function ConnectionItem({ connection }: Connec
   );
 });
 
-export function Sidebar() {
+function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
   const { connections, fetchConnections } = useConnectionStore();
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
   const [search, setSearch] = useState("");
   const router = useRouter();
 
@@ -112,10 +123,13 @@ export function Sidebar() {
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (!sidebarOpen) return null;
+  const handleNavigation = (path: string) => {
+    router.push(path);
+    if (isMobileOrTablet) setMobileNavOpen(false);
+  };
 
   return (
-    <aside className="border-sidebar-border bg-sidebar flex w-56 flex-col border-r">
+    <>
       <div className="p-2.5">
         <div className="relative">
           <Search className="text-muted-foreground/50 absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
@@ -136,7 +150,7 @@ export function Sidebar() {
             </p>
           )}
           {filteredConnections.map((conn) => (
-            <ConnectionItem key={conn.id} connection={conn} />
+            <ConnectionItem key={conn.id} connection={conn} isMobileOrTablet={isMobileOrTablet} />
           ))}
         </div>
       </ScrollArea>
@@ -148,7 +162,7 @@ export function Sidebar() {
           variant="outline"
           size="sm"
           className="border-sidebar-border hover:border-accent/50 hover:bg-accent/5 hover:text-accent h-8 w-full justify-start gap-2 border-dashed text-xs transition-colors"
-          onClick={() => router.push("/")}
+          onClick={() => handleNavigation("/")}
         >
           <Plus className="h-3.5 w-3.5" />
           New Connection
@@ -157,12 +171,65 @@ export function Sidebar() {
           variant="ghost"
           size="sm"
           className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
-          onClick={() => router.push("/settings")}
+          onClick={() => handleNavigation("/settings")}
         >
           <Settings className="h-3.5 w-3.5" />
           Settings
         </Button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const mobileNavOpen = useUIStore((s) => s.mobileNavOpen);
+  const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
+  const { isDesktop } = useBreakpoint();
+
+  // Desktop: inline sidebar
+  if (isDesktop) {
+    if (!sidebarOpen) return null;
+    return (
+      <aside className="border-sidebar-border bg-sidebar flex w-56 flex-col border-r">
+        <SidebarContent isMobileOrTablet={false} />
+      </aside>
+    );
+  }
+
+  // Mobile/Tablet: drawer pattern
+  return (
+    <>
+      {/* Backdrop */}
+      {mobileNavOpen && (
+        <div
+          className="bg-background/80 fixed inset-0 z-40 backdrop-blur-sm"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      {/* Drawer */}
+      <aside
+        className={cn(
+          "bg-sidebar border-sidebar-border fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r shadow-xl transition-transform duration-300 ease-in-out",
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        {/* Close button */}
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-sidebar-foreground text-sm font-semibold">Connections</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground h-8 w-8"
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <Separator className="bg-sidebar-border" />
+        <SidebarContent isMobileOrTablet={true} />
+      </aside>
+    </>
   );
 }

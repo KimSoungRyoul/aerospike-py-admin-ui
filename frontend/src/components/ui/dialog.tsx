@@ -87,11 +87,15 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
   ({ className, children, ...props }, ref) => {
     const { onClose } = React.useContext(DialogContext);
     return (
-      <div ref={ref} className={cn("modal-box relative", className)} {...props}>
+      <div
+        ref={ref}
+        className={cn("modal-box relative max-w-[calc(100vw-2rem)] sm:max-w-lg", className)}
+        {...props}
+      >
         {children}
         <button
           onClick={onClose}
-          className="btn btn-sm btn-circle btn-ghost absolute top-4 right-4"
+          className="btn btn-sm btn-circle btn-ghost absolute top-4 right-4 h-10 w-10 sm:h-8 sm:w-8"
           aria-label="Close"
         >
           <X className="h-4 w-4" />

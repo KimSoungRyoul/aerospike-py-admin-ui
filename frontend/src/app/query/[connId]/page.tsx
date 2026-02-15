@@ -32,11 +32,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/common/empty-state";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { LoadingButton } from "@/components/common/loading-button";
 import { CodeEditor } from "@/components/common/code-editor";
 import { useQueryStore } from "@/stores/query-store";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { api } from "@/lib/api/client";
 import type { AerospikeRecord, BinValue, ClusterInfo, PredicateOperator } from "@/lib/api/types";
 import { formatDuration, formatNumber, truncateMiddle } from "@/lib/formatters";
@@ -71,9 +73,11 @@ function renderCellValue(value: BinValue): React.ReactNode {
 export default function QueryPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
   const store = useQueryStore();
+  const { isDesktop } = useBreakpoint();
 
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
   const [loadingCluster, setLoadingCluster] = useState(true);
+  const [mobileTab, setMobileTab] = useState<string>("builder");
 
   // Predicate local state
   const [predBin, setPredBin] = useState("");
@@ -141,7 +145,11 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
       store.setPredicate(null);
     }
     await store.executeQuery(connId);
-  }, [connId, store, predBin, predOp, predValue, predValue2]);
+    // Switch to results tab on mobile after execution
+    if (!isDesktop) {
+      setMobileTab("results");
+    }
+  }, [connId, store, predBin, predOp, predValue, predValue2, isDesktop]);
 
   // Result columns
   const resultColumns = useMemo<ColumnDef<AerospikeRecord>[]>(() => {
@@ -261,295 +269,336 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
     [store],
   );
 
-  return (
-    <div className="flex h-full">
-      {/* Left Panel - Query Config */}
-      <div className="bg-card/40 w-[380px] shrink-0 overflow-auto border-r">
-        <div className="space-y-4 p-4">
-          <h2 className="text-lg font-semibold tracking-tight">Query Builder</h2>
+  /* ─── Query Builder Panel Content ──────────────────── */
+  const queryBuilderContent = (
+    <div className="space-y-4 p-4">
+      <h2 className="text-lg font-semibold tracking-tight">Query Builder</h2>
 
-          {/* Namespace */}
-          <div className="grid gap-2">
-            <Label>Namespace</Label>
-            {loadingCluster ? (
-              <Skeleton className="h-9 w-full" />
-            ) : (
-              <Select
-                value={store.namespace}
-                onValueChange={(v) => {
-                  store.setNamespace(v);
-                  store.setSet("");
-                }}
-              >
+      {/* Namespace */}
+      <div className="grid gap-2">
+        <Label>Namespace</Label>
+        {loadingCluster ? (
+          <Skeleton className="h-9 w-full" />
+        ) : (
+          <Select
+            value={store.namespace}
+            onValueChange={(v) => {
+              store.setNamespace(v);
+              store.setSet("");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select namespace" />
+            </SelectTrigger>
+            <SelectContent>
+              {namespaces.map((ns) => (
+                <SelectItem key={ns.name} value={ns.name}>
+                  {ns.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Set */}
+      <div className="grid gap-2">
+        <Label>Set (optional)</Label>
+        <Select value={store.set} onValueChange={(v) => store.setSet(v)}>
+          <SelectTrigger>
+            <SelectValue placeholder="All sets" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value=" ">All sets</SelectItem>
+            {sets.map((s) => (
+              <SelectItem key={s.name} value={s.name}>
+                {s.name} ({formatNumber(s.objects)})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Separator />
+
+      {/* Query Type Toggle */}
+      <div className="grid gap-2">
+        <Label>Query Type</Label>
+        <div className="flex gap-2">
+          <Button
+            variant={store.queryType === "scan" ? "default" : "outline"}
+            size="sm"
+            className="flex-1"
+            onClick={() => store.setQueryType("scan")}
+          >
+            Scan
+          </Button>
+          <Button
+            variant={store.queryType === "query" ? "default" : "outline"}
+            size="sm"
+            className="flex-1"
+            onClick={() => store.setQueryType("query")}
+          >
+            SI Query
+          </Button>
+        </div>
+      </div>
+
+      {/* Predicate Builder (SI Query) */}
+      {store.queryType === "query" && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Predicate</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-2">
+              <Label className="text-xs">Bin Name</Label>
+              <Input
+                placeholder="bin_name"
+                value={predBin}
+                onChange={(e) => setPredBin(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs">Operator</Label>
+              <Select value={predOp} onValueChange={(v) => setPredOp(v as PredicateOperator)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select namespace" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {namespaces.map((ns) => (
-                    <SelectItem key={ns.name} value={ns.name}>
-                      {ns.name}
+                  {OPERATORS.map((op) => (
+                    <SelectItem key={op.value} value={op.value}>
+                      {op.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
-          </div>
-
-          {/* Set */}
-          <div className="grid gap-2">
-            <Label>Set (optional)</Label>
-            <Select value={store.set} onValueChange={(v) => store.setSet(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="All sets" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value=" ">All sets</SelectItem>
-                {sets.map((s) => (
-                  <SelectItem key={s.name} value={s.name}>
-                    {s.name} ({formatNumber(s.objects)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Query Type Toggle */}
-          <div className="grid gap-2">
-            <Label>Query Type</Label>
-            <div className="flex gap-2">
-              <Button
-                variant={store.queryType === "scan" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => store.setQueryType("scan")}
-              >
-                Scan
-              </Button>
-              <Button
-                variant={store.queryType === "query" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => store.setQueryType("query")}
-              >
-                SI Query
-              </Button>
             </div>
-          </div>
-
-          {/* Predicate Builder (SI Query) */}
-          {store.queryType === "query" && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Predicate</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid gap-2">
-                  <Label className="text-xs">Bin Name</Label>
-                  <Input
-                    placeholder="bin_name"
-                    value={predBin}
-                    onChange={(e) => setPredBin(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label className="text-xs">Operator</Label>
-                  <Select value={predOp} onValueChange={(v) => setPredOp(v as PredicateOperator)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {OPERATORS.map((op) => (
-                        <SelectItem key={op.value} value={op.value}>
-                          {op.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label className="text-xs">Value</Label>
-                  <Input
-                    placeholder="value"
-                    value={predValue}
-                    onChange={(e) => setPredValue(e.target.value)}
-                  />
-                </div>
-                {predOp === "between" && (
-                  <div className="grid gap-2">
-                    <Label className="text-xs">Value 2</Label>
-                    <Input
-                      placeholder="upper bound"
-                      value={predValue2}
-                      onChange={(e) => setPredValue2(e.target.value)}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Bin Selection */}
-          {knownBins.length > 0 && (
             <div className="grid gap-2">
-              <Label>Select Bins (optional)</Label>
-              <div className="border-border/60 max-h-[160px] space-y-2 overflow-auto rounded-lg border p-3">
-                {knownBins.map((bin) => (
-                  <div key={bin} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`bin-${bin}`}
-                      checked={store.selectBins.includes(bin)}
-                      onCheckedChange={() => toggleBin(bin)}
-                    />
-                    <label htmlFor={`bin-${bin}`} className="cursor-pointer font-mono text-sm">
-                      {bin}
-                    </label>
-                  </div>
-                ))}
-              </div>
+              <Label className="text-xs">Value</Label>
+              <Input
+                placeholder="value"
+                value={predValue}
+                onChange={(e) => setPredValue(e.target.value)}
+              />
             </div>
-          )}
+            {predOp === "between" && (
+              <div className="grid gap-2">
+                <Label className="text-xs">Value 2</Label>
+                <Input
+                  placeholder="upper bound"
+                  value={predValue2}
+                  onChange={(e) => setPredValue2(e.target.value)}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Expression Filter */}
-          <Accordion type="single" collapsible>
-            <AccordionItem value="expression" className="border-0">
-              <AccordionTrigger className="py-2 text-sm">Expression Filter</AccordionTrigger>
-              <AccordionContent>
-                <div className="h-[150px] overflow-hidden rounded-md border">
-                  <CodeEditor
-                    value={store.expression}
-                    onChange={(v) => store.setExpression(v)}
-                    language="json"
-                    height="150px"
-                  />
-                </div>
-                <p className="text-muted-foreground mt-1 text-xs">Raw JSON filter expression</p>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          {/* Max Records */}
-          <div className="grid gap-2">
-            <Label>Max Records</Label>
-            <Input
-              type="number"
-              value={store.maxRecords}
-              onChange={(e) => store.setMaxRecords(parseInt(e.target.value, 10) || 100)}
-            />
+      {/* Bin Selection */}
+      {knownBins.length > 0 && (
+        <div className="grid gap-2">
+          <Label>Select Bins (optional)</Label>
+          <div className="border-border/60 max-h-[160px] space-y-2 overflow-auto rounded-lg border p-3">
+            {knownBins.map((bin) => (
+              <div key={bin} className="flex items-center gap-2">
+                <Checkbox
+                  id={`bin-${bin}`}
+                  checked={store.selectBins.includes(bin)}
+                  onCheckedChange={() => toggleBin(bin)}
+                />
+                <label htmlFor={`bin-${bin}`} className="cursor-pointer font-mono text-sm">
+                  {bin}
+                </label>
+              </div>
+            ))}
           </div>
-
-          {/* Execute */}
-          <LoadingButton
-            onClick={handleExecute}
-            disabled={store.loading || !store.namespace}
-            loading={store.loading}
-            className="w-full"
-          >
-            {!store.loading && <Play className="mr-2 h-4 w-4" />}
-            Execute
-          </LoadingButton>
-
-          <InlineAlert message={store.error} />
         </div>
+      )}
+
+      {/* Expression Filter */}
+      <Accordion type="single" collapsible>
+        <AccordionItem value="expression" className="border-0">
+          <AccordionTrigger className="py-2 text-sm">Expression Filter</AccordionTrigger>
+          <AccordionContent>
+            <div className="h-[150px] overflow-hidden rounded-md border">
+              <CodeEditor
+                value={store.expression}
+                onChange={(v) => store.setExpression(v)}
+                language="json"
+                height="150px"
+              />
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">Raw JSON filter expression</p>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* Max Records */}
+      <div className="grid gap-2">
+        <Label>Max Records</Label>
+        <Input
+          type="number"
+          value={store.maxRecords}
+          onChange={(e) => store.setMaxRecords(parseInt(e.target.value, 10) || 100)}
+        />
       </div>
 
-      {/* Right Panel - Results */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Stats Bar */}
-        {store.hasExecuted && (
-          <div className="bg-card/60 animate-fade-in flex items-center justify-between border-b px-4 py-2 backdrop-blur-sm">
-            <div className="flex items-center gap-4 text-sm">
-              <span>
-                <span className="text-muted-foreground text-xs tracking-wider uppercase">Time</span>{" "}
-                <span className="metric-value font-mono font-medium">
-                  {formatDuration(store.executionTimeMs)}
-                </span>
-              </span>
-              <span>
-                <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                  Scanned
-                </span>{" "}
-                <span className="metric-value font-mono font-medium">
-                  {formatNumber(store.scannedRecords)}
-                </span>
-              </span>
-              <span>
-                <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                  Returned
-                </span>{" "}
-                <span className="metric-value font-mono font-medium">
-                  {formatNumber(store.returnedRecords)}
-                </span>
-              </span>
-            </div>
-            {store.results.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleExportJSON}>
-                  <FileJson className="mr-1 h-4 w-4" />
-                  JSON
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                  <FileSpreadsheet className="mr-1 h-4 w-4" />
-                  CSV
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Execute */}
+      <LoadingButton
+        onClick={handleExecute}
+        disabled={store.loading || !store.namespace}
+        loading={store.loading}
+        className="w-full"
+      >
+        {!store.loading && <Play className="mr-2 h-4 w-4" />}
+        Execute
+      </LoadingButton>
 
-        {/* Results Table */}
-        <div className="flex-1 overflow-auto">
-          {!store.hasExecuted ? (
-            <EmptyState
-              icon={Search}
-              title="Execute a query"
-              description="Configure your query on the left panel and click Execute."
-              className="h-full"
-            />
-          ) : store.loading ? (
-            <div className="space-y-3 p-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
+      <InlineAlert message={store.error} />
+    </div>
+  );
+
+  /* ─── Results Panel Content ────────────────────────── */
+  const resultsContent = (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Stats Bar */}
+      {store.hasExecuted && (
+        <div className="bg-card/60 animate-fade-in flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center gap-3 text-sm sm:gap-4">
+            <span>
+              <span className="text-muted-foreground text-xs tracking-wider uppercase">Time</span>{" "}
+              <span className="metric-value font-mono font-medium">
+                {formatDuration(store.executionTimeMs)}
+              </span>
+            </span>
+            <span>
+              <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                Scanned
+              </span>{" "}
+              <span className="metric-value font-mono font-medium">
+                {formatNumber(store.scannedRecords)}
+              </span>
+            </span>
+            <span>
+              <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                Returned
+              </span>{" "}
+              <span className="metric-value font-mono font-medium">
+                {formatNumber(store.returnedRecords)}
+              </span>
+            </span>
+          </div>
+          {store.results.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportJSON} data-compact>
+                <FileJson className="mr-1 h-4 w-4" />
+                <span className="hidden sm:inline">JSON</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportCSV} data-compact>
+                <FileSpreadsheet className="mr-1 h-4 w-4" />
+                <span className="hidden sm:inline">CSV</span>
+              </Button>
             </div>
-          ) : store.results.length === 0 ? (
-            <EmptyState
-              icon={Search}
-              title="No results"
-              description="The query returned no matching records."
-              className="h-full"
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((hg) => (
-                  <TableRow key={hg.id}>
-                    {hg.headers.map((header) => (
-                      <TableHead key={header.id} style={{ width: header.getSize() }}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           )}
         </div>
+      )}
+
+      {/* Results Table */}
+      <div className="flex-1 overflow-auto">
+        {!store.hasExecuted ? (
+          <EmptyState
+            icon={Search}
+            title="Execute a query"
+            description={
+              isDesktop
+                ? "Configure your query on the left panel and click Execute."
+                : "Switch to the Builder tab to configure your query."
+            }
+            className="h-full"
+          />
+        ) : store.loading ? (
+          <div className="space-y-3 p-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : store.results.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title="No results"
+            description="The query returned no matching records."
+            className="h-full"
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => (
+                    <TableHead key={header.id} style={{ width: header.getSize() }}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
+  );
+
+  /* ─── Desktop: side-by-side layout ─────────────────── */
+  if (isDesktop) {
+    return (
+      <div className="flex h-full">
+        <div className="bg-card/40 w-[380px] shrink-0 overflow-auto border-r">
+          {queryBuilderContent}
+        </div>
+        {resultsContent}
+      </div>
+    );
+  }
+
+  /* ─── Mobile/Tablet: tabs layout ───────────────────── */
+  return (
+    <Tabs value={mobileTab} onValueChange={setMobileTab} className="flex h-full flex-col">
+      <div className="border-b px-4 pt-2">
+        <TabsList className="w-full">
+          <TabsTrigger value="builder" className="flex-1">
+            Query Builder
+          </TabsTrigger>
+          <TabsTrigger value="results" className="flex-1">
+            Results
+            {store.results.length > 0 && (
+              <Badge variant="secondary" className="ml-1.5 text-[10px]" data-compact>
+                {store.results.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="builder" className="mt-0 flex-1 overflow-auto">
+        {queryBuilderContent}
+      </TabsContent>
+      <TabsContent value="results" className="mt-0 flex flex-1 flex-col overflow-hidden">
+        {resultsContent}
+      </TabsContent>
+    </Tabs>
   );
 }

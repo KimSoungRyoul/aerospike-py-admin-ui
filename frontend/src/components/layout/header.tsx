@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Moon, Sun, Monitor, PanelLeft } from "lucide-react";
+import { Moon, Sun, Monitor, PanelLeft, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,10 +10,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUIStore, type Theme } from "@/stores/ui-store";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function Header() {
-  const { theme, setTheme, toggleSidebar } = useUIStore();
+  const { theme, setTheme, toggleSidebar, setMobileNavOpen, mobileNavOpen } = useUIStore();
+  const { isDesktop } = useBreakpoint();
+
+  const handleToggle = () => {
+    if (isDesktop) {
+      toggleSidebar();
+    } else {
+      setMobileNavOpen(!mobileNavOpen);
+    }
+  };
 
   return (
     <header className="bg-card/80 relative z-50 flex h-12 items-center justify-between border-b px-4 backdrop-blur-sm">
@@ -26,10 +36,10 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleSidebar}
-              className="text-muted-foreground hover:text-foreground h-8 w-8"
+              onClick={handleToggle}
+              className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
             >
-              <PanelLeft className="h-4 w-4" />
+              {isDesktop ? <PanelLeft className="h-4 w-4" /> : <Menu className="h-5 w-5" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Toggle Sidebar (Cmd+B)</TooltipContent>
@@ -42,7 +52,7 @@ export function Header() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm leading-none font-semibold tracking-tight">Aerospike</span>
-            <span className="text-muted-foreground mt-0.5 text-[10px] leading-none font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground mt-0.5 hidden text-[10px] leading-none font-medium tracking-wide uppercase sm:block">
               UI Manager
             </span>
           </div>
@@ -55,7 +65,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:text-foreground h-8 w-8"
+              className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
             >
               {theme === "dark" ? (
                 <Moon className="h-4 w-4" />

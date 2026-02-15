@@ -343,8 +343,8 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                   <TableRow>
                     <TableHead>Role Name</TableHead>
                     <TableHead>Privileges</TableHead>
-                    <TableHead>Whitelist</TableHead>
-                    <TableHead>Quotas</TableHead>
+                    <TableHead className="hidden md:table-cell">Whitelist</TableHead>
+                    <TableHead className="hidden md:table-cell">Quotas</TableHead>
                     <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -363,14 +363,14 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                           ))}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {role.whitelist.length > 0 ? (
                           <span className="font-mono text-xs">{role.whitelist.join(", ")}</span>
                         ) : (
                           <span className="text-muted-foreground text-xs italic">any</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <div className="space-y-0.5 text-xs">
                           <div>R: {role.readQuota}</div>
                           <div>W: {role.writeQuota}</div>

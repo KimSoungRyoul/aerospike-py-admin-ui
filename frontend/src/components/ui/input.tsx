@@ -4,7 +4,14 @@ import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
-    return <input type={type} className={cn("input w-full", className)} ref={ref} {...props} />;
+    return (
+      <input
+        type={type}
+        className={cn("input w-full text-base sm:text-sm", className)}
+        ref={ref}
+        {...props}
+      />
+    );
   },
 );
 Input.displayName = "Input";

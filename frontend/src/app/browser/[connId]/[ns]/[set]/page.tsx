@@ -53,6 +53,7 @@ import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/ty
 import { PAGE_SIZE_OPTIONS, BIN_TYPES, type BinType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { truncateMiddle, formatNumber } from "@/lib/formatters";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { toast } from "sonner";
 
 /* ─── Types & Helpers ────────────────────────────────── */
@@ -338,30 +339,35 @@ export default function BrowserPage({
   );
 
   const padLength = String(pagination.end).length;
+  const { isDesktop } = useBreakpoint();
 
   /* ─── Render ───────────────────────────────────────── */
 
   return (
     <div className="flex h-full flex-col">
       {/* ── Command Bar ──────────────────────────────── */}
-      <div className="border-border/50 bg-card/80 border-b px-6 py-2.5 backdrop-blur-md">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <nav className="flex items-center gap-0.5 font-mono text-[13px]">
+      <div className="border-border/50 bg-card/80 border-b px-3 py-2.5 backdrop-blur-md sm:px-6">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+            <nav className="flex min-w-0 items-center gap-0.5 font-mono text-[13px]">
               <button
                 onClick={() => router.push(`/browser/${connId}`)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
               >
                 browser
               </button>
-              <span className="text-muted-foreground/30 mx-1.5">›</span>
-              <span className="text-muted-foreground">{decodedNs}</span>
-              <span className="text-muted-foreground/30 mx-1.5">›</span>
-              <span className="text-accent font-medium">{decodedSet}</span>
+              <span className="text-muted-foreground/30 mx-1 shrink-0 sm:mx-1.5">›</span>
+              <span className="text-muted-foreground max-w-[60px] truncate sm:max-w-none">
+                {decodedNs}
+              </span>
+              <span className="text-muted-foreground/30 mx-1 shrink-0 sm:mx-1.5">›</span>
+              <span className="text-accent max-w-[80px] truncate font-medium sm:max-w-none">
+                {decodedSet}
+              </span>
             </nav>
 
             {total > 0 && (
-              <div className="bg-accent/8 border-accent/15 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5">
+              <div className="bg-accent/8 border-accent/15 flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="bg-accent absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" />
                   <span className="bg-accent relative inline-flex h-1.5 w-1.5 rounded-full" />
@@ -377,10 +383,11 @@ export default function BrowserPage({
             onClick={() => openEditor("create")}
             size="sm"
             variant="outline"
-            className="border-accent/30 text-accent hover:bg-accent/10 hover:border-accent/50 h-7 gap-1.5 font-mono text-xs transition-colors"
+            className="border-accent/30 text-accent hover:bg-accent/10 hover:border-accent/50 h-8 shrink-0 gap-1.5 font-mono text-xs transition-colors sm:h-7"
+            data-compact
           >
             <Plus className="h-3 w-3" />
-            new record
+            <span className="hidden sm:inline">new record</span>
           </Button>
         </div>
       </div>
@@ -440,8 +447,79 @@ export default function BrowserPage({
               </Button>
             }
           />
+        ) : !isDesktop ? (
+          /* Mobile card view */
+          <div className="space-y-2 p-3">
+            {records.map((record, idx) => (
+              <div
+                key={record.key.pk + idx}
+                className="border-border/40 bg-card/60 animate-fade-in rounded-lg border p-3"
+                style={{ animationDelay: `${idx * 25}ms` }}
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-accent font-mono text-sm font-medium">
+                    {truncateMiddle(String(record.key.pk), 24)}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setViewRecord(record)}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => openEditor("edit", record)}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(record)}
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex gap-3 text-xs">
+                  <span className="text-muted-foreground">
+                    Gen: <span className="text-foreground font-mono">{record.meta.generation}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    TTL:{" "}
+                    <span className="text-foreground font-mono">
+                      {record.meta.ttl === -1
+                        ? "∞"
+                        : record.meta.ttl === 0
+                          ? "—"
+                          : `${record.meta.ttl}s`}
+                    </span>
+                  </span>
+                </div>
+                {binColumns.length > 0 && (
+                  <div className="border-border/30 mt-2 space-y-1 border-t pt-2">
+                    {binColumns.slice(0, 3).map((col) => (
+                      <div key={col} className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground/60 w-20 shrink-0 truncate font-mono">
+                          {col}
+                        </span>
+                        <span className="min-w-0 truncate">
+                          {renderCellValue(record.bins[col])}
+                        </span>
+                      </div>
+                    ))}
+                    {binColumns.length > 3 && (
+                      <span className="text-muted-foreground/50 text-[10px]">
+                        +{binColumns.length - 3} more bins
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
-          /* Data table */
+          /* Desktop data table */
           <TooltipProvider delayDuration={300}>
             <Table>
               <TableHeader className="grid-header bg-background/95 sticky top-0 z-10 backdrop-blur-sm">
@@ -594,7 +672,7 @@ export default function BrowserPage({
 
       {/* ── Status Bar ───────────────────────────────── */}
       {total > 0 && (
-        <div className="border-border/50 bg-card/80 flex items-center justify-between border-t px-6 py-2 backdrop-blur-md">
+        <div className="border-border/50 bg-card/80 flex flex-col gap-2 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6">
           {/* Range & page size */}
           <div className="flex items-center gap-3">
             <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
@@ -603,7 +681,10 @@ export default function BrowserPage({
               {formatNumber(total)}
             </span>
             <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-              <SelectTrigger className="border-border/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px] [&>svg]:h-3 [&>svg]:w-3">
+              <SelectTrigger
+                className="border-border/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px] [&>svg]:h-3 [&>svg]:w-3"
+                data-compact
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -614,15 +695,16 @@ export default function BrowserPage({
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-muted-foreground/40 text-[10px] tracking-wider uppercase">
+            <span className="text-muted-foreground/40 hidden text-[10px] tracking-wider uppercase sm:inline">
               per page
             </span>
           </div>
 
           {/* Page navigation */}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center justify-center gap-0.5">
+            {/* First/Last page: hidden on mobile */}
             <button
-              className="page-num-btn"
+              className="page-num-btn hidden sm:inline-flex"
               disabled={!pagination.hasPrev || loading}
               onClick={() => handlePageChange(1)}
             >
@@ -636,25 +718,31 @@ export default function BrowserPage({
               <ChevronLeft className="h-3 w-3" />
             </button>
 
-            {getVisiblePages(page, pagination.totalPages).map((p, i) =>
-              p === "ellipsis" ? (
-                <span
-                  key={`dots-${i}`}
-                  className="text-muted-foreground/30 px-1 font-mono text-[11px] select-none"
-                >
-                  ···
-                </span>
-              ) : (
-                <button
-                  key={p}
-                  className={cn("page-num-btn", p === page && "current")}
-                  onClick={() => handlePageChange(p as number)}
-                  disabled={loading}
-                >
-                  {p}
-                </button>
-              ),
-            )}
+            {/* Page numbers: show on sm+, on mobile show current/total */}
+            <span className="text-muted-foreground px-2 font-mono text-[11px] sm:hidden">
+              {page} / {pagination.totalPages}
+            </span>
+            <span className="hidden sm:contents">
+              {getVisiblePages(page, pagination.totalPages).map((p, i) =>
+                p === "ellipsis" ? (
+                  <span
+                    key={`dots-${i}`}
+                    className="text-muted-foreground/30 px-1 font-mono text-[11px] select-none"
+                  >
+                    ···
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    className={cn("page-num-btn", p === page && "current")}
+                    onClick={() => handlePageChange(p as number)}
+                    disabled={loading}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+            </span>
 
             <button
               className="page-num-btn"
@@ -664,7 +752,7 @@ export default function BrowserPage({
               <ChevronRight className="h-3 w-3" />
             </button>
             <button
-              className="page-num-btn"
+              className="page-num-btn hidden sm:inline-flex"
               disabled={!pagination.hasNext || loading}
               onClick={() => handlePageChange(pagination.totalPages)}
             >

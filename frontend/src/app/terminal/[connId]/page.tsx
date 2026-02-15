@@ -129,7 +129,7 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Enter aql command..."
-            className="flex-1 border-zinc-700 bg-zinc-900 font-mono text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-zinc-600"
+            className="flex-1 border-zinc-700 bg-zinc-900 font-mono text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-zinc-600 sm:text-sm"
             disabled={loading}
             autoComplete="off"
             spellCheck={false}

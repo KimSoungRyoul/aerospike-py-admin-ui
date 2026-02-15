@@ -25,12 +25,12 @@ export const StatCard = React.memo(function StatCard({
             <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               {label}
             </p>
-            <p className="metric-value text-2xl font-bold tracking-tight">{value}</p>
+            <p className="metric-value text-xl font-bold tracking-tight sm:text-2xl">{value}</p>
             {subtitle && <p className="text-muted-foreground text-xs">{subtitle}</p>}
           </div>
           <div
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-lg",
+              "flex h-8 w-8 items-center justify-center rounded-lg sm:h-10 sm:w-10",
               trend === "up" && "bg-green-500/10 text-green-500",
               trend === "down" && "bg-red-500/10 text-red-500",
               (!trend || trend === "neutral") && "bg-accent/10 text-accent",
