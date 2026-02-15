@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+*.md
+.env*
+.husky
+coverage
+test-results
+playwright-report

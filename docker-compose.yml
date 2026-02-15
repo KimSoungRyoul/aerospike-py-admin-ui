@@ -1,16 +1,54 @@
 services:
+  aerospike:
+    container_name: aerospike-ui-db
+    image: aerospike/aerospike-server-enterprise:8.0.0.4
+    ports:
+      - "${AEROSPIKE_PORT_SERVICE:-3000}:3000"
+      - "${AEROSPIKE_PORT_FABRIC:-3001}:3001"
+      - "${AEROSPIKE_PORT_HEARTBEAT:-3002}:3002"
+    volumes:
+      - aerospike-data:/opt/aerospike/data
+    healthcheck:
+      test: ["CMD", "aql", "-c", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   backend:
+    container_name: aerospike-ui-backend
     build: ./backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     environment:
-      - CORS_ORIGINS=http://localhost:3000
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3100}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - AEROSPIKE_HOST=${AEROSPIKE_HOST:-aerospike}
+      - AEROSPIKE_PORT=${AEROSPIKE_PORT:-3000}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      aerospike:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
+    container_name: aerospike-ui-frontend
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3100}:3000"
     environment:
       - BACKEND_URL=http://backend:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  aerospike-data:
