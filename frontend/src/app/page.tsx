@@ -39,7 +39,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { useConnectionStore } from "@/stores/connection-store";
-import type { ConnectionProfile, ConnectionWithStatus } from "@/lib/api/types";
+import type { ConnectionProfile } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -67,9 +67,12 @@ export default function ConnectionsPage() {
   const router = useRouter();
   const {
     connections,
+    healthStatuses,
+    checkingHealth,
     loading,
     error,
     fetchConnections,
+    fetchAllHealth,
     createConnection,
     updateConnection,
     deleteConnection,
@@ -85,12 +88,14 @@ export default function ConnectionsPage() {
     success: boolean;
     message: string;
   } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ConnectionWithStatus | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ConnectionProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
+    fetchConnections().then(() => {
+      fetchAllHealth();
+    });
+  }, [fetchConnections, fetchAllHealth]);
 
   const openCreateDialog = useCallback(() => {
     setEditingId(null);
@@ -99,7 +104,7 @@ export default function ConnectionsPage() {
     setDialogOpen(true);
   }, []);
 
-  const openEditDialog = useCallback((conn: ConnectionWithStatus) => {
+  const openEditDialog = useCallback((conn: ConnectionProfile) => {
     setEditingId(conn.id);
     setForm({
       name: conn.name,
@@ -136,6 +141,8 @@ export default function ConnectionsPage() {
         toast.success("Connection created");
       }
       setDialogOpen(false);
+      // Refresh health after create/update
+      fetchAllHealth();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -214,22 +221,24 @@ export default function ConnectionsPage() {
           await createConnection(conn);
         }
         toast.success(`Imported ${imported.length} connection(s)`);
+        fetchAllHealth();
       } catch {
         toast.error("Failed to import connections");
       }
     };
     input.click();
-  }, [createConnection]);
+  }, [createConnection, fetchAllHealth]);
 
   const navigateToConnection = useCallback(
-    (conn: ConnectionWithStatus) => {
-      if (conn.status.connected) {
+    (conn: ConnectionProfile) => {
+      const status = healthStatuses[conn.id];
+      if (status?.connected) {
         router.push(`/browser/${conn.id}`);
       } else {
         router.push(`/cluster/${conn.id}`);
       }
     },
-    [router],
+    [router, healthStatuses],
   );
 
   if (loading && connections.length === 0) {
@@ -298,103 +307,113 @@ export default function ConnectionsPage() {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {connections.map((conn, idx) => (
-            <Card
-              key={conn.id}
-              className={cn(
-                "group card-interactive animate-fade-in-up cursor-pointer",
-                "hover:border-accent/30",
-              )}
-              style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
-              onClick={() => navigateToConnection(conn)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="h-3 w-3 shrink-0 rounded-full shadow-sm"
-                      style={{
-                        backgroundColor: conn.color,
-                        boxShadow: `0 0 0 2px var(--color-card), 0 0 0 4px ${conn.color}30`,
-                      }}
-                    />
-                    <CardTitle className="text-base">{conn.name}</CardTitle>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="sr-only">Actions</span>
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 15 15"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(conn);
-                        }}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(conn);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <CardDescription className="font-mono text-xs tracking-wide">
-                  {conn.hosts.join(", ")}:{conn.port}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={conn.status.connected ? "connected" : "disconnected"} />
-                  {conn.status.connected && (
-                    <>
-                      <Badge variant="secondary" className="gap-1 text-[11px]">
-                        <Server className="h-3 w-3" />
-                        {conn.status.nodeCount} node
-                        {conn.status.nodeCount !== 1 ? "s" : ""}
-                      </Badge>
-                      <Badge variant="secondary" className="gap-1 text-[11px]">
-                        <Database className="h-3 w-3" />
-                        {conn.status.namespaceCount} ns
-                      </Badge>
-                    </>
-                  )}
-                </div>
-                {conn.status.connected && conn.status.build && (
-                  <p className="text-muted-foreground mt-2.5 font-mono text-xs">
-                    {conn.status.edition} {conn.status.build}
-                  </p>
+          {connections.map((conn, idx) => {
+            const status = healthStatuses[conn.id];
+            const isChecking = checkingHealth[conn.id] && !status;
+            const badgeStatus = isChecking
+              ? "checking"
+              : status?.connected
+                ? "connected"
+                : "disconnected";
+
+            return (
+              <Card
+                key={conn.id}
+                className={cn(
+                  "group card-interactive animate-fade-in-up cursor-pointer",
+                  "hover:border-accent/30",
                 )}
-              </CardContent>
-            </Card>
-          ))}
+                style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
+                onClick={() => navigateToConnection(conn)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="h-3 w-3 shrink-0 rounded-full shadow-sm"
+                        style={{
+                          backgroundColor: conn.color,
+                          boxShadow: `0 0 0 2px var(--color-card), 0 0 0 4px ${conn.color}30`,
+                        }}
+                      />
+                      <CardTitle className="text-base">{conn.name}</CardTitle>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="sr-only">Actions</span>
+                          <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 15 15"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditDialog(conn);
+                          }}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(conn);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <CardDescription className="font-mono text-xs tracking-wide">
+                    {conn.hosts.join(", ")}:{conn.port}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={badgeStatus} />
+                    {status?.connected && (
+                      <>
+                        <Badge variant="secondary" className="gap-1 text-[11px]">
+                          <Server className="h-3 w-3" />
+                          {status.nodeCount} node
+                          {status.nodeCount !== 1 ? "s" : ""}
+                        </Badge>
+                        <Badge variant="secondary" className="gap-1 text-[11px]">
+                          <Database className="h-3 w-3" />
+                          {status.namespaceCount} ns
+                        </Badge>
+                      </>
+                    )}
+                  </div>
+                  {status?.connected && status.build && (
+                    <p className="text-muted-foreground mt-2.5 font-mono text-xs">
+                      {status.edition} {status.build}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

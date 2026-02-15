@@ -11,18 +11,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/status-badge";
-import type { ConnectionWithStatus } from "@/lib/api/types";
+import type { ConnectionProfile, ConnectionStatus } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 interface ConnectionCardProps {
-  conn: ConnectionWithStatus;
+  conn: ConnectionProfile;
+  status?: ConnectionStatus;
+  isCheckingHealth?: boolean;
   index: number;
   onClick: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-export function ConnectionCard({ conn, index, onClick, onEdit, onDelete }: ConnectionCardProps) {
+export function ConnectionCard({
+  conn,
+  status,
+  isCheckingHealth,
+  index,
+  onClick,
+  onEdit,
+  onDelete,
+}: ConnectionCardProps) {
+  const badgeStatus =
+    isCheckingHealth && !status ? "checking" : status?.connected ? "connected" : "disconnected";
+
   return (
     <Card
       className={cn(
@@ -96,24 +109,24 @@ export function ConnectionCard({ conn, index, onClick, onEdit, onDelete }: Conne
       </CardHeader>
       <CardContent className="pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={conn.status.connected ? "connected" : "disconnected"} />
-          {conn.status.connected && (
+          <StatusBadge status={badgeStatus} />
+          {status?.connected && (
             <>
               <Badge variant="secondary" className="gap-1 text-[11px]">
                 <Server className="h-3 w-3" />
-                {conn.status.nodeCount} node
-                {conn.status.nodeCount !== 1 ? "s" : ""}
+                {status.nodeCount} node
+                {status.nodeCount !== 1 ? "s" : ""}
               </Badge>
               <Badge variant="secondary" className="gap-1 text-[11px]">
                 <Database className="h-3 w-3" />
-                {conn.status.namespaceCount} ns
+                {status.namespaceCount} ns
               </Badge>
             </>
           )}
         </div>
-        {conn.status.connected && conn.status.build && (
+        {status?.connected && status.build && (
           <p className="text-muted-foreground mt-2.5 font-mono text-xs">
-            {conn.status.edition} {conn.status.build}
+            {status.edition} {status.build}
           </p>
         )}
       </CardContent>

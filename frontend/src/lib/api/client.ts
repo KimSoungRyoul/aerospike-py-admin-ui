@@ -73,7 +73,11 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
 
 export const api = {
   // Connections
-  getConnections: () => request<import("./types").ConnectionWithStatus[]>("/api/connections"),
+  getConnections: () => request<import("./types").ConnectionProfile[]>("/api/connections"),
+  getConnectionHealth: (id: string) =>
+    request<import("./types").ConnectionStatus>(`/api/connections/${id}/health`, {
+      timeout: 10_000,
+    }),
   createConnection: (data: Partial<import("./types").ConnectionProfile>) =>
     request<import("./types").ConnectionProfile>("/api/connections", {
       method: "POST",

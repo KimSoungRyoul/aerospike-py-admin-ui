@@ -9,20 +9,16 @@ from __future__ import annotations
 import copy
 
 from aerospike_py_admin_ui_api.mock_data.clusters import mock_clusters  # read-only, no copy needed
-from aerospike_py_admin_ui_api.mock_data.connections import mock_connections
 from aerospike_py_admin_ui_api.mock_data.indexes import mock_indexes
 from aerospike_py_admin_ui_api.mock_data.records import mock_records
 from aerospike_py_admin_ui_api.mock_data.udfs import mock_udfs
 from aerospike_py_admin_ui_api.mock_data.users import mock_roles, mock_users
 from aerospike_py_admin_ui_api.models.admin import AerospikeRole, AerospikeUser, Privilege
-from aerospike_py_admin_ui_api.models.connection import ConnectionWithStatus
 from aerospike_py_admin_ui_api.models.index import SecondaryIndex
 from aerospike_py_admin_ui_api.models.record import AerospikeRecord
 from aerospike_py_admin_ui_api.models.udf import UDFModule
 
 # --- Mutable stores (deep-copied) -----------------------------------------
-
-connections: list[ConnectionWithStatus] = copy.deepcopy(mock_connections)
 
 records: dict[str, dict[str, list[AerospikeRecord]]] = copy.deepcopy(mock_records)
 

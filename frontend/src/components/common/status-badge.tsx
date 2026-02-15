@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 type StatusType =
   | "connected"
   | "disconnected"
+  | "checking"
   | "ready"
   | "building"
   | "error"
@@ -23,6 +24,12 @@ const statusConfig: Record<StatusType, { label: string; className: string; dotCo
     label: "Disconnected",
     className: "bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-400 border-red-500/20",
     dotColor: "bg-red-500",
+  },
+  checking: {
+    label: "Checking...",
+    className:
+      "bg-slate-500/10 text-slate-700 dark:bg-slate-500/15 dark:text-slate-400 border-slate-500/20",
+    dotColor: "bg-slate-400",
   },
   ready: {
     label: "Ready",
@@ -64,7 +71,12 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, label, className, pulse }: StatusBadgeProps) {
   const config = statusConfig[status];
-  const showPulse = pulse || status === "connected" || status === "live" || status === "ready";
+  const showPulse =
+    pulse ||
+    status === "connected" ||
+    status === "live" ||
+    status === "ready" ||
+    status === "checking";
 
   return (
     <Badge
