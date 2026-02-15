@@ -1,0 +1,17 @@
+[project]
+name = "aerospike-ui-api"
+version = "0.1.0"
+description = "Aerospike UI Backend API"
+readme = "README.md"
+authors = [
+    { name = "KimSoungRyoul", email = "KimSoungRyoul@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
