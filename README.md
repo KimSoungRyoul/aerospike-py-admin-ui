@@ -1,5 +1,14 @@
 # Aerospike Py Admin UI
 
+[![CI](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/ci.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/ci.yaml)
+[![CD](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/cd.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/cd.yaml)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 A web-based GUI management tool for Aerospike Community Edition.
 
 Provides cluster monitoring, record browsing, query execution, index management, user/role management, UDF management, AQL terminal, and more.
@@ -124,4 +133,4 @@ pre-commit run --all-files
 
 ## License
 
-Private
+This project is licensed under the [Apache License 2.0](LICENSE).

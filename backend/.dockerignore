@@ -1,7 +1,6 @@
 __pycache__
 *.pyc
 .git
-*.md
 .env*
 .venv
 .ruff_cache

@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aerospike Py Admin UI — A full-stack GUI management tool for Aerospike Community Edition. Built with FastAPI backend + Next.js frontend, orchestrated via Docker Compose.
+Aerospike Py Admin UI — A full-stack GUI management tool for Aerospike Community Edition. Built with FastAPI backend + Next.js frontend, orchestrated via podman Compose.
 
 ## Commands
 
-### Full Stack (Docker)
+### Full Stack (podman)
 ```bash
-docker compose up --build          # Run full stack (Aerospike + Backend + Frontend)
-docker compose down                # Stop full stack
+podman compose up --build          # Run full stack (Aerospike + Backend + Frontend)
+podman compose down                # Stop full stack
 ```
 
 ### Backend (Python 3.13 / FastAPI)
@@ -71,7 +71,7 @@ aerospike-py-admin-ui/
 │           ├── constants.ts  # CE limits, brand colors, page sizes
 │           ├── formatters.ts # Number/byte/uptime formatters
 │           └── utils.ts      # cn() (clsx + tailwind-merge)
-└── docker-compose.yml  # Aerospike + Backend + Frontend
+└── podman-compose.yml  # Aerospike + Backend + Frontend
 ```
 
 ### Key Architectural Decisions
@@ -103,7 +103,7 @@ aerospike-py-admin-ui/
 
 ## Environment Variables
 
-See `.env.example`. Used in Docker Compose:
+See `.env.example`. Used in podman Compose:
 - `AEROSPIKE_HOST`, `AEROSPIKE_PORT` — Aerospike server connection info
 - `BACKEND_PORT` (default 8000), `FRONTEND_PORT` (default 3100)
 - `CORS_ORIGINS` — Backend CORS allowed origins
