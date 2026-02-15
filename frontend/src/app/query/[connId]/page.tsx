@@ -1,10 +1,10 @@
 "use client";
 
 import { use, useEffect, useState, useMemo, useCallback } from "react";
-import { Play, Download, Search, FileJson, FileSpreadsheet, MoreHorizontal } from "lucide-react";
+import { Play, Search, FileJson, FileSpreadsheet } from "lucide-react";
 import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,7 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Accordion,
   AccordionContent,
@@ -41,7 +40,6 @@ import { useQueryStore } from "@/stores/query-store";
 import { api } from "@/lib/api/client";
 import type { AerospikeRecord, BinValue, ClusterInfo, PredicateOperator } from "@/lib/api/types";
 import { formatDuration, formatNumber, truncateMiddle } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const OPERATORS: { value: PredicateOperator; label: string }[] = [
@@ -106,6 +104,7 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
     return () => {
       store.reset();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/connId-change only; store is a zustand proxy that changes on every state update
   }, [connId]);
 
   // Collect known bin names from results

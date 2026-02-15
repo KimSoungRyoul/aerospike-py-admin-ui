@@ -10,7 +10,9 @@ interface SelectContextValue {
   onValueChange: (value: string) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  triggerNode: HTMLButtonElement | null;
+  setTriggerNode: (node: HTMLButtonElement | null) => void;
+  contentId: string;
 }
 
 const SelectContext = React.createContext<SelectContextValue | null>(null);
@@ -30,7 +32,8 @@ const Select: React.FC<SelectProps> = ({
 }) => {
   const [internalValue, setInternalValue] = React.useState(defaultValue);
   const [open, setOpen] = React.useState(false);
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const [triggerNode, setTriggerNode] = React.useState<HTMLButtonElement | null>(null);
+  const contentId = React.useId();
   const value = controlledValue ?? internalValue;
 
   const handleValueChange = React.useCallback(
@@ -43,7 +46,15 @@ const Select: React.FC<SelectProps> = ({
 
   return (
     <SelectContext.Provider
-      value={{ value, onValueChange: handleValueChange, open, setOpen, triggerRef }}
+      value={{
+        value,
+        onValueChange: handleValueChange,
+        open,
+        setOpen,
+        triggerNode,
+        setTriggerNode,
+        contentId,
+      }}
     >
       <div className="relative">{children}</div>
     </SelectContext.Provider>
@@ -63,12 +74,12 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
         ref={(node) => {
           if (typeof ref === "function") ref(node);
           else if (ref) (ref as React.MutableRefObject<HTMLButtonElement | null>).current = node;
-          if (ctx.triggerRef)
-            (ctx.triggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+          ctx.setTriggerNode(node);
         }}
         type="button"
         role="combobox"
         aria-expanded={ctx.open}
+        aria-controls={ctx.contentId}
         className={cn(
           "border-border bg-card focus:ring-ring flex h-9 w-full items-center justify-between rounded-lg border px-3 py-2 text-sm whitespace-nowrap shadow-sm focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
           className,
@@ -93,32 +104,28 @@ const SelectValue: React.FC<SelectValueProps> = ({ placeholder }) => {
   return <span className="truncate">{ctx.value || placeholder}</span>;
 };
 
-interface SelectContentProps extends React.HTMLAttributes<HTMLDivElement> {
-  position?: string;
-}
-
-const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
-  ({ className, children, position, ...props }, ref) => {
-    const ctx = React.useContext(SelectContext)!;
+const SelectContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, children, ...props }, ref) => {
+    const { open, setOpen, triggerNode, contentId } = React.useContext(SelectContext)!;
     const contentRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
-      if (!ctx.open) return;
+      if (!open) return;
 
       const handleClickOutside = (e: MouseEvent) => {
         const target = e.target as Node;
         if (
           contentRef.current &&
           !contentRef.current.contains(target) &&
-          ctx.triggerRef.current &&
-          !ctx.triggerRef.current.contains(target)
+          triggerNode &&
+          !triggerNode.contains(target)
         ) {
-          ctx.setOpen(false);
+          setOpen(false);
         }
       };
 
       const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === "Escape") ctx.setOpen(false);
+        if (e.key === "Escape") setOpen(false);
       };
 
       document.addEventListener("mousedown", handleClickOutside);
@@ -127,9 +134,9 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
         document.removeEventListener("mousedown", handleClickOutside);
         document.removeEventListener("keydown", handleEsc);
       };
-    }, [ctx.open, ctx.setOpen, ctx.triggerRef]);
+    }, [open, setOpen, triggerNode]);
 
-    if (!ctx.open) return null;
+    if (!open) return null;
 
     return (
       <div
@@ -138,6 +145,8 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
           else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
           (contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
         }}
+        id={contentId}
+        role="listbox"
         className={cn(
           "border-border bg-popover text-popover-foreground absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border p-1 shadow-lg",
           className,

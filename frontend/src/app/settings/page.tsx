@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import {
   Sun,
   Moon,
@@ -30,13 +30,15 @@ const themeOptions: {
   { value: "system", label: "System", icon: Monitor, description: "Follow OS preference" },
 ];
 
+const emptySubscribe = () => () => {};
+
 export default function SettingsPage() {
   const { theme, setTheme } = useUIStore();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
 
   if (!mounted) return null;
 

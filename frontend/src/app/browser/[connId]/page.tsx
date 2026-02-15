@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { api } from "@/lib/api/client";
-import type { ClusterInfo, NamespaceInfo, SetInfo } from "@/lib/api/types";
+import type { NamespaceInfo, SetInfo } from "@/lib/api/types";
 import { formatNumber, formatBytes } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 

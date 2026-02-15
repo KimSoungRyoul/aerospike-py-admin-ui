@@ -34,7 +34,7 @@ import { ChartTooltipContent } from "@/components/common/chart-tooltip";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useMetricsStore } from "@/stores/metrics-store";
 import { api } from "@/lib/api/client";
-import type { ClusterInfo, ClusterMetrics, MetricPoint, MetricSeries } from "@/lib/api/types";
+import type { ClusterMetrics, MetricPoint, MetricSeries } from "@/lib/api/types";
 import { formatBytes, formatNumber, formatUptime, formatPercent } from "@/lib/formatters";
 import { CE_LIMITS, METRIC_INTERVAL_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -196,14 +196,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
   } = useAsyncData(() => api.getCluster(connId), [connId]);
 
   // Real-time metrics
-  const {
-    metrics,
-    loading: metricsLoading,
-    error: metricsError,
-    startPolling,
-    stopPolling,
-    fetchMetrics,
-  } = useMetricsStore();
+  const { metrics, startPolling, stopPolling } = useMetricsStore();
   const [promSearch, setPromSearch] = useState("");
 
   useEffect(() => {
@@ -260,8 +253,6 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
   const firstNode = cluster.nodes[0];
   const edition = firstNode?.edition ?? "Unknown";
   const build = firstNode?.build ?? "Unknown";
-  const dataPoints = metrics?.readTps?.length ?? 0;
-
   const readSuccessRate =
     metrics && metrics.totalReadReqs > 0
       ? Math.min(100, (metrics.totalReadSuccess / metrics.totalReadReqs) * 100).toFixed(1)

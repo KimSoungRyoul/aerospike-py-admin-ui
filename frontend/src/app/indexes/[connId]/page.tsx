@@ -95,7 +95,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
     } catch {
       // silent
     }
-  }, [connId]);
+  }, [connId, formNamespace]);
 
   useEffect(() => {
     fetchCluster();

@@ -45,9 +45,13 @@ const Accordion = React.forwardRef<HTMLDivElement, AccordionProps>(
       return new Set();
     });
 
-    const openItems = controlledValue
-      ? new Set(Array.isArray(controlledValue) ? controlledValue : [controlledValue])
-      : internalOpen;
+    const openItems = React.useMemo(
+      () =>
+        controlledValue
+          ? new Set(Array.isArray(controlledValue) ? controlledValue : [controlledValue])
+          : internalOpen,
+      [controlledValue, internalOpen],
+    );
 
     const toggle = React.useCallback(
       (value: string) => {
