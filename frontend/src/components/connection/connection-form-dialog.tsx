@@ -63,10 +63,10 @@ export function ConnectionFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>{editingId ? "Edit Connection" : "New Connection"}</DialogTitle>
+          <DialogTitle>{editingId ? "Edit Cluster" : "New Cluster"}</DialogTitle>
           <DialogDescription>
             {editingId
-              ? "Update the connection profile settings."
+              ? "Update the cluster connection settings."
               : "Create a new Aerospike cluster connection."}
           </DialogDescription>
         </DialogHeader>
@@ -185,7 +185,7 @@ export function ConnectionFormDialog({
               ) : (
                 <Wifi className="mr-2 h-4 w-4" />
               )}
-              Test Connection
+              Test Cluster
             </Button>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

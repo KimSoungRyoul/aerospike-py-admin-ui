@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Moon, Sun, Monitor, PanelLeft, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,14 +47,17 @@ export function Header() {
         </Tooltip>
 
         <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
-          <div className="from-primary to-primary/80 relative flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm">
-            <span className="text-primary-foreground text-[10px] font-bold tracking-wider">AS</span>
-            <div className="absolute inset-0 rounded-lg ring-1 ring-white/10 ring-inset" />
-          </div>
+          <Image
+            src="/aerospike-logo.svg"
+            alt="Aerospike"
+            width={28}
+            height={28}
+            className="rounded-lg"
+          />
           <div className="flex flex-col">
-            <span className="text-sm leading-none font-semibold tracking-tight">Aerospike</span>
+            <span className="text-sm leading-none font-semibold tracking-tight">Aerospike-Py</span>
             <span className="text-muted-foreground mt-0.5 hidden text-[10px] leading-none font-medium tracking-wide uppercase sm:block">
-              UI Manager
+              Admin
             </span>
           </div>
         </Link>
