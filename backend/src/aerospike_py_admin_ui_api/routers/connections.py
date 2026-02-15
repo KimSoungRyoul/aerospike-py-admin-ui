@@ -5,21 +5,21 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_py_admin_ui_api import store
-from aerospike_py_admin_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
+from aerospike_py_admin_ui_api import db
+from aerospike_py_admin_ui_api.models.connection import ConnectionProfile, ConnectionStatus
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
 
 @router.get("")
-def list_connections() -> list[ConnectionWithStatus]:
-    return store.connections
+async def list_connections() -> list[ConnectionProfile]:
+    return await db.get_all_connections()
 
 
 @router.post("", status_code=201)
-def create_connection(body: dict) -> ConnectionWithStatus:
+async def create_connection(body: dict) -> ConnectionProfile:
     now = datetime.now(UTC).isoformat()
-    conn = ConnectionWithStatus(
+    conn = ConnectionProfile(
         id=f"conn-{int(time.time() * 1000)}",
         name=body.get("name", "New Connection"),
         hosts=body.get("hosts", ["localhost"]),
@@ -30,46 +30,53 @@ def create_connection(body: dict) -> ConnectionWithStatus:
         color=body.get("color", "#0097D3"),
         createdAt=now,
         updatedAt=now,
-        status=ConnectionStatus(connected=False, nodeCount=0, namespaceCount=0),
     )
-    store.connections.append(conn)
+    await db.create_connection(conn)
     return conn
 
 
 @router.get("/{conn_id}")
-def get_connection(conn_id: str) -> ConnectionWithStatus:
-    for c in store.connections:
-        if c.id == conn_id:
-            return c
-    raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+async def get_connection(conn_id: str) -> ConnectionProfile:
+    conn = await db.get_connection(conn_id)
+    if not conn:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    return conn
 
 
 @router.put("/{conn_id}")
-def update_connection(conn_id: str, body: dict) -> ConnectionWithStatus:
-    for i, c in enumerate(store.connections):
-        if c.id == conn_id:
-            data = c.model_dump()
-            data.update(body)
-            data["id"] = conn_id
-            data["updatedAt"] = datetime.now(UTC).isoformat()
-            updated = ConnectionWithStatus(**data)
-            store.connections[i] = updated
-            return updated
-    raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+async def update_connection(conn_id: str, body: dict) -> ConnectionProfile:
+    conn = await db.update_connection(conn_id, body)
+    if not conn:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    return conn
+
+
+@router.get("/{conn_id}/health")
+async def get_connection_health(conn_id: str) -> ConnectionStatus:
+    conn = await db.get_connection(conn_id)
+    if not conn:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    # Mock health response — will be replaced with real Aerospike client later
+    return ConnectionStatus(
+        connected=True,
+        nodeCount=1,
+        namespaceCount=1,
+        build="8.1.0.0",
+        edition="Aerospike Community Edition",
+    )
 
 
 @router.post("/{conn_id}")
-def test_connection(conn_id: str) -> dict:
-    for c in store.connections:
-        if c.id == conn_id:
-            return {"success": True, "message": "Connected successfully"}
-    raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+async def test_connection(conn_id: str) -> dict:
+    conn = await db.get_connection(conn_id)
+    if not conn:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    return {"success": True, "message": "Connected successfully"}
 
 
 @router.delete("/{conn_id}")
-def delete_connection(conn_id: str) -> dict:
-    for i, c in enumerate(store.connections):
-        if c.id == conn_id:
-            store.connections.pop(i)
-            return {"message": "Connection deleted"}
-    raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+async def delete_connection(conn_id: str) -> dict:
+    deleted = await db.delete_connection(conn_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    return {"message": "Connection deleted"}

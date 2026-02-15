@@ -16,16 +16,18 @@ import {
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useUIStore } from "@/stores/ui-store";
-import type { ConnectionWithStatus } from "@/lib/api/types";
+import type { ConnectionProfile } from "@/lib/api/types";
 
 interface ConnectionItemProps {
-  connection: ConnectionWithStatus;
+  connection: ConnectionProfile;
 }
 
 const ConnectionItem = React.memo(function ConnectionItem({ connection }: ConnectionItemProps) {
   const router = useRouter();
   const pathname = usePathname();
   const selectConnection = useConnectionStore((s) => s.selectConnection);
+  const status = useConnectionStore((s) => s.healthStatuses[connection.id]);
+  const isChecking = useConnectionStore((s) => s.checkingHealth[connection.id]);
 
   const isActive = pathname?.includes(`/${connection.id}`);
 
@@ -53,9 +55,11 @@ const ConnectionItem = React.memo(function ConnectionItem({ connection }: Connec
         <span
           className={cn(
             "ring-offset-sidebar h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-offset-1 transition-shadow",
-            connection.status.connected
-              ? "status-glow-green ring-emerald-500/30"
-              : "status-glow-red ring-red-500/30",
+            isChecking && !status
+              ? "ring-slate-400/30"
+              : status?.connected
+                ? "status-glow-green ring-emerald-500/30"
+                : "status-glow-red ring-red-500/30",
           )}
           style={{ backgroundColor: connection.color }}
         />
@@ -63,7 +67,11 @@ const ConnectionItem = React.memo(function ConnectionItem({ connection }: Connec
         <span
           className={cn(
             "ml-auto h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
-            connection.status.connected ? "bg-emerald-500" : "bg-red-500",
+            isChecking && !status
+              ? "animate-pulse bg-slate-400"
+              : status?.connected
+                ? "bg-emerald-500"
+                : "bg-red-500",
           )}
         />
       </button>

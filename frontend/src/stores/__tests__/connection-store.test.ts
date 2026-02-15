@@ -5,6 +5,7 @@ import { useConnectionStore } from "../connection-store";
 vi.mock("@/lib/api/client", () => ({
   api: {
     getConnections: vi.fn(),
+    getConnectionHealth: vi.fn(),
     createConnection: vi.fn(),
     updateConnection: vi.fn(),
     deleteConnection: vi.fn(),
@@ -19,6 +20,8 @@ describe("useConnectionStore", () => {
   beforeEach(() => {
     useConnectionStore.setState({
       connections: [],
+      healthStatuses: {},
+      checkingHealth: {},
       selectedConnectionId: null,
       loading: false,
       error: null,
@@ -29,6 +32,8 @@ describe("useConnectionStore", () => {
   it("has correct initial state", () => {
     const state = useConnectionStore.getState();
     expect(state.connections).toEqual([]);
+    expect(state.healthStatuses).toEqual({});
+    expect(state.checkingHealth).toEqual({});
     expect(state.selectedConnectionId).toBeNull();
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
@@ -53,7 +58,8 @@ describe("useConnectionStore", () => {
         hosts: ["localhost"],
         port: 3000,
         color: "#000",
-        status: { connected: true, nodeCount: 1, namespaceCount: 2 },
+        createdAt: "2025-01-01",
+        updatedAt: "2025-01-01",
       },
     ];
     mockApi.getConnections.mockResolvedValue(mockConnections as any);
@@ -74,6 +80,66 @@ describe("useConnectionStore", () => {
     const state = useConnectionStore.getState();
     expect(state.error).toBe("Network error");
     expect(state.loading).toBe(false);
+  });
+
+  it("fetchConnectionHealth updates healthStatuses on success", async () => {
+    const mockStatus = { connected: true, nodeCount: 1, namespaceCount: 2 };
+    mockApi.getConnectionHealth.mockResolvedValue(mockStatus as any);
+
+    await useConnectionStore.getState().fetchConnectionHealth("conn-1");
+
+    const state = useConnectionStore.getState();
+    expect(state.healthStatuses["conn-1"]).toEqual(mockStatus);
+    expect(state.checkingHealth["conn-1"]).toBe(false);
+  });
+
+  it("fetchConnectionHealth sets disconnected on failure", async () => {
+    mockApi.getConnectionHealth.mockRejectedValue(new Error("Timeout"));
+
+    await useConnectionStore.getState().fetchConnectionHealth("conn-1");
+
+    const state = useConnectionStore.getState();
+    expect(state.healthStatuses["conn-1"]).toEqual({
+      connected: false,
+      nodeCount: 0,
+      namespaceCount: 0,
+    });
+    expect(state.checkingHealth["conn-1"]).toBe(false);
+  });
+
+  it("fetchAllHealth checks health for all connections", () => {
+    useConnectionStore.setState({
+      connections: [
+        {
+          id: "conn-1",
+          name: "A",
+          hosts: ["localhost"],
+          port: 3000,
+          color: "#000",
+          createdAt: "",
+          updatedAt: "",
+        },
+        {
+          id: "conn-2",
+          name: "B",
+          hosts: ["localhost"],
+          port: 3000,
+          color: "#000",
+          createdAt: "",
+          updatedAt: "",
+        },
+      ] as any,
+    });
+    mockApi.getConnectionHealth.mockResolvedValue({
+      connected: true,
+      nodeCount: 1,
+      namespaceCount: 1,
+    } as any);
+
+    useConnectionStore.getState().fetchAllHealth();
+
+    expect(mockApi.getConnectionHealth).toHaveBeenCalledWith("conn-1");
+    expect(mockApi.getConnectionHealth).toHaveBeenCalledWith("conn-2");
   });
 
   it("createConnection calls API and refreshes list", async () => {

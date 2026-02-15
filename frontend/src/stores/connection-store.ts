@@ -1,14 +1,18 @@
 import { create } from "zustand";
-import type { ConnectionWithStatus, ConnectionProfile } from "@/lib/api/types";
+import type { ConnectionProfile, ConnectionStatus } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
 interface ConnectionState {
-  connections: ConnectionWithStatus[];
+  connections: ConnectionProfile[];
+  healthStatuses: Record<string, ConnectionStatus>;
+  checkingHealth: Record<string, boolean>;
   selectedConnectionId: string | null;
   loading: boolean;
   error: string | null;
 
   fetchConnections: () => Promise<void>;
+  fetchConnectionHealth: (id: string) => Promise<void>;
+  fetchAllHealth: () => void;
   selectConnection: (id: string | null) => void;
   createConnection: (data: Partial<ConnectionProfile>) => Promise<void>;
   updateConnection: (id: string, data: Partial<ConnectionProfile>) => Promise<void>;
@@ -18,6 +22,8 @@ interface ConnectionState {
 
 export const useConnectionStore = create<ConnectionState>()((set, get) => ({
   connections: [],
+  healthStatuses: {},
+  checkingHealth: {},
   selectedConnectionId: null,
   loading: false,
   error: null,
@@ -30,6 +36,33 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
     }
+  },
+
+  fetchConnectionHealth: async (id: string) => {
+    const { checkingHealth } = get();
+    if (checkingHealth[id]) return;
+
+    set({ checkingHealth: { ...get().checkingHealth, [id]: true } });
+    try {
+      const status = await api.getConnectionHealth(id);
+      set((state) => ({
+        healthStatuses: { ...state.healthStatuses, [id]: status },
+        checkingHealth: { ...state.checkingHealth, [id]: false },
+      }));
+    } catch {
+      set((state) => ({
+        healthStatuses: {
+          ...state.healthStatuses,
+          [id]: { connected: false, nodeCount: 0, namespaceCount: 0 },
+        },
+        checkingHealth: { ...state.checkingHealth, [id]: false },
+      }));
+    }
+  },
+
+  fetchAllHealth: () => {
+    const { connections, fetchConnectionHealth } = get();
+    connections.forEach((conn) => fetchConnectionHealth(conn.id));
   },
 
   selectConnection: (id) => set({ selectedConnectionId: id }),

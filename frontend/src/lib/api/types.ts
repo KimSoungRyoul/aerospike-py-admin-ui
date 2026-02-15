@@ -21,7 +21,7 @@ export interface ConnectionStatus {
 }
 
 export interface ConnectionWithStatus extends ConnectionProfile {
-  status: ConnectionStatus;
+  status?: ConnectionStatus;
 }
 
 // === Cluster ===
