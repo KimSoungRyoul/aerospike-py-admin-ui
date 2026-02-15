@@ -13,6 +13,34 @@ A web-based GUI management tool for Aerospike Community Edition.
 
 Provides cluster monitoring, record browsing, query execution, index management, user/role management, UDF management, AQL terminal, and more.
 
+## Overview
+
+### Cluster Management
+
+Manage multiple Aerospike cluster connections with color-coded profiles. Create, edit, test, import and export connections.
+
+![Cluster Management](docs/images/01-clusters.png)
+
+### Cluster Dashboard
+
+Real-time monitoring with live TPS charts, client connections, read/write success rates, and uptime tracking.
+
+![Cluster Dashboard](docs/images/02-overview-dashboard.png)
+
+### Namespaces & Sets
+
+Browse namespaces with memory/device usage, replication factor, HWM thresholds, and navigate into sets.
+
+![Namespaces](docs/images/04-namespaces.png)
+
+![Namespace Detail](docs/images/05-namespace-detail.png)
+
+### Record Browser
+
+Browse, create, edit, duplicate and delete records with full pagination support.
+
+![Record Browser](docs/images/03-record-browser.png)
+
 ## Tech Stack
 
 | Layer | Stack |

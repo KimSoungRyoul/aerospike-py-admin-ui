@@ -45,13 +45,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { InlineAlert } from "@/components/common/inline-alert";
 import { JsonViewer } from "@/components/common/json-viewer";
 import { CodeEditor } from "@/components/common/code-editor";
 import { useBrowserStore } from "@/stores/browser-store";
 import { usePagination } from "@/hooks/use-pagination";
 import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/types";
 import { PAGE_SIZE_OPTIONS, BIN_TYPES, type BinType } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { truncateMiddle, formatNumber } from "@/lib/formatters";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { toast } from "sonner";
@@ -296,7 +297,7 @@ export default function BrowserPage({
       );
       setEditorOpen(false);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -315,7 +316,7 @@ export default function BrowserPage({
       toast.success("Record deleted");
       setDeleteTarget(null);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -393,11 +394,7 @@ export default function BrowserPage({
       </div>
 
       {/* ── Error ────────────────────────────────────── */}
-      {error && (
-        <div className="border-destructive/30 bg-destructive/5 text-destructive animate-fade-in mx-6 mt-3 rounded-md border px-4 py-2.5 font-mono text-xs">
-          {error}
-        </div>
-      )}
+      <InlineAlert message={error} className="mx-6 mt-3" />
 
       {/* ── Data Grid ────────────────────────────────── */}
       <div className="relative flex-1 overflow-auto">

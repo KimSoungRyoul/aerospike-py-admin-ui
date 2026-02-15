@@ -39,6 +39,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { api } from "@/lib/api/client";
 import type { SecondaryIndex, IndexType, ClusterInfo } from "@/lib/api/types";
+import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
 const INDEX_TYPES: { value: IndexType; label: string }[] = [
@@ -89,13 +90,13 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
     try {
       const info = await api.getCluster(connId);
       setClusterInfo(info);
-      if (info.namespaces.length > 0 && !formNamespace) {
-        setFormNamespace(info.namespaces[0].name);
+      if (info.namespaces.length > 0) {
+        setFormNamespace((prev) => prev || info.namespaces[0].name);
       }
     } catch {
-      // silent
+      // Cluster info is optional for this page
     }
-  }, [connId, formNamespace]);
+  }, [connId]);
 
   useEffect(() => {
     fetchCluster();
@@ -122,7 +123,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
       setFormName("");
       await fetchIndexes();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setCreating(false);
     }
@@ -137,7 +138,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
       setDeleteTarget(null);
       await fetchIndexes();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setDeleting(false);
     }

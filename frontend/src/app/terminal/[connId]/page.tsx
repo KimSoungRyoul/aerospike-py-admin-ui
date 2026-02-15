@@ -4,7 +4,6 @@ import { use, useState, useRef, useEffect } from "react";
 import { Terminal, Send, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useTerminal } from "@/hooks/use-terminal";
@@ -59,14 +58,14 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground mr-1 text-xs">Quick:</span>
           {QUICK_COMMANDS.map((qc) => (
-            <Badge
+            <button
               key={qc.command}
-              variant="outline"
-              className="hover:bg-accent cursor-pointer text-xs transition-colors"
+              type="button"
               onClick={() => handleQuickCommand(qc.command)}
+              className="focus-visible:ring-ring hover:bg-accent inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               {qc.label}
-            </Badge>
+            </button>
           ))}
           <div className="flex-1" />
           <Button

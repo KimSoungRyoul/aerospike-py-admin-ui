@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getErrorMessage } from "@/lib/utils";
 
 interface UseAsyncDataResult<T> {
   data: T | null;
@@ -24,7 +25,7 @@ export function useAsyncData<T>(
       const result = await fetcherRef.current();
       setData(result);
     } catch (err) {
-      setError((err as Error).message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
