@@ -354,7 +354,7 @@ export default function BrowserPage({
                 onClick={() => router.push(`/browser/${connId}`)}
                 className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
               >
-                browser
+                data
               </button>
               <span className="text-muted-foreground/30 mx-1 shrink-0 sm:mx-1.5">›</span>
               <span className="text-muted-foreground max-w-[60px] truncate sm:max-w-none">

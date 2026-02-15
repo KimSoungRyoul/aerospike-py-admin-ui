@@ -98,7 +98,7 @@ const ConnectionItem = React.memo(function ConnectionItem({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => handleNav("browser")}>
-            <Table2 className="mr-2 h-4 w-4" /> Browser
+            <Table2 className="mr-2 h-4 w-4" /> Data
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleNav("cluster")}>
             <Server className="mr-2 h-4 w-4" /> Cluster
