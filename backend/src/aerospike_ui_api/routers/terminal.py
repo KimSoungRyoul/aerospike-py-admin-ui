@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import random
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api.models.terminal import TerminalCommand, TerminalRequest
 from aerospike_ui_api import store
+from aerospike_ui_api.models.terminal import TerminalCommand, TerminalRequest
 
 router = APIRouter(prefix="/api/terminal", tags=["terminal"])
 
@@ -37,9 +37,7 @@ def execute_command(conn_id: str, body: TerminalRequest) -> TerminalCommand:
         set_lines: list[str] = []
         for ns in namespaces:
             for s in ns.sets:
-                set_lines.append(
-                    f"  {ns.name}.{s.name}  objects={s.objects}  tombstones={s.tombstones}"
-                )
+                set_lines.append(f"  {ns.name}.{s.name}  objects={s.objects}  tombstones={s.tombstones}")
         output = f"Sets:\n{chr(10).join(set_lines)}" if set_lines else "(no sets)"
 
     elif lower == "show bins":
@@ -52,10 +50,7 @@ def execute_command(conn_id: str, body: TerminalRequest) -> TerminalCommand:
                     bin_names.update(["name", "price", "category", "inStock", "specs"])
                 elif s.name == "orders":
                     bin_names.update(["orderId", "userId", "total", "status", "items", "address", "location"])
-        if bin_names:
-            output = "Bins:\n" + "\n".join(f"  {b}" for b in sorted(bin_names))
-        else:
-            output = "(no bins)"
+        output = "Bins:\n" + "\n".join(f"  {b}" for b in sorted(bin_names)) if bin_names else "(no bins)"
 
     elif lower == "status":
         output = "OK"
@@ -74,6 +69,6 @@ def execute_command(conn_id: str, body: TerminalRequest) -> TerminalCommand:
         id=f"cmd-{int(time.time() * 1000)}-{random.getrandbits(24):06x}",
         command=command,
         output=output,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         success=success,
     )

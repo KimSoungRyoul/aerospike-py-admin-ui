@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from aerospike_ui_api.models.metrics import ClusterMetrics
 from aerospike_ui_api.mock_data.metrics import generate_cluster_metrics
+from aerospike_ui_api.models.metrics import ClusterMetrics
 
 router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 

@@ -4,8 +4,8 @@ import copy
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api.models.admin import AerospikeRole, CreateRoleRequest
 from aerospike_ui_api import store
+from aerospike_ui_api.models.admin import AerospikeRole, CreateRoleRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
 
@@ -44,9 +44,7 @@ def create_role(conn_id: str, body: CreateRoleRequest) -> AerospikeRole:
 @router.delete("/{conn_id}/roles")
 def delete_role(conn_id: str, name: str = "") -> dict:
     if not name:
-        raise HTTPException(
-            status_code=400, detail="Missing required query param: name"
-        )
+        raise HTTPException(status_code=400, detail="Missing required query param: name")
 
     conn_roles = store.roles.get(conn_id)
     if not conn_roles:

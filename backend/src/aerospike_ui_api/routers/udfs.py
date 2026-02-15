@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api.models.udf import UDFModule
 from aerospike_ui_api import store
+from aerospike_ui_api.models.udf import UDFModule
 
 router = APIRouter(prefix="/api/udfs", tags=["udfs"])
 
@@ -47,9 +47,7 @@ def upload_udf(conn_id: str, body: dict) -> UDFModule:
         content=content,
     )
 
-    existing_idx = next(
-        (i for i, u in enumerate(store.udfs[conn_id]) if u.filename == filename), -1
-    )
+    existing_idx = next((i for i, u in enumerate(store.udfs[conn_id]) if u.filename == filename), -1)
     if existing_idx >= 0:
         store.udfs[conn_id][existing_idx] = module
     else:
@@ -61,9 +59,7 @@ def upload_udf(conn_id: str, body: dict) -> UDFModule:
 @router.delete("/{conn_id}")
 def delete_udf(conn_id: str, filename: str = "") -> dict:
     if not filename:
-        raise HTTPException(
-            status_code=400, detail="Missing required query param: filename"
-        )
+        raise HTTPException(status_code=400, detail="Missing required query param: filename")
 
     conn_udfs = store.udfs.get(conn_id)
     if not conn_udfs:

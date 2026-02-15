@@ -3,16 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from aerospike_ui_api import config
 from aerospike_ui_api.routers import (
-    connections,
-    clusters,
-    records,
-    query,
-    indexes,
-    terminal,
-    admin_users,
     admin_roles,
-    udfs,
+    admin_users,
+    clusters,
+    connections,
+    indexes,
     metrics,
+    query,
+    records,
+    terminal,
+    udfs,
 )
 
 app = FastAPI(title="Aerospike UI API", version="0.1.0")

@@ -1,0 +1,39 @@
+repos:
+  # ── General ──────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+
+  # ── Python / Backend (ruff) ──────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # ── Frontend (eslint + prettier) ─────────────────────────
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: bash -c 'args=(); for f in "$@"; do args+=("${f#frontend/}"); done; cd frontend && npx eslint --fix "${args[@]}"' --
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        types: [file]
+
+      - id: prettier
+        name: prettier
+        entry: bash -c 'args=(); for f in "$@"; do args+=("${f#frontend/}"); done; cd frontend && npx prettier --write "${args[@]}"' --
+        language: system
+        files: ^frontend/.*\.(ts|tsx|json|md|css)$
+        types: [file]

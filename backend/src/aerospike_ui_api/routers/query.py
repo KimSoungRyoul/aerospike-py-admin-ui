@@ -4,9 +4,9 @@ import random
 
 from fastapi import APIRouter, HTTPException
 
+from aerospike_ui_api import store
 from aerospike_ui_api.models.query import QueryRequest, QueryResponse
 from aerospike_ui_api.models.record import AerospikeRecord
-from aerospike_ui_api import store
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
@@ -26,9 +26,9 @@ def _matches_predicate(record: AerospikeRecord, predicate) -> bool:
 
     if op == "between":
         if not (
-            isinstance(bin_value, (int, float))
-            and isinstance(predicate.value, (int, float))
-            and isinstance(predicate.value2, (int, float))
+            isinstance(bin_value, int | float)
+            and isinstance(predicate.value, int | float)
+            and isinstance(predicate.value2, int | float)
         ):
             return False
         return predicate.value <= bin_value <= predicate.value2
@@ -41,11 +41,7 @@ def _matches_predicate(record: AerospikeRecord, predicate) -> bool:
         return False
 
     if op in ("geo_within_region", "geo_contains_point"):
-        return (
-            isinstance(bin_value, dict)
-            and "type" in bin_value
-            and "coordinates" in bin_value
-        )
+        return isinstance(bin_value, dict) and "type" in bin_value and "coordinates" in bin_value
 
     return True
 
@@ -77,12 +73,7 @@ def execute_query(conn_id: str, body: QueryRequest) -> QueryResponse:
 
     if body.selectBins:
         select = set(body.selectBins)
-        filtered = [
-            r.model_copy(
-                update={"bins": {k: v for k, v in r.bins.items() if k in select}}
-            )
-            for r in filtered
-        ]
+        filtered = [r.model_copy(update={"bins": {k: v for k, v in r.bins.items() if k in select}}) for r in filtered]
 
     return QueryResponse(
         records=filtered,

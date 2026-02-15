@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import copy
-
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api.models.index import CreateIndexRequest, SecondaryIndex
 from aerospike_ui_api import store
+from aerospike_ui_api.models.index import CreateIndexRequest, SecondaryIndex
 
 router = APIRouter(prefix="/api/indexes", tags=["indexes"])
 
@@ -39,9 +37,7 @@ def create_index(conn_id: str, body: CreateIndexRequest) -> SecondaryIndex:
 @router.delete("/{conn_id}")
 def delete_index(conn_id: str, name: str = "", ns: str = "") -> dict:
     if not name or not ns:
-        raise HTTPException(
-            status_code=400, detail="Missing required query params: name, ns"
-        )
+        raise HTTPException(status_code=400, detail="Missing required query params: name, ns")
 
     conn_indexes = store.indexes.get(conn_id)
     if not conn_indexes:

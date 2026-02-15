@@ -192,10 +192,20 @@ def _mock_hash(content: str) -> str:
 mock_udfs: dict[str, list[UDFModule]] = {
     "conn-1": [
         UDFModule(filename="record_udf.lua", type="LUA", hash=_mock_hash(RECORD_UDF_SOURCE), content=RECORD_UDF_SOURCE),
-        UDFModule(filename="aggregation.lua", type="LUA", hash=_mock_hash(AGGREGATION_UDF_SOURCE), content=AGGREGATION_UDF_SOURCE),
+        UDFModule(
+            filename="aggregation.lua",
+            type="LUA",
+            hash=_mock_hash(AGGREGATION_UDF_SOURCE),
+            content=AGGREGATION_UDF_SOURCE,
+        ),
     ],
     "conn-2": [
         UDFModule(filename="record_udf.lua", type="LUA", hash=_mock_hash(RECORD_UDF_SOURCE), content=RECORD_UDF_SOURCE),
-        UDFModule(filename="aggregation.lua", type="LUA", hash=_mock_hash(AGGREGATION_UDF_SOURCE), content=AGGREGATION_UDF_SOURCE),
+        UDFModule(
+            filename="aggregation.lua",
+            type="LUA",
+            hash=_mock_hash(AGGREGATION_UDF_SOURCE),
+            content=AGGREGATION_UDF_SOURCE,
+        ),
     ],
 }

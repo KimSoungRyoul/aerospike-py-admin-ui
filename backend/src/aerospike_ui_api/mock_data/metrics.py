@@ -3,13 +3,13 @@ from __future__ import annotations
 import random
 import time
 
+from aerospike_ui_api.mock_data.clusters import mock_clusters
 from aerospike_ui_api.models.metrics import (
     ClusterMetrics,
     MetricPoint,
     MetricSeries,
     NamespaceMetrics,
 )
-from aerospike_ui_api.mock_data.clusters import mock_clusters
 
 
 def _generate_time_series(points: int, min_val: float, max_val: float) -> list[MetricPoint]:

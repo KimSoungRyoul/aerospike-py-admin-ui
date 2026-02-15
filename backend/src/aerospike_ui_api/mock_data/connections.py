@@ -1,4 +1,4 @@
-from aerospike_ui_api.models.connection import ConnectionWithStatus, ConnectionStatus
+from aerospike_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
 
 mock_connections: list[ConnectionWithStatus] = [
     ConnectionWithStatus(

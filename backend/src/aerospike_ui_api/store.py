@@ -8,18 +8,17 @@ from __future__ import annotations
 
 import copy
 
+from aerospike_ui_api.mock_data.clusters import mock_clusters  # read-only, no copy needed
+from aerospike_ui_api.mock_data.connections import mock_connections
+from aerospike_ui_api.mock_data.indexes import mock_indexes
+from aerospike_ui_api.mock_data.records import mock_records
+from aerospike_ui_api.mock_data.udfs import mock_udfs
+from aerospike_ui_api.mock_data.users import mock_roles, mock_users
 from aerospike_ui_api.models.admin import AerospikeRole, AerospikeUser, Privilege
-from aerospike_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
+from aerospike_ui_api.models.connection import ConnectionWithStatus
 from aerospike_ui_api.models.index import SecondaryIndex
 from aerospike_ui_api.models.record import AerospikeRecord
 from aerospike_ui_api.models.udf import UDFModule
-
-from aerospike_ui_api.mock_data.connections import mock_connections
-from aerospike_ui_api.mock_data.clusters import mock_clusters  # read-only, no copy needed
-from aerospike_ui_api.mock_data.records import mock_records
-from aerospike_ui_api.mock_data.indexes import mock_indexes
-from aerospike_ui_api.mock_data.users import mock_users, mock_roles
-from aerospike_ui_api.mock_data.udfs import mock_udfs
 
 # --- Mutable stores (deep-copied) -----------------------------------------
 

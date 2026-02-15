@@ -4,8 +4,8 @@ import copy
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
 from aerospike_ui_api import store
+from aerospike_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
 
@@ -44,9 +44,7 @@ def create_user(conn_id: str, body: CreateUserRequest) -> AerospikeUser:
 @router.patch("/{conn_id}/users")
 def change_password(conn_id: str, body: ChangePasswordRequest) -> dict:
     if not body.username or not body.password:
-        raise HTTPException(
-            status_code=400, detail="Missing required fields: username, password"
-        )
+        raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
     conn_users = store.users.get(conn_id)
     if not conn_users:
@@ -62,9 +60,7 @@ def change_password(conn_id: str, body: ChangePasswordRequest) -> dict:
 @router.delete("/{conn_id}/users")
 def delete_user(conn_id: str, username: str = "") -> dict:
     if not username:
-        raise HTTPException(
-            status_code=400, detail="Missing required query param: username"
-        )
+        raise HTTPException(status_code=400, detail="Missing required query param: username")
 
     conn_users = store.users.get(conn_id)
     if not conn_users:

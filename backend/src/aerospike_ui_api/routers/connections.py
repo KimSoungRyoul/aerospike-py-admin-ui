@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import copy
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
 from aerospike_ui_api import store
+from aerospike_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
@@ -19,7 +18,7 @@ def list_connections() -> list[ConnectionWithStatus]:
 
 @router.post("", status_code=201)
 def create_connection(body: dict) -> ConnectionWithStatus:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     conn = ConnectionWithStatus(
         id=f"conn-{int(time.time() * 1000)}",
         name=body.get("name", "New Connection"),
@@ -52,7 +51,7 @@ def update_connection(conn_id: str, body: dict) -> ConnectionWithStatus:
             data = c.model_dump()
             data.update(body)
             data["id"] = conn_id
-            data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+            data["updatedAt"] = datetime.now(UTC).isoformat()
             updated = ConnectionWithStatus(**data)
             store.connections[i] = updated
             return updated

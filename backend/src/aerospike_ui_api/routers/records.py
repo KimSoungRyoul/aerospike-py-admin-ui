@@ -5,6 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Query
 
+from aerospike_ui_api import store
 from aerospike_ui_api.models.record import (
     AerospikeRecord,
     RecordKey,
@@ -12,7 +13,6 @@ from aerospike_ui_api.models.record import (
     RecordMeta,
     RecordWriteRequest,
 )
-from aerospike_ui_api import store
 
 router = APIRouter(prefix="/api/records", tags=["records"])
 
@@ -57,13 +57,7 @@ def put_record(conn_id: str, body: RecordWriteRequest) -> AerospikeRecord:
 
     recs = store.records[conn_id][store_key]
     existing_idx = next(
-        (
-            i
-            for i, r in enumerate(recs)
-            if r.key.namespace == k.namespace
-            and r.key.set == k.set
-            and r.key.pk == k.pk
-        ),
+        (i for i, r in enumerate(recs) if r.key.namespace == k.namespace and r.key.set == k.set and r.key.pk == k.pk),
         -1,
     )
 
@@ -109,11 +103,7 @@ def delete_record(
         raise HTTPException(status_code=404, detail="Record not found")
 
     idx = next(
-        (
-            i
-            for i, r in enumerate(recs)
-            if r.key.namespace == ns and r.key.set == set and r.key.pk == pk
-        ),
+        (i for i, r in enumerate(recs) if r.key.namespace == ns and r.key.set == set and r.key.pk == pk),
         -1,
     )
     if idx == -1:

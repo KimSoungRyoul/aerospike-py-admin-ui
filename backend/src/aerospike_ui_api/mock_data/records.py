@@ -10,53 +10,149 @@ from aerospike_ui_api.models.record import AerospikeRecord, RecordKey, RecordMet
 # ---------------------------------------------------------------------------
 
 FIRST_NAMES = [
-    "Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Hank",
-    "Irene", "Jack", "Karen", "Leo", "Mona", "Nick", "Olivia", "Paul",
-    "Quinn", "Rita", "Sam", "Tina", "Uma", "Vic", "Wendy", "Xander",
-    "Yara", "Zane",
+    "Alice",
+    "Bob",
+    "Charlie",
+    "Diana",
+    "Eve",
+    "Frank",
+    "Grace",
+    "Hank",
+    "Irene",
+    "Jack",
+    "Karen",
+    "Leo",
+    "Mona",
+    "Nick",
+    "Olivia",
+    "Paul",
+    "Quinn",
+    "Rita",
+    "Sam",
+    "Tina",
+    "Uma",
+    "Vic",
+    "Wendy",
+    "Xander",
+    "Yara",
+    "Zane",
 ]
 
 LAST_NAMES = [
-    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-    "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
-    "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Hernandez",
+    "Lopez",
+    "Gonzalez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Taylor",
+    "Moore",
+    "Jackson",
+    "Martin",
 ]
 
 PRODUCT_NAMES = [
-    "Wireless Mouse", "Mechanical Keyboard", "USB-C Hub", "Monitor Stand",
-    "Webcam HD", "Desk Lamp", "Laptop Stand", "Cable Organizer",
-    "Noise-Cancelling Headphones", "Bluetooth Speaker", "External SSD",
-    "Portable Charger", "Smart Watch", "Fitness Tracker", "VR Headset",
-    "Drone Mini", "Action Camera", "E-Reader", "Tablet Stylus", "Docking Station",
-    "Ring Light", "Microphone USB", "Game Controller", "Mouse Pad XL",
-    "Screen Protector", "Phone Mount", "Car Charger", "Wall Adapter",
-    "HDMI Cable", "Ethernet Adapter",
+    "Wireless Mouse",
+    "Mechanical Keyboard",
+    "USB-C Hub",
+    "Monitor Stand",
+    "Webcam HD",
+    "Desk Lamp",
+    "Laptop Stand",
+    "Cable Organizer",
+    "Noise-Cancelling Headphones",
+    "Bluetooth Speaker",
+    "External SSD",
+    "Portable Charger",
+    "Smart Watch",
+    "Fitness Tracker",
+    "VR Headset",
+    "Drone Mini",
+    "Action Camera",
+    "E-Reader",
+    "Tablet Stylus",
+    "Docking Station",
+    "Ring Light",
+    "Microphone USB",
+    "Game Controller",
+    "Mouse Pad XL",
+    "Screen Protector",
+    "Phone Mount",
+    "Car Charger",
+    "Wall Adapter",
+    "HDMI Cable",
+    "Ethernet Adapter",
 ]
 
 CATEGORIES = [
-    "Electronics", "Accessories", "Audio", "Computing", "Gaming",
-    "Photography", "Wearables", "Storage",
+    "Electronics",
+    "Accessories",
+    "Audio",
+    "Computing",
+    "Gaming",
+    "Photography",
+    "Wearables",
+    "Storage",
 ]
 
 ORDER_STATUSES = [
-    "pending", "processing", "shipped", "delivered", "cancelled", "refunded",
+    "pending",
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "refunded",
 ]
 
 STREET_NAMES = [
-    "Main St", "Oak Ave", "Cedar Ln", "Elm Dr", "Pine Rd",
-    "Maple Ct", "Birch Blvd", "Walnut Way", "Spruce Pl", "Ash Cir",
+    "Main St",
+    "Oak Ave",
+    "Cedar Ln",
+    "Elm Dr",
+    "Pine Rd",
+    "Maple Ct",
+    "Birch Blvd",
+    "Walnut Way",
+    "Spruce Pl",
+    "Ash Cir",
 ]
 
 CITIES = [
-    "San Francisco", "New York", "Chicago", "Austin", "Seattle",
-    "Denver", "Boston", "Portland", "Miami", "Atlanta",
+    "San Francisco",
+    "New York",
+    "Chicago",
+    "Austin",
+    "Seattle",
+    "Denver",
+    "Boston",
+    "Portland",
+    "Miami",
+    "Atlanta",
 ]
 
 STATES = ["CA", "NY", "IL", "TX", "WA", "CO", "MA", "OR", "FL", "GA"]
 
 TAGS = [
-    "premium", "new", "verified", "vip", "beta-tester",
-    "newsletter", "referral", "loyalty", "early-adopter", "enterprise",
+    "premium",
+    "new",
+    "verified",
+    "vip",
+    "beta-tester",
+    "newsletter",
+    "referral",
+    "loyalty",
+    "early-adopter",
+    "enterprise",
 ]
 
 
@@ -108,9 +204,7 @@ def _generate_user_records() -> list[AerospikeRecord]:
             "lastLogin": f"2026-02-{str(1 + int(math.floor(rand() * 14))).zfill(2)}T{str(int(math.floor(rand() * 24))).zfill(2)}:{str(int(math.floor(rand() * 60))).zfill(2)}:00Z",
             "loginCount": int(math.floor(rand() * 500)),
             "preferredLanguage": _pick(["en", "es", "fr", "de", "ja"], rand),
-            "timezone": _pick(
-                ["US/Pacific", "US/Eastern", "UTC", "Europe/London", "Asia/Tokyo"], rand
-            ),
+            "timezone": _pick(["US/Pacific", "US/Eastern", "UTC", "Europe/London", "Asia/Tokyo"], rand),
         }
 
         records.append(
@@ -160,9 +254,7 @@ def _generate_product_records() -> list[AerospikeRecord]:
             "dimensions": f"{round(5 + rand() * 30)}x{round(5 + rand() * 20)}x{round(2 + rand() * 10)}cm",
             "color": _pick(["Black", "White", "Silver", "Blue", "Red", "Gray"], rand),
             "warranty": _pick(["6 months", "1 year", "2 years", "3 years"], rand),
-            "manufacturer": _pick(
-                ["TechCorp", "GadgetPro", "DigitalWorks", "NexGen", "InnoTech"], rand
-            ),
+            "manufacturer": _pick(["TechCorp", "GadgetPro", "DigitalWorks", "NexGen", "InnoTech"], rand),
             "rating": round((3 + rand() * 2) * 10) / 10,
             "reviewCount": int(math.floor(rand() * 1200)),
         }
