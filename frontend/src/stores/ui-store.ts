@@ -25,7 +25,7 @@ export const useUIStore = create<UIState>()(
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
     {
-      name: "aerospike-ui-settings",
+      name: "aerospike-py-admin-ui-settings",
       partialize: (state) => ({
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,

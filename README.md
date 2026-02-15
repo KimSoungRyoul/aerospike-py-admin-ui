@@ -1,4 +1,4 @@
-# Aerospike UI
+# Aerospike Py Admin UI
 
 A web-based GUI management tool for Aerospike Community Edition.
 
@@ -32,7 +32,7 @@ docker compose up --build
 ```bash
 cd backend
 uv sync                            # Install dependencies
-uv run uvicorn aerospike_ui_api.main:app --reload
+uv run uvicorn aerospike_py_admin_ui_api.main:app --reload
 ```
 
 **Frontend:**
@@ -60,9 +60,9 @@ npm run dev                        # http://localhost:3000
 ## Project Structure
 
 ```
-aerospike-ui/
+aerospike-py-admin-ui/
 ├── backend/                # FastAPI REST API
-│   ├── src/aerospike_ui_api/
+│   ├── src/aerospike_py_admin_ui_api/
 │   │   ├── main.py         # App entry point
 │   │   ├── models/         # Pydantic models
 │   │   ├── routers/        # API endpoints

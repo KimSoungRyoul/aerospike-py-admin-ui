@@ -1,4 +1,4 @@
-from aerospike_ui_api.models.admin import AerospikeRole, AerospikeUser, Privilege
+from aerospike_py_admin_ui_api.models.admin import AerospikeRole, AerospikeUser, Privilege
 
 mock_users: dict[str, list[AerospikeUser]] = {
     "conn-1": [

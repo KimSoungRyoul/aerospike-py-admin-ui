@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 import time
 
-from aerospike_ui_api.mock_data.clusters import mock_clusters
-from aerospike_ui_api.models.metrics import (
+from aerospike_py_admin_ui_api.mock_data.clusters import mock_clusters
+from aerospike_py_admin_ui_api.models.metrics import (
     ClusterMetrics,
     MetricPoint,
     MetricSeries,

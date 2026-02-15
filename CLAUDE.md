@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aerospike UI — A full-stack GUI management tool for Aerospike Community Edition. Built with FastAPI backend + Next.js frontend, orchestrated via Docker Compose.
+Aerospike Py Admin UI — A full-stack GUI management tool for Aerospike Community Edition. Built with FastAPI backend + Next.js frontend, orchestrated via Docker Compose.
 
 ## Commands
 
@@ -17,7 +17,7 @@ docker compose down                # Stop full stack
 ### Backend (Python 3.13 / FastAPI)
 ```bash
 cd backend
-uv run uvicorn aerospike_ui_api.main:app --reload  # Dev server (port 8000)
+uv run uvicorn aerospike_py_admin_ui_api.main:app --reload  # Dev server (port 8000)
 uv run ruff check src --fix                         # lint + autofix
 uv run ruff format src                              # format
 ```
@@ -46,9 +46,9 @@ pre-commit run --all-files  # Run pre-commit on all files
 ## Architecture
 
 ```
-aerospike-ui/
+aerospike-py-admin-ui/
 ├── backend/           # FastAPI REST API (Python 3.13, uv)
-│   └── src/aerospike_ui_api/
+│   └── src/aerospike_py_admin_ui_api/
 │       ├── main.py        # FastAPI app, CORS, router registration, /api/health
 │       ├── config.py      # Environment variable based configuration
 │       ├── store.py       # in-memory mock data store (for development)

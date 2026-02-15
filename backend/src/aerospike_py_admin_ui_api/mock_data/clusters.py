@@ -1,4 +1,4 @@
-from aerospike_ui_api.models.cluster import (
+from aerospike_py_admin_ui_api.models.cluster import (
     ClusterInfo,
     ClusterNode,
     NamespaceInfo,
