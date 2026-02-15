@@ -38,3 +38,8 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["aerospike_ui_api"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.1",
+]
