@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aerospike UI",
+  title: "Aerospike-Py Admin",
   description: "GUI management tool for Aerospike Community Edition",
 };
 

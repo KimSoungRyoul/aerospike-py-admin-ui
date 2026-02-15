@@ -98,10 +98,10 @@ const ConnectionItem = React.memo(function ConnectionItem({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => handleNav("browser")}>
-            <Table2 className="mr-2 h-4 w-4" /> Data
+            <Table2 className="mr-2 h-4 w-4" /> Namespaces
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleNav("cluster")}>
-            <Server className="mr-2 h-4 w-4" /> Cluster
+            <Server className="mr-2 h-4 w-4" /> Overview
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -134,7 +134,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
         <div className="relative">
           <Search className="text-muted-foreground/50 absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
-            placeholder="Search connections..."
+            placeholder="Search clusters..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-sidebar-accent/50 border-sidebar-border placeholder:text-muted-foreground/40 h-8 pl-8 text-xs"
@@ -145,9 +145,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-0.5 py-1">
           {filteredConnections.length === 0 && search && (
-            <p className="text-muted-foreground px-2 py-4 text-center text-xs">
-              No connections found
-            </p>
+            <p className="text-muted-foreground px-2 py-4 text-center text-xs">No clusters found</p>
           )}
           {filteredConnections.map((conn) => (
             <ConnectionItem key={conn.id} connection={conn} isMobileOrTablet={isMobileOrTablet} />
@@ -165,7 +163,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
           onClick={() => handleNavigation("/")}
         >
           <Plus className="h-3.5 w-3.5" />
-          New Connection
+          New Cluster
         </Button>
         <Button
           variant="ghost"
@@ -217,7 +215,7 @@ export function Sidebar() {
       >
         {/* Close button */}
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-sidebar-foreground text-sm font-semibold">Connections</span>
+          <span className="text-sidebar-foreground text-sm font-semibold">Clusters</span>
           <Button
             variant="ghost"
             size="icon"

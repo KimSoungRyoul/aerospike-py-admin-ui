@@ -2,7 +2,7 @@
 
 import React, { use } from "react";
 import { useRouter } from "next/navigation";
-import { Database, RefreshCw, ChevronRight, HardDrive, Layers } from "lucide-react";
+import { Database, RefreshCw, ChevronRight, Layers, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +34,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
-        title="Data"
+        title="Namespaces"
         description="Select a set to browse records"
         actions={
           <Button variant="outline" size="sm" onClick={fetchData}>
@@ -72,26 +72,27 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <Skeleton className="h-5 w-24" />
-                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-6 w-28" />
+                    <Skeleton className="h-5 w-24 rounded-full" />
                   </div>
-                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
+                  <Skeleton className="h-3 w-full" />
                   <Skeleton className="h-1.5 w-full rounded-full" />
                 </div>
-                <div className="flex gap-4">
-                  <Skeleton className="h-8 w-20" />
-                  <Skeleton className="h-8 w-20" />
-                  <Skeleton className="h-8 w-20" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-1.5 w-full rounded-full" />
                 </div>
-                <Separator />
+                <div className="flex gap-8">
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-10 w-20" />
+                </div>
+                <Skeleton className="h-px w-full" />
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Skeleton className="h-10 w-full rounded-lg" />
                   <Skeleton className="h-10 w-full rounded-lg" />
@@ -216,7 +217,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                             }
                             className="group border-border/60 hover:border-accent/40 hover:bg-accent/5 flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-all"
                           >
-                            <span className="text-sm font-medium">{s.name}</span>
+                            <span className="font-medium">{s.name}</span>
                             <div className="flex items-center gap-1.5">
                               <Badge variant="outline" className="font-mono text-[11px]">
                                 {formatNumber(s.objects)} obj

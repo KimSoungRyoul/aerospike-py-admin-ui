@@ -1,15 +1,13 @@
 "use client";
 
-import { use, useEffect, useState, useMemo } from "react";
+import { use, useEffect, useMemo } from "react";
 import {
   Activity,
-  BookOpen,
   Clock,
   Database,
   HardDrive,
   Network,
   RefreshCw,
-  Search,
   Server,
   TrendingUp,
   TrendingDown,
@@ -22,21 +20,18 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader } from "@/components/common/page-header";
 import { FullPageError } from "@/components/common/full-page-error";
 import { EmptyState } from "@/components/common/empty-state";
-import { CELimitBanner } from "@/components/common/ce-limit-banner";
 import { StatusBadge } from "@/components/common/status-badge";
 import { StatCard } from "@/components/common/stat-card";
 import { ChartTooltipContent } from "@/components/common/chart-tooltip";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useMetricsStore } from "@/stores/metrics-store";
 import { api } from "@/lib/api/client";
-import type { ClusterMetrics, MetricPoint, MetricSeries } from "@/lib/api/types";
+import type { MetricPoint, MetricSeries } from "@/lib/api/types";
 import { formatBytes, formatNumber, formatUptime, formatPercent } from "@/lib/formatters";
-import { CE_LIMITS, METRIC_INTERVAL_MS } from "@/lib/constants";
+import { METRIC_INTERVAL_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   LineChart,
@@ -95,92 +90,6 @@ function buildNsChartData(series: MetricSeries[]) {
 }
 
 // ---------------------------------------------------------------------------
-// Prometheus mock data generator
-// ---------------------------------------------------------------------------
-
-function generatePrometheusMetrics(metrics: ClusterMetrics): string {
-  const lines: string[] = [];
-  lines.push("# HELP aerospike_node_up Node availability");
-  lines.push("# TYPE aerospike_node_up gauge");
-  lines.push(`aerospike_node_up{cluster="${metrics.connectionId}"} ${metrics.connected ? 1 : 0}`);
-  lines.push("");
-  lines.push("# HELP aerospike_node_uptime_seconds Node uptime in seconds");
-  lines.push("# TYPE aerospike_node_uptime_seconds gauge");
-  lines.push(`aerospike_node_uptime_seconds{cluster="${metrics.connectionId}"} ${metrics.uptime}`);
-  lines.push("");
-  lines.push("# HELP aerospike_client_connections Current client connections");
-  lines.push("# TYPE aerospike_client_connections gauge");
-  lines.push(
-    `aerospike_client_connections{cluster="${metrics.connectionId}"} ${metrics.clientConnections}`,
-  );
-  lines.push("");
-  lines.push("# HELP aerospike_read_reqs_total Total read requests");
-  lines.push("# TYPE aerospike_read_reqs_total counter");
-  lines.push(
-    `aerospike_read_reqs_total{cluster="${metrics.connectionId}"} ${metrics.totalReadReqs}`,
-  );
-  lines.push("");
-  lines.push("# HELP aerospike_write_reqs_total Total write requests");
-  lines.push("# TYPE aerospike_write_reqs_total counter");
-  lines.push(
-    `aerospike_write_reqs_total{cluster="${metrics.connectionId}"} ${metrics.totalWriteReqs}`,
-  );
-  lines.push("");
-  lines.push("# HELP aerospike_read_success_total Total successful reads");
-  lines.push("# TYPE aerospike_read_success_total counter");
-  lines.push(
-    `aerospike_read_success_total{cluster="${metrics.connectionId}"} ${metrics.totalReadSuccess}`,
-  );
-  lines.push("");
-  lines.push("# HELP aerospike_write_success_total Total successful writes");
-  lines.push("# TYPE aerospike_write_success_total counter");
-  lines.push(
-    `aerospike_write_success_total{cluster="${metrics.connectionId}"} ${metrics.totalWriteSuccess}`,
-  );
-
-  for (const ns of metrics.namespaces) {
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_objects Number of objects");
-    lines.push("# TYPE aerospike_namespace_objects gauge");
-    lines.push(`aerospike_namespace_objects{namespace="${ns.namespace}"} ${ns.objects}`);
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_memory_used_bytes Memory used in bytes");
-    lines.push("# TYPE aerospike_namespace_memory_used_bytes gauge");
-    lines.push(
-      `aerospike_namespace_memory_used_bytes{namespace="${ns.namespace}"} ${ns.memoryUsed}`,
-    );
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_memory_total_bytes Total memory");
-    lines.push("# TYPE aerospike_namespace_memory_total_bytes gauge");
-    lines.push(
-      `aerospike_namespace_memory_total_bytes{namespace="${ns.namespace}"} ${ns.memoryTotal}`,
-    );
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_device_used_bytes Device storage used");
-    lines.push("# TYPE aerospike_namespace_device_used_bytes gauge");
-    lines.push(
-      `aerospike_namespace_device_used_bytes{namespace="${ns.namespace}"} ${ns.deviceUsed}`,
-    );
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_device_total_bytes Total device storage");
-    lines.push("# TYPE aerospike_namespace_device_total_bytes gauge");
-    lines.push(
-      `aerospike_namespace_device_total_bytes{namespace="${ns.namespace}"} ${ns.deviceTotal}`,
-    );
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_read_reqs Namespace read requests");
-    lines.push("# TYPE aerospike_namespace_read_reqs counter");
-    lines.push(`aerospike_namespace_read_reqs{namespace="${ns.namespace}"} ${ns.readReqs}`);
-    lines.push("");
-    lines.push("# HELP aerospike_namespace_write_reqs Namespace write requests");
-    lines.push("# TYPE aerospike_namespace_write_reqs counter");
-    lines.push(`aerospike_namespace_write_reqs{namespace="${ns.namespace}"} ${ns.writeReqs}`);
-  }
-
-  return lines.join("\n");
-}
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -197,7 +106,6 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
 
   // Real-time metrics
   const { metrics, startPolling, stopPolling } = useMetricsStore();
-  const [promSearch, setPromSearch] = useState("");
 
   useEffect(() => {
     startPolling(connId);
@@ -221,7 +129,6 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
     () => (metrics ? buildNsChartData(metrics.deviceUsageByNs) : []),
     [metrics],
   );
-  const promText = useMemo(() => (metrics ? generatePrometheusMetrics(metrics) : ""), [metrics]);
 
   // Loading state
   if (clusterLoading) {
@@ -262,17 +169,10 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
       ? Math.min(100, (metrics.totalWriteSuccess / metrics.totalWriteReqs) * 100).toFixed(1)
       : "100.0";
 
-  const filteredPromLines = promSearch
-    ? promText
-        .split("\n")
-        .filter((l) => l.toLowerCase().includes(promSearch.toLowerCase()))
-        .join("\n")
-    : promText;
-
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
-        title="Cluster"
+        title="Overview"
         description={
           <>
             {edition} &middot; Build {build}
@@ -355,18 +255,9 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
             <span className="hidden sm:inline">Nodes ({cluster.nodes.length})</span>
             <span className="sm:hidden">{cluster.nodes.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="namespaces">
-            <Database className="mr-1.5 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Namespaces ({cluster.namespaces.length})</span>
-            <span className="sm:hidden">{cluster.namespaces.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="metrics" className="gap-1">
+          <TabsTrigger value="dashboard" className="gap-1">
             <Activity className="mr-1.5 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Metrics</span>
-          </TabsTrigger>
-          <TabsTrigger value="prometheus" className="gap-1">
-            <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Prometheus</span>
+            <span className="hidden sm:inline">Dashboard</span>
           </TabsTrigger>
         </TabsList>
 
@@ -440,138 +331,8 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
           )}
         </TabsContent>
 
-        {/* === Namespaces Tab === */}
-        <TabsContent value="namespaces" className="mt-4 space-y-4">
-          {cluster.namespaces.length >= CE_LIMITS.MAX_NAMESPACES && (
-            <CELimitBanner type="namespaces" />
-          )}
-          {cluster.namespaces.length === 0 ? (
-            <EmptyState
-              icon={Database}
-              title="No namespaces"
-              description="No namespaces found in this cluster."
-            />
-          ) : (
-            <div className="grid gap-4">
-              {cluster.namespaces.map((ns, idx) => {
-                const memPercent = formatPercent(ns.memoryUsed, ns.memoryTotal);
-                const devPercent = formatPercent(ns.deviceUsed, ns.deviceTotal);
-                return (
-                  <Card
-                    key={ns.name}
-                    className="animate-fade-in-up"
-                    style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <CardTitle className="text-base">{ns.name}</CardTitle>
-                          <Badge variant="secondary" className="font-mono text-[11px]">
-                            {formatNumber(ns.objects)} objects
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {ns.stopWrites && <StatusBadge status="error" label="Stop Writes" />}
-                          {ns.hwmBreached && <StatusBadge status="warning" label="HWM Breached" />}
-                          {!ns.stopWrites && !ns.hwmBreached && (
-                            <StatusBadge status="ready" label="Healthy" />
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                            <HardDrive className="h-3 w-3" />
-                            Memory
-                          </span>
-                          <span className="font-mono text-xs">
-                            {formatBytes(ns.memoryUsed)} / {formatBytes(ns.memoryTotal)} (
-                            {memPercent}%)
-                          </span>
-                        </div>
-                        <Progress
-                          value={memPercent}
-                          className={cn("h-1.5", memPercent > 80 && "[&>div]:bg-red-500")}
-                        />
-                      </div>
-                      {ns.deviceTotal > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                              <HardDrive className="h-3 w-3" />
-                              Device
-                            </span>
-                            <span className="font-mono text-xs">
-                              {formatBytes(ns.deviceUsed)} / {formatBytes(ns.deviceTotal)} (
-                              {devPercent}%)
-                            </span>
-                          </div>
-                          <Progress
-                            value={devPercent}
-                            className={cn("h-1.5", devPercent > 80 && "[&>div]:bg-red-500")}
-                          />
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                            Replication
-                          </span>
-                          <p className="metric-value font-medium">{ns.replicationFactor}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                            HWM Memory
-                          </span>
-                          <p className="metric-value font-medium">{ns.highWaterMemoryPct}%</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                            HWM Disk
-                          </span>
-                          <p className="metric-value font-medium">{ns.highWaterDiskPct}%</p>
-                        </div>
-                      </div>
-                      {ns.sets.length > 0 && (
-                        <>
-                          <Separator />
-                          <div>
-                            <h4 className="text-muted-foreground mb-2.5 text-xs font-medium tracking-wider uppercase">
-                              Sets ({ns.sets.length})
-                            </h4>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              {ns.sets.map((s) => (
-                                <div
-                                  key={s.name}
-                                  className="border-border/60 hover:bg-muted/30 flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors"
-                                >
-                                  <span className="text-sm font-medium">{s.name}</span>
-                                  <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className="font-mono text-[11px]">
-                                      {formatNumber(s.objects)} obj
-                                    </Badge>
-                                    <Badge variant="outline" className="font-mono text-[11px]">
-                                      {formatBytes(s.memoryDataBytes)}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* === Metrics Tab === */}
-        <TabsContent value="metrics" className="mt-4 space-y-6">
+        {/* === Dashboard Tab === */}
+        <TabsContent value="dashboard" className="mt-4 space-y-6">
           {!metrics ? (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
@@ -805,7 +566,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
 
               {/* Namespace detail cards */}
               <div>
-                <h2 className="mb-3 text-lg font-semibold tracking-tight">Namespace Metrics</h2>
+                <h2 className="mb-3 text-lg font-semibold tracking-tight">Namespace Detail</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {metrics.namespaces.map((ns) => {
                     const memPct = formatPercent(ns.memoryUsed, ns.memoryTotal);
@@ -889,59 +650,6 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                 </div>
               </div>
             </>
-          )}
-        </TabsContent>
-
-        {/* === Prometheus Tab === */}
-        <TabsContent value="prometheus" className="mt-4 space-y-4">
-          {!metrics ? (
-            <Skeleton className="h-[500px] rounded-lg" />
-          ) : (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">Prometheus Metrics</CardTitle>
-                    <CardDescription>
-                      OpenMetrics-compatible output from aerospike-py
-                    </CardDescription>
-                  </div>
-                  <div className="relative w-full sm:w-64">
-                    <Search className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
-                    <Input
-                      placeholder="Filter metrics..."
-                      value={promSearch}
-                      onChange={(e) => setPromSearch(e.target.value)}
-                      className="h-9 pl-8"
-                    />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px]">
-                  <pre className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
-                    {filteredPromLines.split("\n").map((line, i) => {
-                      const isComment = line.startsWith("#");
-                      const isHelp = line.startsWith("# HELP");
-                      const isType = line.startsWith("# TYPE");
-                      return (
-                        <div
-                          key={i}
-                          className={cn(
-                            isHelp && "text-muted-foreground",
-                            isType && "text-muted-foreground italic",
-                            !isComment && line.trim() && "text-foreground",
-                            !line.trim() && "h-2",
-                          )}
-                        >
-                          {line}
-                        </div>
-                      );
-                    })}
-                  </pre>
-                </ScrollArea>
-              </CardContent>
-            </Card>
           )}
         </TabsContent>
       </Tabs>

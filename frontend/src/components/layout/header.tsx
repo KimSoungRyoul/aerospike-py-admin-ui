@@ -55,9 +55,9 @@ export function Header() {
             className="rounded-lg"
           />
           <div className="flex flex-col">
-            <span className="text-sm leading-none font-semibold tracking-tight">Aerospike</span>
+            <span className="text-sm leading-none font-semibold tracking-tight">Aerospike-Py</span>
             <span className="text-muted-foreground mt-0.5 hidden text-[10px] leading-none font-medium tracking-wide uppercase sm:block">
-              UI Manager
+              Admin
             </span>
           </div>
         </Link>
