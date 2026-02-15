@@ -1,73 +1,80 @@
 from __future__ import annotations
 
+import asyncio
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 
-from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.info_parser import parse_records
 from aerospike_py_admin_ui_api.models.udf import UDFModule
 
 router = APIRouter(prefix="/api/udfs", tags=["udfs"])
 
 
-def _mock_hash(content: str) -> str:
-    base = "abcdef0123456789"
-    seed = 0
-    for ch in content:
-        seed = (seed * 31 + ord(ch)) & 0x7FFFFFFF
-    result = []
-    for _ in range(64):
-        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
-        result.append(base[seed % 16])
-    return "".join(result)
+def _list_udfs_sync(conn_id: str) -> list[UDFModule]:
+    c = client_manager._get_client_sync(conn_id)
+    raw = c.info_random_node("udf-list")
+    records = parse_records(raw, field_sep=",")
+    modules: list[UDFModule] = []
+    for rec in records:
+        modules.append(
+            UDFModule(
+                filename=rec.get("filename", ""),
+                type=rec.get("type", "LUA").upper(),
+                hash=rec.get("hash", rec.get("content_hash", "")),
+            )
+        )
+    return modules
 
 
 @router.get("/{conn_id}")
-def get_udfs(conn_id: str) -> list[UDFModule]:
-    return store.udfs.get(conn_id, [])
+async def get_udfs(conn_id: str) -> list[UDFModule]:
+    return await asyncio.to_thread(_list_udfs_sync, conn_id)
+
+
+def _upload_udf_sync(conn_id: str, filename: str, content: str) -> None:
+    c = client_manager._get_client_sync(conn_id)
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".lua", delete=False) as tmp:
+            tmp.write(content)
+            tmp.flush()
+            tmp_path = tmp.name
+        c.udf_put(tmp_path)
+    finally:
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
 
 
 @router.post("/{conn_id}", status_code=201)
-def upload_udf(conn_id: str, body: dict) -> UDFModule:
+async def upload_udf(conn_id: str, body: dict) -> UDFModule:
     filename = body.get("filename", "")
     content = body.get("content", "")
-    udf_type = body.get("type", "LUA")
 
     if not filename or not content:
-        raise HTTPException(
-            status_code=400,
-            detail="Missing required fields: filename, content",
-        )
+        raise HTTPException(status_code=400, detail="Missing required fields: filename, content")
 
-    if conn_id not in store.udfs:
-        store.udfs[conn_id] = []
+    await asyncio.to_thread(_upload_udf_sync, conn_id, filename, content)
 
-    module = UDFModule(
-        filename=filename,
-        type=udf_type,
-        hash=_mock_hash(content),
-        content=content,
-    )
+    # Re-fetch to get actual hash
+    modules = await asyncio.to_thread(_list_udfs_sync, conn_id)
+    uploaded = next((m for m in modules if m.filename == filename), None)
+    if uploaded:
+        return uploaded
+    return UDFModule(filename=filename, type="LUA", hash="", content=content)
 
-    existing_idx = next((i for i, u in enumerate(store.udfs[conn_id]) if u.filename == filename), -1)
-    if existing_idx >= 0:
-        store.udfs[conn_id][existing_idx] = module
-    else:
-        store.udfs[conn_id].append(module)
 
-    return module
+def _delete_udf_sync(conn_id: str, module_name: str) -> None:
+    c = client_manager._get_client_sync(conn_id)
+    c.udf_remove(module_name)
 
 
 @router.delete("/{conn_id}")
-def delete_udf(conn_id: str, filename: str = "") -> dict:
+async def delete_udf(conn_id: str, filename: str = "") -> dict:
     if not filename:
         raise HTTPException(status_code=400, detail="Missing required query param: filename")
 
-    conn_udfs = store.udfs.get(conn_id)
-    if not conn_udfs:
-        raise HTTPException(status_code=404, detail="UDF not found")
-
-    idx = next((i for i, u in enumerate(conn_udfs) if u.filename == filename), -1)
-    if idx == -1:
-        raise HTTPException(status_code=404, detail="UDF not found")
-
-    conn_udfs.pop(idx)
+    await asyncio.to_thread(_delete_udf_sync, conn_id, filename)
     return {"message": "UDF deleted"}

@@ -8,3 +8,6 @@ HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = int(os.getenv("PORT", "8000"))
 
 DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/connections.db")
+
+AEROSPIKE_HOST: str = os.getenv("AEROSPIKE_HOST", "localhost")
+AEROSPIKE_PORT: int = int(os.getenv("AEROSPIKE_PORT", "3000"))

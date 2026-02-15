@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
 from aerospike_py_admin_ui_api import db
+from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.info_parser import parse_list
 from aerospike_py_admin_ui_api.models.connection import ConnectionProfile, ConnectionStatus
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
@@ -56,14 +59,33 @@ async def get_connection_health(conn_id: str) -> ConnectionStatus:
     conn = await db.get_connection(conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
-    # Mock health response — will be replaced with real Aerospike client later
-    return ConnectionStatus(
-        connected=True,
-        nodeCount=1,
-        namespaceCount=1,
-        build="8.1.0.0",
-        edition="Aerospike Community Edition",
-    )
+
+    try:
+
+        def _health():
+            c = client_manager._get_client_sync(conn_id)
+            node_names = c.get_node_names()
+            ns_raw = c.info_random_node("namespaces")
+            namespaces = parse_list(ns_raw)
+            build = c.info_random_node("build").strip()
+            edition = c.info_random_node("edition").strip()
+            return {
+                "node_count": len(node_names),
+                "namespace_count": len(namespaces),
+                "build": build,
+                "edition": edition,
+            }
+
+        info = await asyncio.to_thread(_health)
+        return ConnectionStatus(
+            connected=True,
+            nodeCount=info["node_count"],
+            namespaceCount=info["namespace_count"],
+            build=info["build"],
+            edition=info["edition"],
+        )
+    except Exception:
+        return ConnectionStatus(connected=False, nodeCount=0, namespaceCount=0)
 
 
 @router.post("/{conn_id}")
@@ -71,7 +93,15 @@ async def test_connection(conn_id: str) -> dict:
     conn = await db.get_connection(conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
-    return {"success": True, "message": "Connected successfully"}
+
+    try:
+        client = await client_manager.get_client(conn_id)
+        connected = await asyncio.to_thread(client.is_connected)
+        if not connected:
+            return {"success": False, "message": "Failed to connect"}
+        return {"success": True, "message": "Connected successfully"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 @router.delete("/{conn_id}")
@@ -79,4 +109,5 @@ async def delete_connection(conn_id: str) -> dict:
     deleted = await db.delete_connection(conn_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    await client_manager.close_client(conn_id)
     return {"message": "Connection deleted"}
