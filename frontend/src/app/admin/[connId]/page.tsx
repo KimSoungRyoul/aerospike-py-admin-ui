@@ -32,6 +32,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { useAdminStore } from "@/stores/admin-store";
 import type { Privilege } from "@/lib/api/types";
+import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
 const AVAILABLE_PRIVILEGES = [
@@ -113,7 +114,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
       setNewPassword("");
       setNewUserRoles([]);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setCreatingUser(false);
     }
@@ -127,7 +128,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
       toast.success("User deleted");
       setDeleteUserTarget(null);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setDeletingUser(false);
     }
@@ -162,7 +163,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
       setNewRoleReadQuota("0");
       setNewRoleWriteQuota("0");
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setCreatingRole(false);
     }
@@ -176,7 +177,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
       toast.success("Role deleted");
       setDeleteRoleTarget(null);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setDeletingRole(false);
     }
@@ -502,7 +503,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                   toast.success("Password updated");
                   setChangePassOpen(false);
                 } catch (err) {
-                  toast.error((err as Error).message);
+                  toast.error(getErrorMessage(err));
                 } finally {
                   setChangingPass(false);
                 }

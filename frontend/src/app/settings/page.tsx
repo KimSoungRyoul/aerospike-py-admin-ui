@@ -18,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useUIStore, type Theme } from "@/stores/ui-store";
 import { CE_LIMITS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/common/page-header";
 
 const themeOptions: {
   value: Theme;
@@ -44,12 +45,7 @@ export default function SettingsPage() {
 
   return (
     <div className="animate-fade-in mx-auto max-w-2xl space-y-6 p-6 lg:p-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Application preferences and information
-        </p>
-      </div>
+      <PageHeader title="Settings" description="Application preferences and information" />
 
       {/* Appearance */}
       <Card>

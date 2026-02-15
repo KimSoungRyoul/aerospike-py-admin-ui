@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { getErrorMessage } from "@/lib/utils";
 
 const BASE_URL = "";
 const DEFAULT_TIMEOUT = 30_000;
@@ -64,7 +65,7 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
         throw new ApiError("Request timed out", 408);
       }
 
-      throw new ApiError((err as Error).message || "Network error", 0);
+      throw new ApiError(getErrorMessage(err) || "Network error", 0);
     }
   }
 

@@ -33,6 +33,15 @@ export const QUICK_COMMANDS = [
   { label: "status", command: "status" },
 ] as const;
 
+export const PRESET_COLORS = [
+  "#0097D3",
+  "#c4373a",
+  "#22c55e",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+] as const;
+
 export const BIN_TYPES = [
   "string",
   "integer",

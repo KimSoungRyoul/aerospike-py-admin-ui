@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Eye, Play, Upload, FileCode, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Trash2, Eye, Play, Upload, FileCode, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,10 +26,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { InlineAlert } from "@/components/common/inline-alert";
+import { LoadingButton } from "@/components/common/loading-button";
+import { PageHeader } from "@/components/common/page-header";
 import { CodeEditor } from "@/components/common/code-editor";
 import { api } from "@/lib/api/client";
 import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";
+import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function UDFsPage({ params }: { params: Promise<{ connId: string }> }) {
@@ -68,7 +72,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       const data = await api.getUDFs(connId);
       setUdfs(data);
     } catch (err) {
-      setError((err as Error).message);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -96,7 +100,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       setUploadContent("");
       await fetchUDFs();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setUploading(false);
     }
@@ -126,7 +130,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       setDeleteTarget(null);
       await fetchUDFs();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -153,7 +157,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       toast.success("UDF applied successfully");
       setApplyOpen(false);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setApplying(false);
     }
@@ -171,42 +175,34 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
 
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">UDF Modules</h1>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            Manage User-Defined Functions (Lua scripts)
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchUDFs}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleFileInput}>
-            <Upload className="mr-2 h-4 w-4" />
-            Upload File
-          </Button>
-          <Button
-            onClick={() => {
-              setUploadFilename("");
-              setUploadContent("");
-              setUploadOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New UDF
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="UDF Modules"
+        description="Manage User-Defined Functions (Lua scripts)"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={fetchUDFs}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleFileInput}>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload File
+            </Button>
+            <Button
+              onClick={() => {
+                setUploadFilename("");
+                setUploadContent("");
+                setUploadOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New UDF
+            </Button>
+          </>
+        }
+      />
 
-      {/* Error */}
-      {error && (
-        <div className="border-destructive/30 bg-destructive/5 text-destructive animate-fade-in rounded-lg border p-3 text-sm">
-          {error}
-        </div>
-      )}
+      <InlineAlert message={error} />
 
       {/* Table */}
       {loading ? (
@@ -315,13 +311,13 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               onClick={handleUpload}
               disabled={uploading || !uploadFilename.trim() || !uploadContent.trim()}
+              loading={uploading}
             >
-              {uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Upload
-            </Button>
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -399,13 +395,13 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             <Button variant="outline" onClick={() => setApplyOpen(false)} disabled={applying}>
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               onClick={handleApply}
               disabled={applying || !applyNs.trim() || !applyPK.trim() || !applyFunction.trim()}
+              loading={applying}
             >
-              {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Apply
-            </Button>
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

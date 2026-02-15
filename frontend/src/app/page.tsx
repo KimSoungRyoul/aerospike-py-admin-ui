@@ -38,12 +38,14 @@ import {
 import { StatusBadge } from "@/components/common/status-badge";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { InlineAlert } from "@/components/common/inline-alert";
+import { LoadingButton } from "@/components/common/loading-button";
+import { PageHeader } from "@/components/common/page-header";
 import { useConnectionStore } from "@/stores/connection-store";
 import type { ConnectionProfile } from "@/lib/api/types";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
+import { PRESET_COLORS } from "@/lib/constants";
 import { toast } from "sonner";
-
-const PRESET_COLORS = ["#0097D3", "#c4373a", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899"];
 
 interface ConnectionFormData {
   name: string;
@@ -144,7 +146,7 @@ export default function ConnectionsPage() {
       // Refresh health after create/update
       fetchAllHealth();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -176,7 +178,7 @@ export default function ConnectionsPage() {
       toast.success("Cluster deleted");
       setDeleteTarget(null);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -258,40 +260,35 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="animate-fade-in p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clusters</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage your Aerospike clusters</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleImport} className="hidden sm:flex">
-            <Import className="mr-2 h-4 w-4" />
-            Import
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={connections.length === 0}
-            className="hidden sm:flex"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">New Cluster</span>
-          </Button>
-        </div>
-      </div>
+    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
+      <PageHeader
+        title="Clusters"
+        description="Manage your Aerospike clusters"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleImport} className="hidden sm:flex">
+              <Import className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={connections.length === 0}
+              className="hidden sm:flex"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button onClick={openCreateDialog}>
+              <Plus className="mr-2 h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Cluster</span>
+            </Button>
+          </>
+        }
+      />
 
-      {error && (
-        <div className="border-destructive/30 bg-destructive/5 text-destructive animate-fade-in mb-6 rounded-lg border p-4 text-sm">
-          {error}
-        </div>
-      )}
+      <InlineAlert message={error} />
 
       {connections.length === 0 ? (
         <EmptyState
@@ -549,13 +546,13 @@ export default function ConnectionsPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               onClick={handleSave}
               disabled={saving || !form.name.trim() || !form.hosts.trim()}
+              loading={saving}
             >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingId ? "Update" : "Create"}
-            </Button>
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
