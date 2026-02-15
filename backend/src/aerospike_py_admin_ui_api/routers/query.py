@@ -1,83 +1,73 @@
 from __future__ import annotations
 
-import random
+import asyncio
+import json
+import time
 
-from fastapi import APIRouter, HTTPException
+from aerospike_py import INDEX_TYPE_LIST, predicates
+from fastapi import APIRouter
 
-from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
-from aerospike_py_admin_ui_api.models.record import AerospikeRecord
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
+MAX_QUERY_RECORDS = 10_000
 
-def _matches_predicate(record: AerospikeRecord, predicate) -> bool:
-    if predicate is None:
-        return True
 
-    bin_value = record.bins.get(predicate.bin)
-    if bin_value is None:
-        return False
-
-    op = predicate.operator
-
+def _build_predicate(pred):
+    op = pred.operator
     if op == "equals":
-        return bin_value == predicate.value
-
+        return predicates.equals(pred.bin, pred.value)
     if op == "between":
-        if not (
-            isinstance(bin_value, int | float)
-            and isinstance(predicate.value, int | float)
-            and isinstance(predicate.value2, int | float)
-        ):
-            return False
-        return predicate.value <= bin_value <= predicate.value2
-
+        return predicates.between(pred.bin, pred.value, pred.value2)
     if op == "contains":
-        if isinstance(bin_value, str) and isinstance(predicate.value, str):
-            return predicate.value.lower() in bin_value.lower()
-        if isinstance(bin_value, list):
-            return predicate.value in bin_value
-        return False
+        return predicates.contains(pred.bin, INDEX_TYPE_LIST, pred.value)
+    if op == "geo_within_region":
+        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
+        return predicates.geo_within_geojson_region(pred.bin, geo)
+    if op == "geo_contains_point":
+        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
+        return predicates.geo_contains_geojson_point(pred.bin, geo)
+    raise ValueError(f"Unknown predicate operator: {op}")
 
-    if op in ("geo_within_region", "geo_contains_point"):
-        return isinstance(bin_value, dict) and "type" in bin_value and "coordinates" in bin_value
 
-    return True
+def _execute_query_sync(conn_id: str, body: QueryRequest) -> dict:
+    c = client_manager._get_client_sync(conn_id)
+    start_time = time.monotonic()
+
+    if body.type == "query" and body.predicate:
+        q = c.query(body.namespace, body.set or "")
+        q.where(_build_predicate(body.predicate))
+        if body.selectBins:
+            q.select(*body.selectBins)
+        raw_results = q.results({"total_timeout": 30000})
+    else:
+        scan = c.scan(body.namespace, body.set or "")
+        if body.selectBins:
+            scan.select(*body.selectBins)
+        raw_results = scan.results({"total_timeout": 30000})
+
+    elapsed_ms = int((time.monotonic() - start_time) * 1000)
+    scanned = len(raw_results)
+
+    if body.maxRecords and body.maxRecords > 0:
+        raw_results = raw_results[: body.maxRecords]
+    if len(raw_results) > MAX_QUERY_RECORDS:
+        raw_results = raw_results[:MAX_QUERY_RECORDS]
+
+    records = [raw_to_record(r) for r in raw_results]
+
+    return {
+        "records": records,
+        "executionTimeMs": elapsed_ms,
+        "scannedRecords": scanned,
+        "returnedRecords": len(records),
+    }
 
 
 @router.post("/{conn_id}")
-def execute_query(conn_id: str, body: QueryRequest) -> QueryResponse:
-    conn_records = store.records.get(conn_id)
-    if not conn_records:
-        raise HTTPException(status_code=404, detail=f"No data for connection '{conn_id}'")
-
-    all_records: list[AerospikeRecord] = []
-    for key, recs in conn_records.items():
-        rec_ns, rec_set = key.split(":")
-        if rec_ns != body.namespace:
-            continue
-        if body.set and rec_set != body.set:
-            continue
-        all_records.extend(recs)
-
-    scanned = len(all_records)
-
-    if body.type == "query" and body.predicate:
-        filtered = [r for r in all_records if _matches_predicate(r, body.predicate)]
-    else:
-        filtered = all_records
-
-    if body.maxRecords and body.maxRecords > 0:
-        filtered = filtered[: body.maxRecords]
-
-    if body.selectBins:
-        select = set(body.selectBins)
-        filtered = [r.model_copy(update={"bins": {k: v for k, v in r.bins.items() if k in select}}) for r in filtered]
-
-    return QueryResponse(
-        records=filtered,
-        executionTimeMs=random.randint(5, 50),
-        scannedRecords=scanned,
-        returnedRecords=len(filtered),
-    )
+async def execute_query(conn_id: str, body: QueryRequest) -> QueryResponse:
+    result = await asyncio.to_thread(_execute_query_sync, conn_id, body)
+    return QueryResponse(**result)

@@ -185,19 +185,14 @@ def _seed_if_empty() -> None:
     if count > 0:
         return
 
-    from aerospike_py_admin_ui_api.mock_data.connections import mock_connections
-
-    for mc in mock_connections:
-        profile = ConnectionProfile(
-            id=mc.id,
-            name=mc.name,
-            hosts=mc.hosts,
-            port=mc.port,
-            clusterName=mc.clusterName,
-            username=mc.username,
-            password=mc.password,
-            color=mc.color,
-            createdAt=mc.createdAt,
-            updatedAt=mc.updatedAt,
-        )
-        _insert_sync(profile)
+    now = datetime.now(UTC).isoformat()
+    default = ConnectionProfile(
+        id="conn-default",
+        name="Default Aerospike",
+        hosts=[config.AEROSPIKE_HOST],
+        port=config.AEROSPIKE_PORT,
+        color="#0097D3",
+        createdAt=now,
+        updatedAt=now,
+    )
+    _insert_sync(default)
