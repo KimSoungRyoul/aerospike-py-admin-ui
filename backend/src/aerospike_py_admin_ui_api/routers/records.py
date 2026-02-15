@@ -5,8 +5,8 @@ import time
 
 from fastapi import APIRouter, HTTPException, Query
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.record import (
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.record import (
     AerospikeRecord,
     RecordKey,
     RecordListResponse,

@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.terminal import TerminalCommand, TerminalRequest
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.terminal import TerminalCommand, TerminalRequest
 
 router = APIRouter(prefix="/api/terminal", tags=["terminal"])
 

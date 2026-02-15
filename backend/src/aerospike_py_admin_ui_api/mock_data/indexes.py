@@ -1,4 +1,4 @@
-from aerospike_ui_api.models.index import SecondaryIndex
+from aerospike_py_admin_ui_api.models.index import SecondaryIndex
 
 mock_indexes: dict[str, list[SecondaryIndex]] = {
     "conn-1": [

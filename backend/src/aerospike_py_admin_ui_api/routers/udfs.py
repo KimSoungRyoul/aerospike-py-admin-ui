@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.udf import UDFModule
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.udf import UDFModule
 
 router = APIRouter(prefix="/api/udfs", tags=["udfs"])
 

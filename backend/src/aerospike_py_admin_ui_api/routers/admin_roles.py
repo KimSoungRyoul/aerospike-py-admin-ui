@@ -4,8 +4,8 @@ import copy
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.admin import AerospikeRole, CreateRoleRequest
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.admin import AerospikeRole, CreateRoleRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
 

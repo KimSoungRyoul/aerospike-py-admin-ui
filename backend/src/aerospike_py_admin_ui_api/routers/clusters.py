@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.cluster import ClusterInfo
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.cluster import ClusterInfo
 
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
 

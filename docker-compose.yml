@@ -1,6 +1,6 @@
 services:
   aerospike:
-    container_name: aerospike-ui-db
+    container_name: aerospike-py-admin-ui-db
     image: aerospike/aerospike-server-enterprise:8.0.0.4
     ports:
       - "${AEROSPIKE_PORT_SERVICE:-3000}:3000"
@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   backend:
-    container_name: aerospike-ui-backend
+    container_name: aerospike-py-admin-ui-backend
     build: ./backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    container_name: aerospike-ui-frontend
+    container_name: aerospike-py-admin-ui-frontend
     build: ./frontend
     ports:
       - "${FRONTEND_PORT:-3100}:3000"

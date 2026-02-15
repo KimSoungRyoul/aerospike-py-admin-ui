@@ -4,8 +4,8 @@ import copy
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
 

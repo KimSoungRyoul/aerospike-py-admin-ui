@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import time
 
-from aerospike_ui_api.models.record import AerospikeRecord, RecordKey, RecordMeta
+from aerospike_py_admin_ui_api.models.record import AerospikeRecord, RecordKey, RecordMeta
 
 # ---------------------------------------------------------------------------
 # Helpers

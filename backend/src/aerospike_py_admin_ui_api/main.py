@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from aerospike_ui_api import config
-from aerospike_ui_api.routers import (
+from aerospike_py_admin_ui_api import config
+from aerospike_py_admin_ui_api.routers import (
     admin_roles,
     admin_users,
     clusters,
@@ -15,7 +15,7 @@ from aerospike_ui_api.routers import (
     udfs,
 )
 
-app = FastAPI(title="Aerospike UI API", version="0.1.0")
+app = FastAPI(title="Aerospike Py Admin UI API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

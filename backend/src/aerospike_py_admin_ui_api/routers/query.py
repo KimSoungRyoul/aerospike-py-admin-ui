@@ -4,9 +4,9 @@ import random
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.query import QueryRequest, QueryResponse
-from aerospike_ui_api.models.record import AerospikeRecord
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
+from aerospike_py_admin_ui_api.models.record import AerospikeRecord
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 

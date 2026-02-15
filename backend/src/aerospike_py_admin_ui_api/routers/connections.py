@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
-from aerospike_ui_api import store
-from aerospike_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
+from aerospike_py_admin_ui_api import store
+from aerospike_py_admin_ui_api.models.connection import ConnectionStatus, ConnectionWithStatus
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 

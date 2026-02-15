@@ -1,7 +1,7 @@
 [project]
-name = "aerospike-ui-api"
+name = "aerospike-py-admin-ui-api"
 version = "0.1.0"
-description = "Aerospike UI Backend API"
+description = "Aerospike Py Admin UI Backend API"
 readme = "README.md"
 authors = [
     { name = "KimSoungRyoul", email = "KimSoungRyoul@gmail.com" }
@@ -37,7 +37,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["aerospike_ui_api"]
+known-first-party = ["aerospike_py_admin_ui_api"]
 
 [dependency-groups]
 dev = [

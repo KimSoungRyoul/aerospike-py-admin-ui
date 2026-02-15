@@ -1,5 +1,5 @@
 {
-  "name": "aerospike-ui",
+  "name": "aerospike-py-admin-ui",
   "version": "0.1.0",
   "private": true,
   "scripts": {
