@@ -30,6 +30,6 @@ export const useUIStore = create<UIState>()(
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
       }),
-    }
-  )
+    },
+  ),
 );

@@ -2,12 +2,7 @@
 
 import { use, useEffect, useState, useCallback } from "react";
 import { useAsyncData } from "@/hooks/use-async-data";
-import {
-  Plus,
-  Trash2,
-  RefreshCw,
-  ListTree,
-} from "lucide-react";
+import { Plus, Trash2, RefreshCw, ListTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
@@ -43,11 +38,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { api } from "@/lib/api/client";
-import type {
-  SecondaryIndex,
-  IndexType,
-  ClusterInfo,
-} from "@/lib/api/types";
+import type { SecondaryIndex, IndexType, ClusterInfo } from "@/lib/api/types";
 import { toast } from "sonner";
 
 const INDEX_TYPES: { value: IndexType; label: string }[] = [
@@ -56,9 +47,7 @@ const INDEX_TYPES: { value: IndexType; label: string }[] = [
   { value: "geo2dsphere", label: "Geo2DSphere" },
 ];
 
-function indexTypeBadgeVariant(
-  type: IndexType
-): "default" | "secondary" | "outline" {
+function indexTypeBadgeVariant(type: IndexType): "default" | "secondary" | "outline" {
   switch (type) {
     case "numeric":
       return "default";
@@ -71,11 +60,7 @@ function indexTypeBadgeVariant(
   }
 }
 
-export default function IndexesPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function IndexesPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
   const {
     data: indexes,
@@ -161,7 +146,7 @@ export default function IndexesPage({
   const namespaces = clusterInfo?.namespaces ?? [];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
         title="Secondary Indexes"
         description="Manage secondary indexes for faster queries"
@@ -201,7 +186,7 @@ export default function IndexesPage({
           }
         />
       ) : (
-        <div className="rounded-xl border border-border/60 overflow-hidden">
+        <div className="border-border/60 overflow-hidden rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -216,21 +201,18 @@ export default function IndexesPage({
             </TableHeader>
             <TableBody>
               {indexes.map((index) => (
-                <TableRow key={`${index.namespace}-${index.name}`} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-mono font-medium">
-                    {index.name}
-                  </TableCell>
+                <TableRow
+                  key={`${index.namespace}-${index.name}`}
+                  className="hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell className="font-mono font-medium">{index.name}</TableCell>
                   <TableCell>{index.namespace}</TableCell>
                   <TableCell>
-                    {index.set || (
-                      <span className="text-muted-foreground italic">all</span>
-                    )}
+                    {index.set || <span className="text-muted-foreground italic">all</span>}
                   </TableCell>
                   <TableCell className="font-mono">{index.bin}</TableCell>
                   <TableCell>
-                    <Badge variant={indexTypeBadgeVariant(index.type)}>
-                      {index.type}
-                    </Badge>
+                    <Badge variant={indexTypeBadgeVariant(index.type)}>{index.type}</Badge>
                   </TableCell>
                   <TableCell>
                     <StatusBadge
@@ -238,8 +220,8 @@ export default function IndexesPage({
                         index.state === "ready"
                           ? "ready"
                           : index.state === "building"
-                          ? "building"
-                          : "error"
+                            ? "building"
+                            : "error"
                       }
                     />
                   </TableCell>
@@ -247,7 +229,7 @@ export default function IndexesPage({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-destructive"
+                      className="text-destructive h-8 w-8 p-0"
                       onClick={() => setDeleteTarget(index)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -265,9 +247,7 @@ export default function IndexesPage({
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Create Secondary Index</DialogTitle>
-            <DialogDescription>
-              Create a new secondary index on a bin.
-            </DialogDescription>
+            <DialogDescription>Create a new secondary index on a bin.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -311,10 +291,7 @@ export default function IndexesPage({
             </div>
             <div className="grid gap-2">
               <Label>Type</Label>
-              <Select
-                value={formType}
-                onValueChange={(v) => setFormType(v as IndexType)}
-              >
+              <Select value={formType} onValueChange={(v) => setFormType(v as IndexType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -329,11 +306,7 @@ export default function IndexesPage({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateOpen(false)}
-              disabled={creating}
-            >
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
               Cancel
             </Button>
             <LoadingButton

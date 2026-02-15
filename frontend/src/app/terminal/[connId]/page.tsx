@@ -1,12 +1,7 @@
 "use client";
 
 import { use, useState, useRef, useEffect } from "react";
-import {
-  Terminal,
-  Send,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { Terminal, Send, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,14 +11,9 @@ import { useTerminal } from "@/hooks/use-terminal";
 import { QUICK_COMMANDS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-export default function TerminalPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function TerminalPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
-  const { history, loading, executeCommand, navigateHistory, clearHistory } =
-    useTerminal(connId);
+  const { history, loading, executeCommand, navigateHistory, clearHistory } = useTerminal(connId);
 
   const [input, setInput] = useState("");
   const outputEndRef = useRef<HTMLDivElement>(null);
@@ -66,13 +56,13 @@ export default function TerminalPage({
     <div className="flex h-full flex-col">
       {/* Quick Commands */}
       <div className="border-b px-4 py-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground mr-1">Quick:</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground mr-1 text-xs">Quick:</span>
           {QUICK_COMMANDS.map((qc) => (
             <Badge
               key={qc.command}
               variant="outline"
-              className="cursor-pointer hover:bg-accent text-xs transition-colors"
+              className="hover:bg-accent cursor-pointer text-xs transition-colors"
               onClick={() => handleQuickCommand(qc.command)}
             >
               {qc.label}
@@ -82,7 +72,7 @@ export default function TerminalPage({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-muted-foreground"
+            className="text-muted-foreground h-7 text-xs"
             onClick={clearHistory}
           >
             <Trash2 className="mr-1 h-3 w-3" />
@@ -93,13 +83,11 @@ export default function TerminalPage({
 
       {/* Output Area */}
       <ScrollArea className="flex-1 bg-zinc-950">
-        <div className="p-4 font-mono text-sm space-y-3">
+        <div className="space-y-3 p-4 font-mono text-sm">
           {history.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Terminal className="mb-3 h-8 w-8 text-zinc-600" />
-              <p className="text-zinc-500">
-                Type a command below or use a quick command above.
-              </p>
+              <p className="text-zinc-500">Type a command below or use a quick command above.</p>
               <p className="mt-1 text-xs text-zinc-600">
                 Use Up/Down arrows to navigate command history.
               </p>
@@ -109,7 +97,7 @@ export default function TerminalPage({
             <div key={entry.id} className="space-y-1">
               {/* Timestamp + Command */}
               <div className="flex items-start gap-2">
-                <span className="text-zinc-600 text-xs whitespace-nowrap">
+                <span className="text-xs whitespace-nowrap text-zinc-600">
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
                 <span className="text-green-400">$</span>
@@ -118,8 +106,8 @@ export default function TerminalPage({
               {/* Output */}
               <div
                 className={cn(
-                  "ml-[4.5rem] whitespace-pre-wrap break-all",
-                  entry.success ? "text-zinc-400" : "text-red-400"
+                  "ml-[4.5rem] break-all whitespace-pre-wrap",
+                  entry.success ? "text-zinc-400" : "text-red-400",
                 )}
               >
                 {entry.output}
@@ -134,14 +122,14 @@ export default function TerminalPage({
       {/* Input */}
       <div className="border-t bg-zinc-950 px-4 py-3">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <span className="text-green-400 font-mono text-sm">$</span>
+          <span className="font-mono text-sm text-green-400">$</span>
           <Input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Enter aql command..."
-            className="flex-1 border-zinc-700 bg-zinc-900 text-zinc-200 font-mono placeholder:text-zinc-600 focus-visible:ring-zinc-600"
+            className="flex-1 border-zinc-700 bg-zinc-900 font-mono text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-zinc-600"
             disabled={loading}
             autoComplete="off"
             spellCheck={false}
@@ -153,11 +141,7 @@ export default function TerminalPage({
             variant="outline"
             className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
           >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </form>
       </div>

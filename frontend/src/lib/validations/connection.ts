@@ -13,12 +13,10 @@ export const connectionFormSchema = z.object({
           .filter(Boolean).length > 0,
       "At least one valid host is required",
     ),
-  port: z
-    .string()
-    .refine((val) => {
-      const num = parseInt(val, 10);
-      return !isNaN(num) && num >= 1 && num <= 65535;
-    }, "Port must be between 1 and 65535"),
+  port: z.string().refine((val) => {
+    const num = parseInt(val, 10);
+    return !isNaN(num) && num >= 1 && num <= 65535;
+  }, "Port must be between 1 and 65535"),
   username: z.string().optional(),
   password: z.string().optional(),
   color: z.string().min(1),

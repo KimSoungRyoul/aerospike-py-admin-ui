@@ -36,7 +36,7 @@ export function useTerminal(connId: string) {
         setLoading(false);
       }
     },
-    [connId]
+    [connId],
   );
 
   const navigateHistory = useCallback(
@@ -53,7 +53,7 @@ export function useTerminal(connId: string) {
       setHistoryIndex(newIndex);
       return newIndex === -1 ? "" : commandHistory[newIndex];
     },
-    [commandHistory, historyIndex]
+    [commandHistory, historyIndex],
   );
 
   const clearHistory = useCallback(() => {

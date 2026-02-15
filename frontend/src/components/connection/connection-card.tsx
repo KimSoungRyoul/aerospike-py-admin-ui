@@ -1,19 +1,8 @@
 "use client";
 
-import {
-  Server,
-  Pencil,
-  Trash2,
-  Database,
-} from "lucide-react";
+import { Server, Pencil, Trash2, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,17 +22,11 @@ interface ConnectionCardProps {
   onDelete: () => void;
 }
 
-export function ConnectionCard({
-  conn,
-  index,
-  onClick,
-  onEdit,
-  onDelete,
-}: ConnectionCardProps) {
+export function ConnectionCard({ conn, index, onClick, onEdit, onDelete }: ConnectionCardProps) {
   return (
     <Card
       className={cn(
-        "group cursor-pointer card-interactive animate-fade-in-up",
+        "group card-interactive animate-fade-in-up cursor-pointer",
         "hover:border-accent/30",
       )}
       style={{ animationDelay: `${index * 0.05}s`, animationFillMode: "backwards" }}
@@ -53,7 +36,7 @@ export function ConnectionCard({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
             <div
-              className="h-3 w-3 rounded-full shrink-0 shadow-sm"
+              className="h-3 w-3 shrink-0 rounded-full shadow-sm"
               style={{
                 backgroundColor: conn.color,
                 boxShadow: `0 0 0 2px var(--color-card), 0 0 0 4px ${conn.color}30`,
@@ -66,7 +49,7 @@ export function ConnectionCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 <span className="sr-only">Actions</span>
@@ -112,7 +95,7 @@ export function ConnectionCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={conn.status.connected ? "connected" : "disconnected"} />
           {conn.status.connected && (
             <>
@@ -129,7 +112,7 @@ export function ConnectionCard({
           )}
         </div>
         {conn.status.connected && conn.status.build && (
-          <p className="mt-2.5 text-xs text-muted-foreground font-mono">
+          <p className="text-muted-foreground mt-2.5 font-mono text-xs">
             {conn.status.edition} {conn.status.build}
           </p>
         )}

@@ -9,10 +9,7 @@ function isRetryable(status: number): boolean {
   return status >= 500 || status === 429;
 }
 
-async function request<T>(
-  path: string,
-  options?: RequestInit & { timeout?: number },
-): Promise<T> {
+async function request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
   let lastError: Error | null = null;
 
@@ -76,8 +73,7 @@ async function request<T>(
 
 export const api = {
   // Connections
-  getConnections: () =>
-    request<import("./types").ConnectionWithStatus[]>("/api/connections"),
+  getConnections: () => request<import("./types").ConnectionWithStatus[]>("/api/connections"),
   createConnection: (data: Partial<import("./types").ConnectionProfile>) =>
     request<import("./types").ConnectionProfile>("/api/connections", {
       method: "POST",
@@ -88,16 +84,14 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  deleteConnection: (id: string) =>
-    request<void>(`/api/connections/${id}`, { method: "DELETE" }),
+  deleteConnection: (id: string) => request<void>(`/api/connections/${id}`, { method: "DELETE" }),
   testConnection: (id: string) =>
     request<{ success: boolean; message: string }>(`/api/connections/${id}`, {
       method: "POST",
     }),
 
   // Cluster
-  getCluster: (connId: string) =>
-    request<import("./types").ClusterInfo>(`/api/clusters/${connId}`),
+  getCluster: (connId: string) => request<import("./types").ClusterInfo>(`/api/clusters/${connId}`),
 
   // Records
   getRecords: (connId: string, ns: string, set: string, page = 1, pageSize = 25) =>
@@ -164,8 +158,7 @@ export const api = {
     }),
 
   // UDFs
-  getUDFs: (connId: string) =>
-    request<import("./types").UDFModule[]>(`/api/udfs/${connId}`),
+  getUDFs: (connId: string) => request<import("./types").UDFModule[]>(`/api/udfs/${connId}`),
   uploadUDF: (connId: string, data: { filename: string; content: string; type: string }) =>
     request<import("./types").UDFModule>(`/api/udfs/${connId}`, {
       method: "POST",

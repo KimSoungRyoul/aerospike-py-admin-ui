@@ -1,6 +1,6 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const variantClasses: Record<string, string> = {
   default: "btn-primary",
@@ -9,20 +9,19 @@ const variantClasses: Record<string, string> = {
   secondary: "btn-secondary",
   ghost: "btn-ghost",
   link: "btn-link",
-}
+};
 
 const sizeClasses: Record<string, string> = {
   default: "",
   sm: "btn-sm",
   lg: "btn-lg",
   icon: "btn-square",
-}
+};
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
-  size?: "default" | "sm" | "lg" | "icon"
-  asChild?: boolean
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
+  asChild?: boolean;
 }
 
 const buttonVariants = ({
@@ -30,10 +29,10 @@ const buttonVariants = ({
   size = "default",
   className,
 }: {
-  variant?: string
-  size?: string
-  className?: string
-} = {}) => cn("btn", variantClasses[variant] || "", sizeClasses[size] || "", className)
+  variant?: string;
+  size?: string;
+  className?: string;
+} = {}) => cn("btn", variantClasses[variant] || "", sizeClasses[size] || "", className);
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "default", size = "default", ...props }, ref) => {
@@ -44,14 +43,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           variantClasses[variant],
           sizeClasses[size],
           "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-          className
+          className,
         )}
         ref={ref}
         {...props}
       />
-    )
-  }
-)
-Button.displayName = "Button"
+    );
+  },
+);
+Button.displayName = "Button";
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

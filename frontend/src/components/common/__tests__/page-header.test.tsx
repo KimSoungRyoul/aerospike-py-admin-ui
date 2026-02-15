@@ -10,9 +10,7 @@ describe("PageHeader", () => {
   });
 
   it("renders description when provided", () => {
-    render(
-      <PageHeader title="Test" description="Some description text" />,
-    );
+    render(<PageHeader title="Test" description="Some description text" />);
     expect(screen.getByText("Some description text")).toBeInTheDocument();
   });
 
@@ -22,22 +20,12 @@ describe("PageHeader", () => {
   });
 
   it("renders actions when provided", () => {
-    render(
-      <PageHeader
-        title="Test"
-        actions={<button>Refresh</button>}
-      />,
-    );
+    render(<PageHeader title="Test" actions={<button>Refresh</button>} />);
     expect(screen.getByText("Refresh")).toBeInTheDocument();
   });
 
   it("renders ReactNode description", () => {
-    render(
-      <PageHeader
-        title="Test"
-        description={<span data-testid="custom-desc">Custom</span>}
-      />,
-    );
+    render(<PageHeader title="Test" description={<span data-testid="custom-desc">Custom</span>} />);
     expect(screen.getByTestId("custom-desc")).toBeInTheDocument();
   });
 });

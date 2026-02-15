@@ -16,13 +16,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -41,12 +35,7 @@ import { useAsyncData } from "@/hooks/use-async-data";
 import { useMetricsStore } from "@/stores/metrics-store";
 import { api } from "@/lib/api/client";
 import type { ClusterInfo, ClusterMetrics, MetricPoint, MetricSeries } from "@/lib/api/types";
-import {
-  formatBytes,
-  formatNumber,
-  formatUptime,
-  formatPercent,
-} from "@/lib/formatters";
+import { formatBytes, formatNumber, formatUptime, formatPercent } from "@/lib/formatters";
 import { CE_LIMITS, METRIC_INTERVAL_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
@@ -121,23 +110,33 @@ function generatePrometheusMetrics(metrics: ClusterMetrics): string {
   lines.push("");
   lines.push("# HELP aerospike_client_connections Current client connections");
   lines.push("# TYPE aerospike_client_connections gauge");
-  lines.push(`aerospike_client_connections{cluster="${metrics.connectionId}"} ${metrics.clientConnections}`);
+  lines.push(
+    `aerospike_client_connections{cluster="${metrics.connectionId}"} ${metrics.clientConnections}`,
+  );
   lines.push("");
   lines.push("# HELP aerospike_read_reqs_total Total read requests");
   lines.push("# TYPE aerospike_read_reqs_total counter");
-  lines.push(`aerospike_read_reqs_total{cluster="${metrics.connectionId}"} ${metrics.totalReadReqs}`);
+  lines.push(
+    `aerospike_read_reqs_total{cluster="${metrics.connectionId}"} ${metrics.totalReadReqs}`,
+  );
   lines.push("");
   lines.push("# HELP aerospike_write_reqs_total Total write requests");
   lines.push("# TYPE aerospike_write_reqs_total counter");
-  lines.push(`aerospike_write_reqs_total{cluster="${metrics.connectionId}"} ${metrics.totalWriteReqs}`);
+  lines.push(
+    `aerospike_write_reqs_total{cluster="${metrics.connectionId}"} ${metrics.totalWriteReqs}`,
+  );
   lines.push("");
   lines.push("# HELP aerospike_read_success_total Total successful reads");
   lines.push("# TYPE aerospike_read_success_total counter");
-  lines.push(`aerospike_read_success_total{cluster="${metrics.connectionId}"} ${metrics.totalReadSuccess}`);
+  lines.push(
+    `aerospike_read_success_total{cluster="${metrics.connectionId}"} ${metrics.totalReadSuccess}`,
+  );
   lines.push("");
   lines.push("# HELP aerospike_write_success_total Total successful writes");
   lines.push("# TYPE aerospike_write_success_total counter");
-  lines.push(`aerospike_write_success_total{cluster="${metrics.connectionId}"} ${metrics.totalWriteSuccess}`);
+  lines.push(
+    `aerospike_write_success_total{cluster="${metrics.connectionId}"} ${metrics.totalWriteSuccess}`,
+  );
 
   for (const ns of metrics.namespaces) {
     lines.push("");
@@ -147,19 +146,27 @@ function generatePrometheusMetrics(metrics: ClusterMetrics): string {
     lines.push("");
     lines.push("# HELP aerospike_namespace_memory_used_bytes Memory used in bytes");
     lines.push("# TYPE aerospike_namespace_memory_used_bytes gauge");
-    lines.push(`aerospike_namespace_memory_used_bytes{namespace="${ns.namespace}"} ${ns.memoryUsed}`);
+    lines.push(
+      `aerospike_namespace_memory_used_bytes{namespace="${ns.namespace}"} ${ns.memoryUsed}`,
+    );
     lines.push("");
     lines.push("# HELP aerospike_namespace_memory_total_bytes Total memory");
     lines.push("# TYPE aerospike_namespace_memory_total_bytes gauge");
-    lines.push(`aerospike_namespace_memory_total_bytes{namespace="${ns.namespace}"} ${ns.memoryTotal}`);
+    lines.push(
+      `aerospike_namespace_memory_total_bytes{namespace="${ns.namespace}"} ${ns.memoryTotal}`,
+    );
     lines.push("");
     lines.push("# HELP aerospike_namespace_device_used_bytes Device storage used");
     lines.push("# TYPE aerospike_namespace_device_used_bytes gauge");
-    lines.push(`aerospike_namespace_device_used_bytes{namespace="${ns.namespace}"} ${ns.deviceUsed}`);
+    lines.push(
+      `aerospike_namespace_device_used_bytes{namespace="${ns.namespace}"} ${ns.deviceUsed}`,
+    );
     lines.push("");
     lines.push("# HELP aerospike_namespace_device_total_bytes Total device storage");
     lines.push("# TYPE aerospike_namespace_device_total_bytes gauge");
-    lines.push(`aerospike_namespace_device_total_bytes{namespace="${ns.namespace}"} ${ns.deviceTotal}`);
+    lines.push(
+      `aerospike_namespace_device_total_bytes{namespace="${ns.namespace}"} ${ns.deviceTotal}`,
+    );
     lines.push("");
     lines.push("# HELP aerospike_namespace_read_reqs Namespace read requests");
     lines.push("# TYPE aerospike_namespace_read_reqs counter");
@@ -177,11 +184,7 @@ function generatePrometheusMetrics(metrics: ClusterMetrics): string {
 // Page
 // ---------------------------------------------------------------------------
 
-export default function ClusterPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function ClusterPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
 
   // Static cluster data
@@ -193,8 +196,14 @@ export default function ClusterPage({
   } = useAsyncData(() => api.getCluster(connId), [connId]);
 
   // Real-time metrics
-  const { metrics, loading: metricsLoading, error: metricsError, startPolling, stopPolling, fetchMetrics } =
-    useMetricsStore();
+  const {
+    metrics,
+    loading: metricsLoading,
+    error: metricsError,
+    startPolling,
+    stopPolling,
+    fetchMetrics,
+  } = useMetricsStore();
   const [promSearch, setPromSearch] = useState("");
 
   useEffect(() => {
@@ -219,15 +228,12 @@ export default function ClusterPage({
     () => (metrics ? buildNsChartData(metrics.deviceUsageByNs) : []),
     [metrics],
   );
-  const promText = useMemo(
-    () => (metrics ? generatePrometheusMetrics(metrics) : ""),
-    [metrics],
-  );
+  const promText = useMemo(() => (metrics ? generatePrometheusMetrics(metrics) : ""), [metrics]);
 
   // Loading state
   if (clusterLoading) {
     return (
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="space-y-6 p-6 lg:p-8">
         <div className="grid gap-4 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-[100px] rounded-xl" />
@@ -273,17 +279,19 @@ export default function ClusterPage({
     : promText;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
         title="Cluster"
-        description={<>{edition} &middot; Build {build}</>}
+        description={
+          <>
+            {edition} &middot; Build {build}
+          </>
+        }
         actions={
           <div className="flex items-center gap-3">
             {metrics && (
               <>
-                <StatusBadge
-                  status={metrics.connected ? "live" : "disconnected"}
-                />
+                <StatusBadge status={metrics.connected ? "live" : "disconnected"} />
                 <Badge variant="outline" className="font-mono text-xs">
                   {METRIC_INTERVAL_MS / 1000}s interval
                 </Badge>
@@ -301,14 +309,14 @@ export default function ClusterPage({
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="card-interactive">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
-              <Server className="h-3.5 w-3.5 text-accent" />
+            <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
+              <Server className="text-accent h-3.5 w-3.5" />
               Nodes
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold metric-value">{cluster.nodes.length}</div>
-            <p className="mt-1 text-xs text-muted-foreground font-mono">
+            <div className="metric-value text-3xl font-bold">{cluster.nodes.length}</div>
+            <p className="text-muted-foreground mt-1 font-mono text-xs">
               {edition} {build}
             </p>
           </CardContent>
@@ -316,16 +324,14 @@ export default function ClusterPage({
 
         <Card className="card-interactive">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
-              <Database className="h-3.5 w-3.5 text-accent" />
+            <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
+              <Database className="text-accent h-3.5 w-3.5" />
               Namespaces
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold metric-value">
-              {cluster.namespaces.length}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <div className="metric-value text-3xl font-bold">{cluster.namespaces.length}</div>
+            <p className="text-muted-foreground mt-1 text-xs">
               {cluster.namespaces.map((n) => n.name).join(", ")}
             </p>
           </CardContent>
@@ -333,8 +339,8 @@ export default function ClusterPage({
 
         <Card className="card-interactive">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
-              <Network className="h-3.5 w-3.5 text-accent" />
+            <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
+              <Network className="text-accent h-3.5 w-3.5" />
               Node Names
             </CardDescription>
           </CardHeader>
@@ -372,7 +378,7 @@ export default function ClusterPage({
         </TabsList>
 
         {/* === Nodes Tab === */}
-        <TabsContent value="nodes" className="space-y-4 mt-4">
+        <TabsContent value="nodes" className="mt-4 space-y-4">
           {cluster.nodes.length === 0 ? (
             <EmptyState
               icon={Server}
@@ -389,9 +395,7 @@ export default function ClusterPage({
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base font-mono">
-                        {node.name}
-                      </CardTitle>
+                      <CardTitle className="font-mono text-base">{node.name}</CardTitle>
                       <StatusBadge status="connected" label="Active" />
                     </div>
                     <CardDescription className="font-mono text-xs">
@@ -401,29 +405,39 @@ export default function ClusterPage({
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Build</span>
-                        <p className="font-medium mt-0.5">{node.build}</p>
+                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                          Build
+                        </span>
+                        <p className="mt-0.5 font-medium">{node.build}</p>
                       </div>
                       <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Edition</span>
-                        <p className="font-medium mt-0.5">{node.edition}</p>
+                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                          Edition
+                        </span>
+                        <p className="mt-0.5 font-medium">{node.edition}</p>
                       </div>
                       <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Uptime</span>
-                        <p className="font-medium mt-0.5 flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                          Uptime
+                        </span>
+                        <p className="mt-0.5 flex items-center gap-1 font-medium">
+                          <Clock className="text-muted-foreground h-3 w-3" />
                           {formatUptime(node.uptime)}
                         </p>
                       </div>
                       <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Connections</span>
-                        <p className="font-medium mt-0.5 metric-value">
+                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                          Connections
+                        </span>
+                        <p className="metric-value mt-0.5 font-medium">
                           {formatNumber(node.clientConnections)}
                         </p>
                       </div>
                       <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Cluster Size</span>
-                        <p className="font-medium mt-0.5 metric-value">{node.clusterSize}</p>
+                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                          Cluster Size
+                        </span>
+                        <p className="metric-value mt-0.5 font-medium">{node.clusterSize}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -434,7 +448,7 @@ export default function ClusterPage({
         </TabsContent>
 
         {/* === Namespaces Tab === */}
-        <TabsContent value="namespaces" className="space-y-4 mt-4">
+        <TabsContent value="namespaces" className="mt-4 space-y-4">
           {cluster.namespaces.length >= CE_LIMITS.MAX_NAMESPACES && (
             <CELimitBanner type="namespaces" />
           )}
@@ -459,17 +473,13 @@ export default function ClusterPage({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
                           <CardTitle className="text-base">{ns.name}</CardTitle>
-                          <Badge variant="secondary" className="text-[11px] font-mono">
+                          <Badge variant="secondary" className="font-mono text-[11px]">
                             {formatNumber(ns.objects)} objects
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          {ns.stopWrites && (
-                            <StatusBadge status="error" label="Stop Writes" />
-                          )}
-                          {ns.hwmBreached && (
-                            <StatusBadge status="warning" label="HWM Breached" />
-                          )}
+                          {ns.stopWrites && <StatusBadge status="error" label="Stop Writes" />}
+                          {ns.hwmBreached && <StatusBadge status="warning" label="HWM Breached" />}
                           {!ns.stopWrites && !ns.hwmBreached && (
                             <StatusBadge status="ready" label="Healthy" />
                           )}
@@ -484,7 +494,8 @@ export default function ClusterPage({
                             Memory
                           </span>
                           <span className="font-mono text-xs">
-                            {formatBytes(ns.memoryUsed)} / {formatBytes(ns.memoryTotal)} ({memPercent}%)
+                            {formatBytes(ns.memoryUsed)} / {formatBytes(ns.memoryTotal)} (
+                            {memPercent}%)
                           </span>
                         </div>
                         <Progress
@@ -500,7 +511,8 @@ export default function ClusterPage({
                               Device
                             </span>
                             <span className="font-mono text-xs">
-                              {formatBytes(ns.deviceUsed)} / {formatBytes(ns.deviceTotal)} ({devPercent}%)
+                              {formatBytes(ns.deviceUsed)} / {formatBytes(ns.deviceTotal)} (
+                              {devPercent}%)
                             </span>
                           </div>
                           <Progress
@@ -511,37 +523,43 @@ export default function ClusterPage({
                       )}
                       <div className="flex flex-wrap gap-4 text-sm">
                         <div>
-                          <span className="text-xs text-muted-foreground uppercase tracking-wider">Replication</span>
-                          <p className="font-medium metric-value">{ns.replicationFactor}</p>
+                          <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                            Replication
+                          </span>
+                          <p className="metric-value font-medium">{ns.replicationFactor}</p>
                         </div>
                         <div>
-                          <span className="text-xs text-muted-foreground uppercase tracking-wider">HWM Memory</span>
-                          <p className="font-medium metric-value">{ns.highWaterMemoryPct}%</p>
+                          <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                            HWM Memory
+                          </span>
+                          <p className="metric-value font-medium">{ns.highWaterMemoryPct}%</p>
                         </div>
                         <div>
-                          <span className="text-xs text-muted-foreground uppercase tracking-wider">HWM Disk</span>
-                          <p className="font-medium metric-value">{ns.highWaterDiskPct}%</p>
+                          <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                            HWM Disk
+                          </span>
+                          <p className="metric-value font-medium">{ns.highWaterDiskPct}%</p>
                         </div>
                       </div>
                       {ns.sets.length > 0 && (
                         <>
                           <Separator />
                           <div>
-                            <h4 className="text-xs font-medium mb-2.5 uppercase tracking-wider text-muted-foreground">
+                            <h4 className="text-muted-foreground mb-2.5 text-xs font-medium tracking-wider uppercase">
                               Sets ({ns.sets.length})
                             </h4>
                             <div className="grid gap-2 sm:grid-cols-2">
                               {ns.sets.map((s) => (
                                 <div
                                   key={s.name}
-                                  className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm hover:bg-muted/30 transition-colors"
+                                  className="border-border/60 hover:bg-muted/30 flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors"
                                 >
-                                  <span className="font-medium text-sm">{s.name}</span>
+                                  <span className="text-sm font-medium">{s.name}</span>
                                   <div className="flex items-center gap-1.5">
-                                    <Badge variant="outline" className="text-[11px] font-mono">
+                                    <Badge variant="outline" className="font-mono text-[11px]">
                                       {formatNumber(s.objects)} obj
                                     </Badge>
-                                    <Badge variant="outline" className="text-[11px] font-mono">
+                                    <Badge variant="outline" className="font-mono text-[11px]">
                                       {formatBytes(s.memoryDataBytes)}
                                     </Badge>
                                   </div>
@@ -560,7 +578,7 @@ export default function ClusterPage({
         </TabsContent>
 
         {/* === Metrics Tab === */}
-        <TabsContent value="metrics" className="space-y-6 mt-4">
+        <TabsContent value="metrics" className="mt-4 space-y-6">
           {!metrics ? (
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -609,11 +627,7 @@ export default function ClusterPage({
                   value={formatNumber(metrics.clientConnections)}
                   icon={Wifi}
                 />
-                <StatCard
-                  label="Uptime"
-                  value={formatUptime(metrics.uptime)}
-                  icon={Clock}
-                />
+                <StatCard label="Uptime" value={formatUptime(metrics.uptime)} icon={Clock} />
               </div>
 
               {/* Charts 2x2 grid */}
@@ -628,12 +642,35 @@ export default function ClusterPage({
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={tpsData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="time" tick={{ fontSize: 11 }} className="text-muted-foreground" interval="preserveStartEnd" />
-                          <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" width={45} />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            width={45}
+                          />
                           <RechartsTooltip content={<ChartTooltipContent />} />
                           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                          <Line type="monotone" dataKey="reads" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} name="Reads" />
-                          <Line type="monotone" dataKey="writes" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} name="Writes" />
+                          <Line
+                            type="monotone"
+                            dataKey="reads"
+                            stroke="hsl(var(--chart-1))"
+                            strokeWidth={2}
+                            dot={false}
+                            name="Reads"
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="writes"
+                            stroke="hsl(var(--chart-2))"
+                            strokeWidth={2}
+                            dot={false}
+                            name="Writes"
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -650,10 +687,26 @@ export default function ClusterPage({
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={connData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="time" tick={{ fontSize: 11 }} className="text-muted-foreground" interval="preserveStartEnd" />
-                          <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" width={45} />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            width={45}
+                          />
                           <RechartsTooltip content={<ChartTooltipContent />} />
-                          <Line type="monotone" dataKey="connections" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={false} name="Connections" />
+                          <Line
+                            type="monotone"
+                            dataKey="connections"
+                            stroke="hsl(var(--chart-3))"
+                            strokeWidth={2}
+                            dot={false}
+                            name="Connections"
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -662,7 +715,7 @@ export default function ClusterPage({
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
                       <Database className="h-4 w-4" />
                       Memory Usage by Namespace
                     </CardTitle>
@@ -673,12 +726,33 @@ export default function ClusterPage({
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={memData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="time" tick={{ fontSize: 11 }} className="text-muted-foreground" interval="preserveStartEnd" />
-                          <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" width={45} domain={[0, "auto"]} unit="%" />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            width={45}
+                            domain={[0, "auto"]}
+                            unit="%"
+                          />
                           <RechartsTooltip content={<ChartTooltipContent />} />
                           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                           {metrics.memoryUsageByNs.map((s) => (
-                            <Area key={s.name} type="monotone" dataKey={s.label} stackId="mem" stroke={s.color} fill={s.color} fillOpacity={0.3} strokeWidth={2} name={s.label} />
+                            <Area
+                              key={s.name}
+                              type="monotone"
+                              dataKey={s.label}
+                              stackId="mem"
+                              stroke={s.color}
+                              fill={s.color}
+                              fillOpacity={0.3}
+                              strokeWidth={2}
+                              name={s.label}
+                            />
                           ))}
                         </AreaChart>
                       </ResponsiveContainer>
@@ -688,23 +762,46 @@ export default function ClusterPage({
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
                       <HardDrive className="h-4 w-4" />
                       Device Usage by Namespace
                     </CardTitle>
-                    <CardDescription>Percentage of device storage used per namespace</CardDescription>
+                    <CardDescription>
+                      Percentage of device storage used per namespace
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={devData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="time" tick={{ fontSize: 11 }} className="text-muted-foreground" interval="preserveStartEnd" />
-                          <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" width={45} domain={[0, "auto"]} unit="%" />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11 }}
+                            className="text-muted-foreground"
+                            width={45}
+                            domain={[0, "auto"]}
+                            unit="%"
+                          />
                           <RechartsTooltip content={<ChartTooltipContent />} />
                           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                           {metrics.deviceUsageByNs.map((s) => (
-                            <Area key={s.name} type="monotone" dataKey={s.label} stackId="dev" stroke={s.color} fill={s.color} fillOpacity={0.3} strokeWidth={2} name={s.label} />
+                            <Area
+                              key={s.name}
+                              type="monotone"
+                              dataKey={s.label}
+                              stackId="dev"
+                              stroke={s.color}
+                              fill={s.color}
+                              fillOpacity={0.3}
+                              strokeWidth={2}
+                              name={s.label}
+                            />
                           ))}
                         </AreaChart>
                       </ResponsiveContainer>
@@ -715,7 +812,7 @@ export default function ClusterPage({
 
               {/* Namespace detail cards */}
               <div>
-                <h2 className="text-lg font-semibold mb-3 tracking-tight">Namespace Metrics</h2>
+                <h2 className="mb-3 text-lg font-semibold tracking-tight">Namespace Metrics</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {metrics.namespaces.map((ns) => {
                     const memPct = formatPercent(ns.memoryUsed, ns.memoryTotal);
@@ -735,37 +832,61 @@ export default function ClusterPage({
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">Memory</span>
                               <span className="font-mono text-xs">
-                                {formatBytes(ns.memoryUsed)} / {formatBytes(ns.memoryTotal)} ({memPct}%)
+                                {formatBytes(ns.memoryUsed)} / {formatBytes(ns.memoryTotal)} (
+                                {memPct}%)
                               </span>
                             </div>
-                            <Progress value={memPct} className={cn("h-2", memPct > 80 && "[&>div]:bg-red-500")} />
+                            <Progress
+                              value={memPct}
+                              className={cn("h-2", memPct > 80 && "[&>div]:bg-red-500")}
+                            />
                           </div>
                           <div className="space-y-1">
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">Device</span>
                               <span className="font-mono text-xs">
-                                {formatBytes(ns.deviceUsed)} / {formatBytes(ns.deviceTotal)} ({devPct}%)
+                                {formatBytes(ns.deviceUsed)} / {formatBytes(ns.deviceTotal)} (
+                                {devPct}%)
                               </span>
                             </div>
-                            <Progress value={devPct} className={cn("h-2", devPct > 80 && "[&>div]:bg-red-500")} />
+                            <Progress
+                              value={devPct}
+                              className={cn("h-2", devPct > 80 && "[&>div]:bg-red-500")}
+                            />
                           </div>
                           <Separator />
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <span className="text-xs text-muted-foreground uppercase tracking-wider">Reads</span>
-                              <p className="font-mono font-medium metric-value">{formatNumber(ns.readReqs)}</p>
+                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                                Reads
+                              </span>
+                              <p className="metric-value font-mono font-medium">
+                                {formatNumber(ns.readReqs)}
+                              </p>
                             </div>
                             <div>
-                              <span className="text-xs text-muted-foreground uppercase tracking-wider">Writes</span>
-                              <p className="font-mono font-medium metric-value">{formatNumber(ns.writeReqs)}</p>
+                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                                Writes
+                              </span>
+                              <p className="metric-value font-mono font-medium">
+                                {formatNumber(ns.writeReqs)}
+                              </p>
                             </div>
                             <div>
-                              <span className="text-xs text-muted-foreground uppercase tracking-wider">Read Success</span>
-                              <p className="font-mono font-medium metric-value">{formatNumber(ns.readSuccess)}</p>
+                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                                Read Success
+                              </span>
+                              <p className="metric-value font-mono font-medium">
+                                {formatNumber(ns.readSuccess)}
+                              </p>
                             </div>
                             <div>
-                              <span className="text-xs text-muted-foreground uppercase tracking-wider">Write Success</span>
-                              <p className="font-mono font-medium metric-value">{formatNumber(ns.writeSuccess)}</p>
+                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                                Write Success
+                              </span>
+                              <p className="metric-value font-mono font-medium">
+                                {formatNumber(ns.writeSuccess)}
+                              </p>
                             </div>
                           </div>
                         </CardContent>
@@ -779,7 +900,7 @@ export default function ClusterPage({
         </TabsContent>
 
         {/* === Prometheus Tab === */}
-        <TabsContent value="prometheus" className="space-y-4 mt-4">
+        <TabsContent value="prometheus" className="mt-4 space-y-4">
           {!metrics ? (
             <Skeleton className="h-[500px] rounded-lg" />
           ) : (
@@ -788,22 +909,24 @@ export default function ClusterPage({
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base">Prometheus Metrics</CardTitle>
-                    <CardDescription>OpenMetrics-compatible output from aerospike-py</CardDescription>
+                    <CardDescription>
+                      OpenMetrics-compatible output from aerospike-py
+                    </CardDescription>
                   </div>
                   <div className="relative w-64">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
                     <Input
                       placeholder="Filter metrics..."
                       value={promSearch}
                       onChange={(e) => setPromSearch(e.target.value)}
-                      className="pl-8 h-9"
+                      className="h-9 pl-8"
                     />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[500px]">
-                  <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all">
+                  <pre className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
                     {filteredPromLines.split("\n").map((line, i) => {
                       const isComment = line.startsWith("#");
                       const isHelp = line.startsWith("# HELP");
@@ -815,7 +938,7 @@ export default function ClusterPage({
                             isHelp && "text-muted-foreground",
                             isType && "text-muted-foreground italic",
                             !isComment && line.trim() && "text-foreground",
-                            !line.trim() && "h-2"
+                            !line.trim() && "h-2",
                           )}
                         >
                           {line}

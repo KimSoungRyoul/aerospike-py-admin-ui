@@ -26,14 +26,14 @@ export class ErrorBoundary extends React.Component<
       if (this.props.fallback) return this.props.fallback;
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center">
-          <AlertTriangle className="h-8 w-8 text-destructive mb-3" />
+          <AlertTriangle className="text-destructive mb-3 h-8 w-8" />
           <h3 className="text-lg font-semibold">Something went wrong</h3>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             {this.state.error?.message || "An unexpected error occurred"}
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: undefined })}
-            className="mt-4 text-sm text-accent underline"
+            className="text-accent mt-4 text-sm underline"
           >
             Try again
           </button>

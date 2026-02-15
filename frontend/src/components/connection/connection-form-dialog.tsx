@@ -14,14 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const PRESET_COLORS = [
-  "#0097D3",
-  "#c4373a",
-  "#22c55e",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-];
+const PRESET_COLORS = ["#0097D3", "#c4373a", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899"];
 
 export interface ConnectionFormData {
   name: string;
@@ -143,8 +136,8 @@ export function ConnectionFormDialog({
                   className={cn(
                     "h-8 w-8 rounded-full transition-all duration-150",
                     form.color === color
-                      ? "ring-2 ring-offset-2 ring-offset-background scale-110"
-                      : "hover:scale-110 opacity-70 hover:opacity-100",
+                      ? "ring-offset-background scale-110 ring-2 ring-offset-2"
+                      : "opacity-70 hover:scale-110 hover:opacity-100",
                   )}
                   style={{
                     backgroundColor: color,
@@ -162,7 +155,7 @@ export function ConnectionFormDialog({
           {testResult && (
             <div
               className={cn(
-                "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm animate-scale-in",
+                "animate-scale-in flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm",
                 testResult.success
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300"
                   : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300",
@@ -198,10 +191,7 @@ export function ConnectionFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            onClick={onSave}
-            disabled={saving || !form.name.trim() || !form.hosts.trim()}
-          >
+          <Button onClick={onSave} disabled={saving || !form.name.trim() || !form.hosts.trim()}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {editingId ? "Update" : "Create"}
           </Button>

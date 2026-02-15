@@ -4,16 +4,12 @@ import { ChartTooltipContent } from "../chart-tooltip";
 
 describe("ChartTooltipContent", () => {
   it("renders nothing when not active", () => {
-    const { container } = render(
-      <ChartTooltipContent active={false} payload={[]} label="test" />,
-    );
+    const { container } = render(<ChartTooltipContent active={false} payload={[]} label="test" />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders nothing when payload is empty", () => {
-    const { container } = render(
-      <ChartTooltipContent active={true} payload={[]} label="test" />,
-    );
+    const { container } = render(<ChartTooltipContent active={true} payload={[]} label="test" />);
     expect(container.firstChild).toBeNull();
   });
 

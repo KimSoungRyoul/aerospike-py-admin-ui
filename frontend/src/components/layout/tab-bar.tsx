@@ -1,15 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Table2,
-  Server,
-  SearchCode,
-  Database,
-  Shield,
-  Code2,
-  Terminal,
-} from "lucide-react";
+import { Table2, Server, SearchCode, Database, Shield, Code2, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -36,7 +28,7 @@ export function TabBar({ connId }: TabBarProps) {
   };
 
   return (
-    <div className="relative border-b bg-card/60 backdrop-blur-sm">
+    <div className="bg-card/60 relative border-b backdrop-blur-sm">
       <ScrollArea className="w-full">
         <div className="flex h-10 items-center gap-0 px-1">
           {tabs.map((tab) => {
@@ -46,19 +38,18 @@ export function TabBar({ connId }: TabBarProps) {
                 key={tab.path}
                 onClick={() => handleClick(tab.path)}
                 className={cn(
-                  "relative flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-md mx-0.5",
+                  "relative mx-0.5 flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                   isActive
                     ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                 )}
               >
-                <tab.icon className={cn(
-                  "h-3.5 w-3.5 transition-colors",
-                  isActive ? "text-accent" : ""
-                )} />
+                <tab.icon
+                  className={cn("h-3.5 w-3.5 transition-colors", isActive ? "text-accent" : "")}
+                />
                 {tab.label}
                 {isActive && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-accent" />
+                  <span className="bg-accent absolute right-2 bottom-0 left-2 h-0.5 rounded-full" />
                 )}
               </button>
             );

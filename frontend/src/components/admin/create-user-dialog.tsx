@@ -81,7 +81,7 @@ export function CreateUserDialog({
           </div>
           <div className="grid gap-2">
             <Label>Roles</Label>
-            <div className="rounded-md border p-3 space-y-2 max-h-[200px] overflow-auto">
+            <div className="max-h-[200px] space-y-2 overflow-auto rounded-md border p-3">
               {roles.length > 0
                 ? roles.map((role) => (
                     <div key={role.name} className="flex items-center gap-2">
@@ -90,7 +90,7 @@ export function CreateUserDialog({
                         checked={selectedRoles.includes(role.name)}
                         onCheckedChange={() => onToggleRole(role.name)}
                       />
-                      <label htmlFor={`urole-${role.name}`} className="text-sm cursor-pointer">
+                      <label htmlFor={`urole-${role.name}`} className="cursor-pointer text-sm">
                         {role.name}
                       </label>
                     </div>
@@ -102,7 +102,7 @@ export function CreateUserDialog({
                         checked={selectedRoles.includes(priv)}
                         onCheckedChange={() => onToggleRole(priv)}
                       />
-                      <label htmlFor={`upriv-${priv}`} className="text-sm cursor-pointer">
+                      <label htmlFor={`upriv-${priv}`} className="cursor-pointer text-sm">
                         {priv}
                       </label>
                     </div>
@@ -114,10 +114,7 @@ export function CreateUserDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating}>
             Cancel
           </Button>
-          <Button
-            onClick={onSubmit}
-            disabled={creating || !username.trim() || !password.trim()}
-          >
+          <Button onClick={onSubmit} disabled={creating || !username.trim() || !password.trim()}>
             {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create
           </Button>

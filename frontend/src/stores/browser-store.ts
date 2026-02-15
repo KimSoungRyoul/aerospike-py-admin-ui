@@ -17,7 +17,13 @@ interface BrowserState {
 
   setNamespace: (ns: string | null) => void;
   setSet: (set: string | null) => void;
-  fetchRecords: (connId: string, ns: string, set: string, page?: number, pageSize?: number) => Promise<void>;
+  fetchRecords: (
+    connId: string,
+    ns: string,
+    set: string,
+    page?: number,
+    pageSize?: number,
+  ) => Promise<void>;
   putRecord: (connId: string, data: RecordWriteRequest) => Promise<void>;
   deleteRecord: (connId: string, ns: string, set: string, pk: string) => Promise<void>;
   setPage: (page: number) => void;
@@ -84,13 +90,14 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
 
   setPage: (page) => set({ page }),
   setPageSize: (pageSize) => set({ pageSize, page: 1 }),
-  reset: () => set({
-    records: [],
-    total: 0,
-    page: 1,
-    hasMore: false,
-    selectedNamespace: null,
-    selectedSet: null,
-    error: null,
-  }),
+  reset: () =>
+    set({
+      records: [],
+      total: 0,
+      page: 1,
+      hasMore: false,
+      selectedNamespace: null,
+      selectedSet: null,
+      error: null,
+    }),
 }));

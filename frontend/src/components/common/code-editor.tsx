@@ -6,7 +6,7 @@ import { useUIStore } from "@/stores/ui-store";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react").then((m) => m.default), {
   ssr: false,
-  loading: () => <Skeleton className="h-full w-full min-h-[200px]" />,
+  loading: () => <Skeleton className="h-full min-h-[200px] w-full" />,
 });
 
 interface CodeEditorProps {

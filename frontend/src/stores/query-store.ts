@@ -1,10 +1,5 @@
 import { create } from "zustand";
-import type {
-  AerospikeRecord,
-  QueryType,
-  QueryPredicate,
-  QueryResponse,
-} from "@/lib/api/types";
+import type { AerospikeRecord, QueryType, QueryPredicate, QueryResponse } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
 interface QueryState {

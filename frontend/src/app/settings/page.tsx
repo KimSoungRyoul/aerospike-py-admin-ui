@@ -12,20 +12,19 @@ import {
   HardDrive,
   Trash2,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useUIStore, type Theme } from "@/stores/ui-store";
 import { CE_LIMITS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const themeOptions: { value: Theme; label: string; icon: React.ElementType; description: string }[] = [
+const themeOptions: {
+  value: Theme;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+}[] = [
   { value: "light", label: "Light", icon: Sun, description: "Clean, bright interface" },
   { value: "dark", label: "Dark", icon: Moon, description: "Easy on the eyes" },
   { value: "system", label: "System", icon: Monitor, description: "Follow OS preference" },
@@ -42,10 +41,10 @@ export default function SettingsPage() {
   if (!mounted) return null;
 
   return (
-    <div className="mx-auto max-w-2xl p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="animate-fade-in mx-auto max-w-2xl space-y-6 p-6 lg:p-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-1 text-sm">
           Application preferences and information
         </p>
       </div>
@@ -54,9 +53,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Appearance</CardTitle>
-          <CardDescription>
-            Customize the look and feel of the application
-          </CardDescription>
+          <CardDescription>Customize the look and feel of the application</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
@@ -68,29 +65,25 @@ export default function SettingsPage() {
                   "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all duration-200",
                   theme === opt.value
                     ? "border-accent bg-accent/5 shadow-sm"
-                    : "border-border/60 hover:border-accent/40 hover:bg-muted/30"
+                    : "border-border/60 hover:border-accent/40 hover:bg-muted/30",
                 )}
               >
                 <opt.icon
                   className={cn(
                     "h-6 w-6 transition-colors",
-                    theme === opt.value
-                      ? "text-accent"
-                      : "text-muted-foreground"
+                    theme === opt.value ? "text-accent" : "text-muted-foreground",
                   )}
                 />
                 <div className="text-center">
                   <span
                     className={cn(
-                      "text-sm font-medium block",
-                      theme === opt.value
-                        ? "text-accent"
-                        : "text-foreground"
+                      "block text-sm font-medium",
+                      theme === opt.value ? "text-accent" : "text-foreground",
                     )}
                   >
                     {opt.label}
                   </span>
-                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                  <span className="text-muted-foreground mt-0.5 block text-[10px]">
                     {opt.description}
                   </span>
                 </div>
@@ -103,22 +96,20 @@ export default function SettingsPage() {
       {/* CE Limitations */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             Aerospike CE Limitations
           </CardTitle>
-          <CardDescription>
-            Community Edition restrictions to be aware of
-          </CardDescription>
+          <CardDescription>Community Edition restrictions to be aware of</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
-                <Server className="h-4 w-4 text-muted-foreground" />
+                <Server className="text-muted-foreground h-4 w-4" />
                 <div>
                   <p className="text-sm font-medium">Max Nodes per Cluster</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Cluster cannot exceed this node count
                   </p>
                 </div>
@@ -128,12 +119,12 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
-                <Database className="h-4 w-4 text-muted-foreground" />
+                <Database className="text-muted-foreground h-4 w-4" />
                 <div>
                   <p className="text-sm font-medium">Max Namespaces</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Maximum number of namespaces per cluster
                   </p>
                 </div>
@@ -143,12 +134,12 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
-                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                <HardDrive className="text-muted-foreground h-4 w-4" />
                 <div>
                   <p className="text-sm font-medium">Max Data Capacity</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Approximately 5TB total (2.5TB unique data)
                   </p>
                 </div>
@@ -158,32 +149,32 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
-                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                <Trash2 className="text-muted-foreground h-4 w-4" />
                 <div>
                   <p className="text-sm font-medium">Durable Deletes</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Deletes not persistent across cold restarts
                   </p>
                 </div>
               </div>
-              <Badge variant="destructive" className="text-[11px]">Not Supported</Badge>
+              <Badge variant="destructive" className="text-[11px]">
+                Not Supported
+              </Badge>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
-                <Server className="h-4 w-4 text-muted-foreground" />
+                <Server className="text-muted-foreground h-4 w-4" />
                 <div>
-                  <p className="text-sm font-medium">
-                    XDR (Cross Datacenter Replication)
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Enterprise-only feature
-                  </p>
+                  <p className="text-sm font-medium">XDR (Cross Datacenter Replication)</p>
+                  <p className="text-muted-foreground text-xs">Enterprise-only feature</p>
                 </div>
               </div>
-              <Badge variant="destructive" className="text-[11px]">Not Supported</Badge>
+              <Badge variant="destructive" className="text-[11px]">
+                Not Supported
+              </Badge>
             </div>
           </div>
         </CardContent>
@@ -192,8 +183,8 @@ export default function SettingsPage() {
       {/* About */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Info className="h-4 w-4 text-accent" />
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Info className="text-accent h-4 w-4" />
             About
           </CardTitle>
         </CardHeader>
@@ -235,11 +226,10 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-lg bg-muted/40 p-3.5 text-xs text-muted-foreground leading-relaxed dark:bg-muted/20">
-            This application is designed for managing Aerospike Community Edition
-            clusters. It provides data browsing, query building, index management,
-            user/role administration, UDF management, and OTel-based observability
-            through a modern web interface.
+          <div className="bg-muted/40 text-muted-foreground dark:bg-muted/20 rounded-lg p-3.5 text-xs leading-relaxed">
+            This application is designed for managing Aerospike Community Edition clusters. It
+            provides data browsing, query building, index management, user/role administration, UDF
+            management, and OTel-based observability through a modern web interface.
           </div>
         </CardContent>
       </Card>
@@ -254,10 +244,10 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between py-0.5">
               <span className="text-muted-foreground">Toggle Sidebar</span>
               <div className="flex gap-1">
-                <kbd className="rounded-md border bg-muted/50 px-2 py-0.5 text-[11px] font-mono shadow-sm">
+                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   Cmd
                 </kbd>
-                <kbd className="rounded-md border bg-muted/50 px-2 py-0.5 text-[11px] font-mono shadow-sm">
+                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   B
                 </kbd>
               </div>
@@ -266,10 +256,10 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between py-0.5">
               <span className="text-muted-foreground">Toggle Terminal</span>
               <div className="flex gap-1">
-                <kbd className="rounded-md border bg-muted/50 px-2 py-0.5 text-[11px] font-mono shadow-sm">
+                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   Cmd
                 </kbd>
-                <kbd className="rounded-md border bg-muted/50 px-2 py-0.5 text-[11px] font-mono shadow-sm">
+                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   `
                 </kbd>
               </div>

@@ -19,14 +19,14 @@ export const StatCard = React.memo(function StatCard({
 }: StatCardProps) {
   return (
     <Card className="card-interactive">
-      <CardContent className="pt-4 pb-3 px-4">
+      <CardContent className="px-4 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               {label}
             </p>
-            <p className="text-2xl font-bold tracking-tight metric-value">{value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            <p className="metric-value text-2xl font-bold tracking-tight">{value}</p>
+            {subtitle && <p className="text-muted-foreground text-xs">{subtitle}</p>}
           </div>
           <div
             className={cn(

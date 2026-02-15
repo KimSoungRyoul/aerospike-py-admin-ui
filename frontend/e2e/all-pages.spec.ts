@@ -41,25 +41,23 @@ test.describe("Aerospike UI - 전체 페이지 테스트", () => {
   // ── 5. Indexes Page ──
   test("05. Indexes 페이지 - 인덱스 목록", async ({ page }) => {
     await page.goto(`/indexes/${CONN_ID}`);
-    await expect(page.getByRole("heading", { name: "Secondary Indexes" })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: "Secondary Indexes" })).toBeVisible({
+      timeout: 15000,
+    });
     await page.screenshot({ path: "e2e/screenshots/05-indexes.png", fullPage: true });
   });
 
   // ── 6. Admin Page ──
   test("06. Admin 페이지 - User/Role 관리", async ({ page }) => {
     await page.goto(`/admin/${CONN_ID}`);
-    await expect(
-      page.getByRole("tab", { name: /Users/i }),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("tab", { name: /Users/i })).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: "e2e/screenshots/06-admin.png", fullPage: true });
   });
 
   // ── 7. UDFs Page ──
   test("07. UDFs 페이지 - 모듈 목록", async ({ page }) => {
     await page.goto(`/udfs/${CONN_ID}`);
-    await expect(
-      page.getByText(/UDF Modules|UDF/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/UDF Modules|UDF/i).first()).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: "e2e/screenshots/07-udfs.png", fullPage: true });
   });
 

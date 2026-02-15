@@ -42,7 +42,7 @@ export function UserTable({ users, onChangePassword, onDelete }: UserTableProps)
                     </Badge>
                   ))}
                   {user.roles.length === 0 && (
-                    <span className="text-sm text-muted-foreground italic">No roles</span>
+                    <span className="text-muted-foreground text-sm italic">No roles</span>
                   )}
                 </div>
               </TableCell>
@@ -59,7 +59,7 @@ export function UserTable({ users, onChangePassword, onDelete }: UserTableProps)
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-destructive"
+                    className="text-destructive h-8 w-8 p-0"
                     onClick={() => onDelete(user.username)}
                   >
                     <Trash2 className="h-4 w-4" />

@@ -16,13 +16,7 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -49,14 +43,7 @@ import type { ConnectionProfile, ConnectionWithStatus } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const PRESET_COLORS = [
-  "#0097D3",
-  "#c4373a",
-  "#22c55e",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-];
+const PRESET_COLORS = ["#0097D3", "#c4373a", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899"];
 
 interface ConnectionFormData {
   name: string;
@@ -98,9 +85,7 @@ export default function ConnectionsPage() {
     success: boolean;
     message: string;
   } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ConnectionWithStatus | null>(
-    null
-  );
+  const [deleteTarget, setDeleteTarget] = useState<ConnectionWithStatus | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -134,7 +119,10 @@ export default function ConnectionsPage() {
     try {
       const data: Partial<ConnectionProfile> = {
         name: form.name.trim(),
-        hosts: form.hosts.split(",").map((h) => h.trim()).filter(Boolean),
+        hosts: form.hosts
+          .split(",")
+          .map((h) => h.trim())
+          .filter(Boolean),
         port: parseInt(form.port, 10) || 3000,
         username: form.username || undefined,
         password: form.password || undefined,
@@ -241,7 +229,7 @@ export default function ConnectionsPage() {
         router.push(`/cluster/${conn.id}`);
       }
     },
-    [router]
+    [router],
   );
 
   if (loading && connections.length === 0) {
@@ -261,14 +249,12 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 animate-fade-in">
+    <div className="animate-fade-in p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Clusters</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your Aerospike clusters
-          </p>
+          <p className="text-muted-foreground mt-1 text-sm">Manage your Aerospike clusters</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleImport} className="hidden sm:flex">
@@ -293,7 +279,7 @@ export default function ConnectionsPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive animate-fade-in">
+        <div className="border-destructive/30 bg-destructive/5 text-destructive animate-fade-in mb-6 rounded-lg border p-4 text-sm">
           {error}
         </div>
       )}
@@ -316,8 +302,8 @@ export default function ConnectionsPage() {
             <Card
               key={conn.id}
               className={cn(
-                "group cursor-pointer card-interactive animate-fade-in-up",
-                "hover:border-accent/30"
+                "group card-interactive animate-fade-in-up cursor-pointer",
+                "hover:border-accent/30",
               )}
               style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
               onClick={() => navigateToConnection(conn)}
@@ -326,7 +312,7 @@ export default function ConnectionsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
                     <div
-                      className="h-3 w-3 rounded-full shrink-0 shadow-sm"
+                      className="h-3 w-3 shrink-0 rounded-full shadow-sm"
                       style={{
                         backgroundColor: conn.color,
                         boxShadow: `0 0 0 2px var(--color-card), 0 0 0 4px ${conn.color}30`,
@@ -339,7 +325,7 @@ export default function ConnectionsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <span className="sr-only">Actions</span>
@@ -385,10 +371,8 @@ export default function ConnectionsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pb-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StatusBadge
-                    status={conn.status.connected ? "connected" : "disconnected"}
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={conn.status.connected ? "connected" : "disconnected"} />
                   {conn.status.connected && (
                     <>
                       <Badge variant="secondary" className="gap-1 text-[11px]">
@@ -404,7 +388,7 @@ export default function ConnectionsPage() {
                   )}
                 </div>
                 {conn.status.connected && conn.status.build && (
-                  <p className="mt-2.5 text-xs text-muted-foreground font-mono">
+                  <p className="text-muted-foreground mt-2.5 font-mono text-xs">
                     {conn.status.edition} {conn.status.build}
                   </p>
                 )}
@@ -418,9 +402,7 @@ export default function ConnectionsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Edit Connection" : "New Connection"}
-            </DialogTitle>
+            <DialogTitle>{editingId ? "Edit Connection" : "New Connection"}</DialogTitle>
             <DialogDescription>
               {editingId
                 ? "Update the connection profile settings."
@@ -467,9 +449,7 @@ export default function ConnectionsPage() {
                   id="conn-user"
                   placeholder="Optional"
                   value={form.username}
-                  onChange={(e) =>
-                    setForm({ ...form, username: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
                 />
               </div>
               <div className="grid gap-2">
@@ -480,9 +460,7 @@ export default function ConnectionsPage() {
                   placeholder={editingId ? "••••••••" : "Optional"}
                   autoComplete="new-password"
                   value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
               </div>
             </div>
@@ -497,12 +475,15 @@ export default function ConnectionsPage() {
                     className={cn(
                       "h-8 w-8 rounded-full transition-all duration-150",
                       form.color === color
-                        ? "ring-2 ring-offset-2 ring-offset-background scale-110"
-                        : "hover:scale-110 opacity-70 hover:opacity-100"
+                        ? "ring-offset-background scale-110 ring-2 ring-offset-2"
+                        : "opacity-70 hover:scale-110 hover:opacity-100",
                     )}
                     style={{
                       backgroundColor: color,
-                      boxShadow: form.color === color ? `0 0 0 2px var(--color-background), 0 0 0 4px ${color}` : undefined,
+                      boxShadow:
+                        form.color === color
+                          ? `0 0 0 2px var(--color-background), 0 0 0 4px ${color}`
+                          : undefined,
                     }}
                     onClick={() => setForm({ ...form, color })}
                   />
@@ -513,10 +494,10 @@ export default function ConnectionsPage() {
             {testResult && (
               <div
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm animate-scale-in",
+                  "animate-scale-in flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm",
                   testResult.success
                     ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300"
-                    : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300"
+                    : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300",
                 )}
               >
                 {testResult.success ? (
@@ -546,11 +527,7 @@ export default function ConnectionsPage() {
                 Test Connection
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={saving}
-            >
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
             <Button

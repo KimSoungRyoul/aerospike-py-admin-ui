@@ -40,20 +40,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   useKeyboardShortcuts();
 
-  const connIdMatch = pathname?.match(/\/(browser|cluster|query|indexes|admin|udfs|terminal|observability)\/([^/]+)/);
+  const connIdMatch = pathname?.match(
+    /\/(browser|cluster|query|indexes|admin|udfs|terminal|observability)\/([^/]+)/,
+  );
   const connId = connIdMatch?.[2];
   const isConnectionPage = pathname === "/" || pathname === "/settings";
 
   return (
     <TooltipProvider delayDuration={150}>
       <ThemeHandler />
-      <div className="flex h-screen flex-col bg-background">
+      <div className="bg-background flex h-screen flex-col">
         <Header />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden">
             {connId && !isConnectionPage && <TabBar connId={connId} />}
-            <main className="flex-1 overflow-auto dot-pattern">
+            <main className="dot-pattern flex-1 overflow-auto">
               <ErrorBoundary>{children}</ErrorBoundary>
             </main>
           </div>

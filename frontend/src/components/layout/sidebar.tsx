@@ -2,14 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import {
-  MoreHorizontal,
-  Plus,
-  Search,
-  Server,
-  Table2,
-  Settings,
-} from "lucide-react";
+import { MoreHorizontal, Plus, Search, Server, Table2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,28 +44,26 @@ const ConnectionItem = React.memo(function ConnectionItem({ connection }: Connec
       <button
         onClick={handleClick}
         className={cn(
-          "flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all duration-150 min-w-0",
+          "flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all duration-150",
           isActive
             ? "bg-accent/10 text-accent"
-            : "hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground"
+            : "hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground",
         )}
       >
         <span
           className={cn(
-            "h-2.5 w-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-sidebar transition-shadow",
+            "ring-offset-sidebar h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-offset-1 transition-shadow",
             connection.status.connected
-              ? "ring-emerald-500/30 status-glow-green"
-              : "ring-red-500/30 status-glow-red"
+              ? "status-glow-green ring-emerald-500/30"
+              : "status-glow-red ring-red-500/30",
           )}
           style={{ backgroundColor: connection.color }}
         />
-        <span className="truncate font-medium">
-          {connection.name}
-        </span>
+        <span className="truncate font-medium">{connection.name}</span>
         <span
           className={cn(
-            "ml-auto h-1.5 w-1.5 rounded-full shrink-0 transition-colors",
-            connection.status.connected ? "bg-emerald-500" : "bg-red-500"
+            "ml-auto h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+            connection.status.connected ? "bg-emerald-500" : "bg-red-500",
           )}
         />
       </button>
@@ -81,7 +72,7 @@ const ConnectionItem = React.memo(function ConnectionItem({ connection }: Connec
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
@@ -110,21 +101,21 @@ export function Sidebar() {
   }, [fetchConnections]);
 
   const filteredConnections = connections.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+    c.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   if (!sidebarOpen) return null;
 
   return (
-    <aside className="flex w-56 flex-col border-r border-sidebar-border bg-sidebar">
+    <aside className="border-sidebar-border bg-sidebar flex w-56 flex-col border-r">
       <div className="p-2.5">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <Search className="text-muted-foreground/50 absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder="Search connections..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 pl-8 text-xs bg-sidebar-accent/50 border-sidebar-border placeholder:text-muted-foreground/40"
+            className="bg-sidebar-accent/50 border-sidebar-border placeholder:text-muted-foreground/40 h-8 pl-8 text-xs"
           />
         </div>
       </div>
@@ -132,26 +123,23 @@ export function Sidebar() {
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-0.5 py-1">
           {filteredConnections.length === 0 && search && (
-            <p className="px-2 py-4 text-xs text-muted-foreground text-center">
+            <p className="text-muted-foreground px-2 py-4 text-center text-xs">
               No connections found
             </p>
           )}
           {filteredConnections.map((conn) => (
-            <ConnectionItem
-              key={conn.id}
-              connection={conn}
-            />
+            <ConnectionItem key={conn.id} connection={conn} />
           ))}
         </div>
       </ScrollArea>
 
       <Separator className="bg-sidebar-border" />
 
-      <div className="p-2.5 space-y-1">
+      <div className="space-y-1 p-2.5">
         <Button
           variant="outline"
           size="sm"
-          className="w-full justify-start gap-2 h-8 text-xs border-dashed border-sidebar-border hover:border-accent/50 hover:bg-accent/5 hover:text-accent transition-colors"
+          className="border-sidebar-border hover:border-accent/50 hover:bg-accent/5 hover:text-accent h-8 w-full justify-start gap-2 border-dashed text-xs transition-colors"
           onClick={() => router.push("/")}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -160,7 +148,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 h-8 text-xs text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
           onClick={() => router.push("/settings")}
         >
           <Settings className="h-3.5 w-3.5" />

@@ -47,7 +47,14 @@ describe("useConnectionStore", () => {
 
   it("fetchConnections sets loading and populates connections", async () => {
     const mockConnections = [
-      { id: "1", name: "Test", hosts: ["localhost"], port: 3000, color: "#000", status: { connected: true, nodeCount: 1, namespaceCount: 2 } },
+      {
+        id: "1",
+        name: "Test",
+        hosts: ["localhost"],
+        port: 3000,
+        color: "#000",
+        status: { connected: true, nodeCount: 1, namespaceCount: 2 },
+      },
     ];
     mockApi.getConnections.mockResolvedValue(mockConnections as any);
 

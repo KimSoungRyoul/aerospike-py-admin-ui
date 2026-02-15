@@ -1,15 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  Trash2,
-  Pencil,
-  Key,
-  Shield,
-  Users,
-  RefreshCw,
-} from "lucide-react";
+import { Plus, Trash2, Pencil, Key, Shield, Users, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
@@ -53,11 +45,7 @@ const AVAILABLE_PRIVILEGES = [
   "data-admin",
 ];
 
-export default function AdminPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function AdminPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
   const {
     users,
@@ -195,25 +183,17 @@ export default function AdminPage({
     }
   };
 
-  const toggleUserRole = useCallback(
-    (role: string) => {
-      setNewUserRoles((prev) =>
-        prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
-      );
-    },
-    []
-  );
+  const toggleUserRole = useCallback((role: string) => {
+    setNewUserRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
+  }, []);
 
-  const toggleRolePrivilege = useCallback(
-    (priv: string) => {
-      setNewRolePrivileges((prev) =>
-        prev.includes(priv)
-          ? prev.filter((p) => p !== priv)
-          : [...prev, priv]
-      );
-    },
-    []
-  );
+  const toggleRolePrivilege = useCallback((priv: string) => {
+    setNewRolePrivileges((prev) =>
+      prev.includes(priv) ? prev.filter((p) => p !== priv) : [...prev, priv],
+    );
+  }, []);
 
   const handleRefresh = useCallback(() => {
     fetchUsers(connId);
@@ -221,7 +201,7 @@ export default function AdminPage({
   }, [connId, fetchUsers, fetchRoles]);
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
         title="Administration"
         description="Manage users and roles"
@@ -286,24 +266,16 @@ export default function AdminPage({
                 <TableBody>
                   {users.map((user) => (
                     <TableRow key={user.username}>
-                      <TableCell className="font-medium">
-                        {user.username}
-                      </TableCell>
+                      <TableCell className="font-medium">{user.username}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {user.roles.map((role) => (
-                            <Badge
-                              key={role}
-                              variant="secondary"
-                              className="text-xs"
-                            >
+                            <Badge key={role} variant="secondary" className="text-xs">
                               {role}
                             </Badge>
                           ))}
                           {user.roles.length === 0 && (
-                            <span className="text-sm text-muted-foreground italic">
-                              No roles
-                            </span>
+                            <span className="text-muted-foreground text-sm italic">No roles</span>
                           )}
                         </div>
                       </TableCell>
@@ -324,7 +296,7 @@ export default function AdminPage({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-destructive"
+                            className="text-destructive h-8 w-8 p-0"
                             onClick={() => setDeleteUserTarget(user.username)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -384,11 +356,7 @@ export default function AdminPage({
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {role.privileges.map((priv, i) => (
-                            <Badge
-                              key={i}
-                              variant="outline"
-                              className="text-xs"
-                            >
+                            <Badge key={i} variant="outline" className="text-xs">
                               {priv.code}
                               {priv.namespace && `.${priv.namespace}`}
                               {priv.set && `.${priv.set}`}
@@ -398,17 +366,13 @@ export default function AdminPage({
                       </TableCell>
                       <TableCell>
                         {role.whitelist.length > 0 ? (
-                          <span className="text-xs font-mono">
-                            {role.whitelist.join(", ")}
-                          </span>
+                          <span className="font-mono text-xs">{role.whitelist.join(", ")}</span>
                         ) : (
-                          <span className="text-muted-foreground italic text-xs">
-                            any
-                          </span>
+                          <span className="text-muted-foreground text-xs italic">any</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-xs space-y-0.5">
+                        <div className="space-y-0.5 text-xs">
                           <div>R: {role.readQuota}</div>
                           <div>W: {role.writeQuota}</div>
                         </div>
@@ -417,7 +381,7 @@ export default function AdminPage({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-destructive"
+                          className="text-destructive h-8 w-8 p-0"
                           onClick={() => setDeleteRoleTarget(role.name)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -437,9 +401,7 @@ export default function AdminPage({
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
-            <DialogDescription>
-              Create a new Aerospike user with roles.
-            </DialogDescription>
+            <DialogDescription>Create a new Aerospike user with roles.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -461,7 +423,7 @@ export default function AdminPage({
             </div>
             <div className="grid gap-2">
               <Label>Roles</Label>
-              <div className="rounded-md border p-3 space-y-2 max-h-[200px] overflow-auto">
+              <div className="max-h-[200px] space-y-2 overflow-auto rounded-md border p-3">
                 {roles.length > 0
                   ? roles.map((role) => (
                       <div key={role.name} className="flex items-center gap-2">
@@ -470,10 +432,7 @@ export default function AdminPage({
                           checked={newUserRoles.includes(role.name)}
                           onCheckedChange={() => toggleUserRole(role.name)}
                         />
-                        <label
-                          htmlFor={`urole-${role.name}`}
-                          className="text-sm cursor-pointer"
-                        >
+                        <label htmlFor={`urole-${role.name}`} className="cursor-pointer text-sm">
                           {role.name}
                         </label>
                       </div>
@@ -485,10 +444,7 @@ export default function AdminPage({
                           checked={newUserRoles.includes(priv)}
                           onCheckedChange={() => toggleUserRole(priv)}
                         />
-                        <label
-                          htmlFor={`upriv-${priv}`}
-                          className="text-sm cursor-pointer"
-                        >
+                        <label htmlFor={`upriv-${priv}`} className="cursor-pointer text-sm">
                           {priv}
                         </label>
                       </div>
@@ -506,9 +462,7 @@ export default function AdminPage({
             </Button>
             <LoadingButton
               onClick={handleCreateUser}
-              disabled={
-                creatingUser || !newUsername.trim() || !newPassword.trim()
-              }
+              disabled={creatingUser || !newUsername.trim() || !newPassword.trim()}
               loading={creatingUser}
             >
               Create
@@ -538,10 +492,7 @@ export default function AdminPage({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setChangePassOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setChangePassOpen(false)}>
               Cancel
             </Button>
             <LoadingButton
@@ -571,9 +522,7 @@ export default function AdminPage({
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Create Role</DialogTitle>
-            <DialogDescription>
-              Define a new role with privileges.
-            </DialogDescription>
+            <DialogDescription>Define a new role with privileges.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -586,7 +535,7 @@ export default function AdminPage({
             </div>
             <div className="grid gap-2">
               <Label>Privileges</Label>
-              <div className="rounded-md border p-3 space-y-2 max-h-[200px] overflow-auto">
+              <div className="max-h-[200px] space-y-2 overflow-auto rounded-md border p-3">
                 {AVAILABLE_PRIVILEGES.map((priv) => (
                   <div key={priv} className="flex items-center gap-2">
                     <Checkbox
@@ -594,10 +543,7 @@ export default function AdminPage({
                       checked={newRolePrivileges.includes(priv)}
                       onCheckedChange={() => toggleRolePrivilege(priv)}
                     />
-                    <label
-                      htmlFor={`rpriv-${priv}`}
-                      className="text-sm cursor-pointer"
-                    >
+                    <label htmlFor={`rpriv-${priv}`} className="cursor-pointer text-sm">
                       {priv}
                     </label>
                   </div>

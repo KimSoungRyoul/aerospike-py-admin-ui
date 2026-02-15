@@ -11,14 +11,7 @@ describe("StatCard", () => {
   });
 
   it("renders subtitle when provided", () => {
-    render(
-      <StatCard
-        label="Reads"
-        value={100}
-        icon={Activity}
-        subtitle="99.9% success"
-      />,
-    );
+    render(<StatCard label="Reads" value={100} icon={Activity} subtitle="99.9% success" />);
     expect(screen.getByText("99.9% success")).toBeInTheDocument();
   });
 
@@ -28,9 +21,7 @@ describe("StatCard", () => {
   });
 
   it("renders icon", () => {
-    const { container } = render(
-      <StatCard label="Test" value={0} icon={Activity} />,
-    );
+    const { container } = render(<StatCard label="Test" value={0} icon={Activity} />);
     expect(container.querySelector("svg")).toBeInTheDocument();
   });
 });

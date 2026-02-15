@@ -31,9 +31,7 @@ describe("ConfirmDialog", () => {
   });
 
   it("renders custom button labels", () => {
-    render(
-      <ConfirmDialog {...defaultProps} confirmLabel="Delete" cancelLabel="Go Back" />,
-    );
+    render(<ConfirmDialog {...defaultProps} confirmLabel="Delete" cancelLabel="Go Back" />);
     expect(screen.getByText("Delete")).toBeInTheDocument();
     expect(screen.getByText("Go Back")).toBeInTheDocument();
   });

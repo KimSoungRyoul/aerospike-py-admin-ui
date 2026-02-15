@@ -1,28 +1,10 @@
 "use client";
 
 import { use, useEffect, useState, useMemo, useCallback } from "react";
-import {
-  Play,
-  Download,
-  Search,
-  FileJson,
-  FileSpreadsheet,
-  MoreHorizontal,
-} from "lucide-react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  type ColumnDef,
-} from "@tanstack/react-table";
+import { Play, Download, Search, FileJson, FileSpreadsheet, MoreHorizontal } from "lucide-react";
+import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,12 +39,7 @@ import { LoadingButton } from "@/components/common/loading-button";
 import { CodeEditor } from "@/components/common/code-editor";
 import { useQueryStore } from "@/stores/query-store";
 import { api } from "@/lib/api/client";
-import type {
-  AerospikeRecord,
-  BinValue,
-  ClusterInfo,
-  PredicateOperator,
-} from "@/lib/api/types";
+import type { AerospikeRecord, BinValue, ClusterInfo, PredicateOperator } from "@/lib/api/types";
 import { formatDuration, formatNumber, truncateMiddle } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,20 +63,14 @@ function renderCellValue(value: BinValue): React.ReactNode {
     );
   if (typeof value === "object")
     return (
-      <span className="font-mono text-xs text-muted-foreground">
+      <span className="text-muted-foreground font-mono text-xs">
         {JSON.stringify(value).slice(0, 50)}...
       </span>
     );
-  return (
-    <span className="font-mono text-sm">{truncateMiddle(String(value), 40)}</span>
-  );
+  return <span className="font-mono text-sm">{truncateMiddle(String(value), 40)}</span>;
 }
 
-export default function QueryPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function QueryPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
   const store = useQueryStore();
 
@@ -141,9 +112,7 @@ export default function QueryPage({
   useEffect(() => {
     if (store.results.length > 0) {
       const bins = new Set<string>();
-      store.results.forEach((r) =>
-        Object.keys(r.bins).forEach((b) => bins.add(b))
-      );
+      store.results.forEach((r) => Object.keys(r.bins).forEach((b) => bins.add(b)));
       setKnownBins(Array.from(bins).sort());
     }
   }, [store.results]);
@@ -180,9 +149,7 @@ export default function QueryPage({
     if (store.results.length === 0) return [];
 
     const binNames = new Set<string>();
-    store.results.forEach((r) =>
-      Object.keys(r.bins).forEach((b) => binNames.add(b))
-    );
+    store.results.forEach((r) => Object.keys(r.bins).forEach((b) => binNames.add(b)));
 
     const cols: ColumnDef<AerospikeRecord>[] = [
       {
@@ -256,9 +223,7 @@ export default function QueryPage({
   const handleExportCSV = useCallback(() => {
     if (store.results.length === 0) return;
     const binNames = new Set<string>();
-    store.results.forEach((r) =>
-      Object.keys(r.bins).forEach((b) => binNames.add(b))
-    );
+    store.results.forEach((r) => Object.keys(r.bins).forEach((b) => binNames.add(b)));
     const headers = ["pk", "generation", "ttl", ...Array.from(binNames)];
     const rows = store.results.map((r) => [
       r.key.pk,
@@ -273,9 +238,7 @@ export default function QueryPage({
     ]);
     const csv = [
       headers.join(","),
-      ...rows.map((r) =>
-        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
-      ),
+      ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")),
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -296,14 +259,14 @@ export default function QueryPage({
         store.setSelectBins([...current, bin]);
       }
     },
-    [store]
+    [store],
   );
 
   return (
     <div className="flex h-full">
       {/* Left Panel - Query Config */}
-      <div className="w-[380px] shrink-0 border-r overflow-auto bg-card/40">
-        <div className="p-4 space-y-4">
+      <div className="bg-card/40 w-[380px] shrink-0 overflow-auto border-r">
+        <div className="space-y-4 p-4">
           <h2 className="text-lg font-semibold tracking-tight">Query Builder</h2>
 
           {/* Namespace */}
@@ -393,12 +356,7 @@ export default function QueryPage({
                 </div>
                 <div className="grid gap-2">
                   <Label className="text-xs">Operator</Label>
-                  <Select
-                    value={predOp}
-                    onValueChange={(v) =>
-                      setPredOp(v as PredicateOperator)
-                    }
-                  >
+                  <Select value={predOp} onValueChange={(v) => setPredOp(v as PredicateOperator)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -437,7 +395,7 @@ export default function QueryPage({
           {knownBins.length > 0 && (
             <div className="grid gap-2">
               <Label>Select Bins (optional)</Label>
-              <div className="rounded-lg border border-border/60 p-3 space-y-2 max-h-[160px] overflow-auto">
+              <div className="border-border/60 max-h-[160px] space-y-2 overflow-auto rounded-lg border p-3">
                 {knownBins.map((bin) => (
                   <div key={bin} className="flex items-center gap-2">
                     <Checkbox
@@ -445,10 +403,7 @@ export default function QueryPage({
                       checked={store.selectBins.includes(bin)}
                       onCheckedChange={() => toggleBin(bin)}
                     />
-                    <label
-                      htmlFor={`bin-${bin}`}
-                      className="text-sm font-mono cursor-pointer"
-                    >
+                    <label htmlFor={`bin-${bin}`} className="cursor-pointer font-mono text-sm">
                       {bin}
                     </label>
                   </div>
@@ -460,11 +415,9 @@ export default function QueryPage({
           {/* Expression Filter */}
           <Accordion type="single" collapsible>
             <AccordionItem value="expression" className="border-0">
-              <AccordionTrigger className="py-2 text-sm">
-                Expression Filter
-              </AccordionTrigger>
+              <AccordionTrigger className="py-2 text-sm">Expression Filter</AccordionTrigger>
               <AccordionContent>
-                <div className="h-[150px] rounded-md border overflow-hidden">
+                <div className="h-[150px] overflow-hidden rounded-md border">
                   <CodeEditor
                     value={store.expression}
                     onChange={(v) => store.setExpression(v)}
@@ -472,9 +425,7 @@ export default function QueryPage({
                     height="150px"
                   />
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Raw JSON filter expression
-                </p>
+                <p className="text-muted-foreground mt-1 text-xs">Raw JSON filter expression</p>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -485,9 +436,7 @@ export default function QueryPage({
             <Input
               type="number"
               value={store.maxRecords}
-              onChange={(e) =>
-                store.setMaxRecords(parseInt(e.target.value, 10) || 100)
-              }
+              onChange={(e) => store.setMaxRecords(parseInt(e.target.value, 10) || 100)}
             />
           </div>
 
@@ -510,23 +459,27 @@ export default function QueryPage({
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Stats Bar */}
         {store.hasExecuted && (
-          <div className="flex items-center justify-between border-b px-4 py-2 bg-card/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card/60 animate-fade-in flex items-center justify-between border-b px-4 py-2 backdrop-blur-sm">
             <div className="flex items-center gap-4 text-sm">
               <span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Time</span>{" "}
-                <span className="font-mono font-medium metric-value">
+                <span className="text-muted-foreground text-xs tracking-wider uppercase">Time</span>{" "}
+                <span className="metric-value font-mono font-medium">
                   {formatDuration(store.executionTimeMs)}
                 </span>
               </span>
               <span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Scanned</span>{" "}
-                <span className="font-mono font-medium metric-value">
+                <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                  Scanned
+                </span>{" "}
+                <span className="metric-value font-mono font-medium">
                   {formatNumber(store.scannedRecords)}
                 </span>
               </span>
               <span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Returned</span>{" "}
-                <span className="font-mono font-medium metric-value">
+                <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                  Returned
+                </span>{" "}
+                <span className="metric-value font-mono font-medium">
                   {formatNumber(store.returnedRecords)}
                 </span>
               </span>
@@ -556,7 +509,7 @@ export default function QueryPage({
               className="h-full"
             />
           ) : store.loading ? (
-            <div className="p-6 space-y-3">
+            <div className="space-y-3 p-6">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
@@ -574,16 +527,10 @@ export default function QueryPage({
                 {table.getHeaderGroups().map((hg) => (
                   <TableRow key={hg.id}>
                     {hg.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        style={{ width: header.getSize() }}
-                      >
+                      <TableHead key={header.id} style={{ width: header.getSize() }}>
                         {header.isPlaceholder
                           ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                          : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -594,10 +541,7 @@ export default function QueryPage({
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>

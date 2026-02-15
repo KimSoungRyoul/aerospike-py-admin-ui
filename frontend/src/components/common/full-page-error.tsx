@@ -21,17 +21,15 @@ export function FullPageError({
   retryLabel = "Retry",
 }: FullPageErrorProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-12 animate-fade-in">
+    <div className="animate-fade-in flex flex-col items-center justify-center p-12">
       <div className="relative mb-5">
-        <div className="absolute inset-0 rounded-2xl bg-destructive/10 blur-xl scale-150" />
-        <div className="relative rounded-2xl bg-muted/80 p-4">
-          <Icon className="h-7 w-7 text-destructive" />
+        <div className="bg-destructive/10 absolute inset-0 scale-150 rounded-2xl blur-xl" />
+        <div className="bg-muted/80 relative rounded-2xl p-4">
+          <Icon className="text-destructive h-7 w-7" />
         </div>
       </div>
       <h3 className="text-lg font-semibold">{title}</h3>
-      {message && (
-        <p className="mt-1 text-sm text-muted-foreground">{message}</p>
-      )}
+      {message && <p className="text-muted-foreground mt-1 text-sm">{message}</p>}
       {onRetry && (
         <Button className="mt-5" onClick={onRetry}>
           <RefreshCw className="mr-2 h-4 w-4" />

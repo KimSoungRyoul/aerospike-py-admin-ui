@@ -42,23 +42,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { JsonViewer } from "@/components/common/json-viewer";
 import { CodeEditor } from "@/components/common/code-editor";
 import { useBrowserStore } from "@/stores/browser-store";
 import { usePagination } from "@/hooks/use-pagination";
-import type {
-  AerospikeRecord,
-  BinValue,
-  RecordWriteRequest,
-} from "@/lib/api/types";
+import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/types";
 import { PAGE_SIZE_OPTIONS, BIN_TYPES, type BinType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { truncateMiddle, formatNumber } from "@/lib/formatters";
@@ -99,8 +90,7 @@ function parseBinValue(value: string, type: BinType): BinValue {
 function detectBinType(value: BinValue): BinType {
   if (value === null || value === undefined) return "string";
   if (typeof value === "boolean") return "bool";
-  if (typeof value === "number")
-    return Number.isInteger(value) ? "integer" : "float";
+  if (typeof value === "number") return Number.isInteger(value) ? "integer" : "float";
   if (Array.isArray(value)) return "list";
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
@@ -125,13 +115,13 @@ function renderCellValue(value: BinValue): React.ReactNode {
       <span
         className={cn(
           "inline-flex items-center gap-1.5 font-mono text-xs",
-          value ? "text-emerald-500" : "text-red-400/60"
+          value ? "text-emerald-500" : "text-red-400/60",
         )}
       >
         <span
           className={cn(
-            "h-1.5 w-1.5 rounded-full inline-block shrink-0",
-            value ? "bg-emerald-500" : "bg-red-400/60"
+            "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+            value ? "bg-emerald-500" : "bg-red-400/60",
           )}
         />
         {value.toString()}
@@ -139,11 +129,7 @@ function renderCellValue(value: BinValue): React.ReactNode {
     );
 
   if (typeof value === "number")
-    return (
-      <span className="cell-val-number font-mono text-[13px]">
-        {value.toLocaleString()}
-      </span>
-    );
+    return <span className="cell-val-number font-mono text-[13px]">{value.toLocaleString()}</span>;
 
   if (Array.isArray(value))
     return (
@@ -170,16 +156,13 @@ function renderCellValue(value: BinValue): React.ReactNode {
   }
 
   return (
-    <span className="font-mono text-[13px] text-foreground/85">
+    <span className="text-foreground/85 font-mono text-[13px]">
       {truncateMiddle(String(value), 50)}
     </span>
   );
 }
 
-function getVisiblePages(
-  current: number,
-  total: number
-): (number | "ellipsis")[] {
+function getVisiblePages(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (current <= 3) return [1, 2, 3, 4, 5, "ellipsis", total];
   if (current >= total - 2)
@@ -215,12 +198,8 @@ export default function BrowserPage({
 
   const [viewRecord, setViewRecord] = useState<AerospikeRecord | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editorMode, setEditorMode] = useState<
-    "create" | "edit" | "duplicate"
-  >("create");
-  const [deleteTarget, setDeleteTarget] = useState<AerospikeRecord | null>(
-    null
-  );
+  const [editorMode, setEditorMode] = useState<"create" | "edit" | "duplicate">("create");
+  const [deleteTarget, setDeleteTarget] = useState<AerospikeRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -230,9 +209,7 @@ export default function BrowserPage({
   const [editorBins, setEditorBins] = useState<BinEntry[]>([
     { id: crypto.randomUUID(), name: "", value: "", type: "string" },
   ]);
-  const [useCodeEditor, setUseCodeEditor] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [useCodeEditor, setUseCodeEditor] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchRecords(connId, decodeURIComponent(ns), decodeURIComponent(set));
@@ -262,19 +239,17 @@ export default function BrowserPage({
             name,
             value: serializeBinValue(value),
             type: detectBinType(value),
-          }))
+          })),
         );
       } else {
         setEditorPK("");
         setEditorTTL("0");
-        setEditorBins([
-          { id: crypto.randomUUID(), name: "", value: "", type: "string" },
-        ]);
+        setEditorBins([{ id: crypto.randomUUID(), name: "", value: "", type: "string" }]);
       }
       setUseCodeEditor({});
       setEditorOpen(true);
     },
-    []
+    [],
   );
 
   const addBin = useCallback(() => {
@@ -288,14 +263,9 @@ export default function BrowserPage({
     setEditorBins((prev) => prev.filter((b) => b.id !== id));
   }, []);
 
-  const updateBin = useCallback(
-    (id: string, field: keyof BinEntry, val: string) => {
-      setEditorBins((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, [field]: val } : b))
-      );
-    },
-    []
-  );
+  const updateBin = useCallback((id: string, field: keyof BinEntry, val: string) => {
+    setEditorBins((prev) => prev.map((b) => (b.id === id ? { ...b, [field]: val } : b)));
+  }, []);
 
   const handleSaveRecord = async () => {
     if (!editorPK.trim()) {
@@ -321,7 +291,7 @@ export default function BrowserPage({
           ? "Record created"
           : editorMode === "duplicate"
             ? "Record duplicated"
-            : "Record updated"
+            : "Record updated",
       );
       setEditorOpen(false);
     } catch (err) {
@@ -339,7 +309,7 @@ export default function BrowserPage({
         connId,
         deleteTarget.key.namespace,
         deleteTarget.key.set,
-        deleteTarget.key.pk
+        deleteTarget.key.pk,
       );
       toast.success("Record deleted");
       setDeleteTarget(null);
@@ -355,7 +325,7 @@ export default function BrowserPage({
       setPage(newPage);
       fetchRecords(connId, decodedNs, decodedSet, newPage);
     },
-    [connId, decodedNs, decodedSet, setPage, fetchRecords]
+    [connId, decodedNs, decodedSet, setPage, fetchRecords],
   );
 
   const handlePageSizeChange = useCallback(
@@ -364,7 +334,7 @@ export default function BrowserPage({
       setPageSize(size);
       fetchRecords(connId, decodedNs, decodedSet, 1, size);
     },
-    [connId, decodedNs, decodedSet, setPageSize, fetchRecords]
+    [connId, decodedNs, decodedSet, setPageSize, fetchRecords],
   );
 
   const padLength = String(pagination.end).length;
@@ -374,7 +344,7 @@ export default function BrowserPage({
   return (
     <div className="flex h-full flex-col">
       {/* ── Command Bar ──────────────────────────────── */}
-      <div className="border-b border-border/50 px-6 py-2.5 bg-card/80 backdrop-blur-md">
+      <div className="border-border/50 bg-card/80 border-b px-6 py-2.5 backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <nav className="flex items-center gap-0.5 font-mono text-[13px]">
@@ -391,12 +361,12 @@ export default function BrowserPage({
             </nav>
 
             {total > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-accent/8 border border-accent/15 px-2.5 py-0.5">
+              <div className="bg-accent/8 border-accent/15 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5">
                 <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-40" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+                  <span className="bg-accent absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" />
+                  <span className="bg-accent relative inline-flex h-1.5 w-1.5 rounded-full" />
                 </span>
-                <span className="text-[11px] font-mono font-medium text-accent tabular-nums">
+                <span className="text-accent font-mono text-[11px] font-medium tabular-nums">
                   {formatNumber(total)}
                 </span>
               </div>
@@ -407,7 +377,7 @@ export default function BrowserPage({
             onClick={() => openEditor("create")}
             size="sm"
             variant="outline"
-            className="h-7 gap-1.5 border-accent/30 font-mono text-xs text-accent hover:bg-accent/10 hover:border-accent/50 transition-colors"
+            className="border-accent/30 text-accent hover:bg-accent/10 hover:border-accent/50 h-7 gap-1.5 font-mono text-xs transition-colors"
           >
             <Plus className="h-3 w-3" />
             new record
@@ -417,17 +387,17 @@ export default function BrowserPage({
 
       {/* ── Error ────────────────────────────────────── */}
       {error && (
-        <div className="mx-6 mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2.5 font-mono text-xs text-destructive animate-fade-in">
+        <div className="border-destructive/30 bg-destructive/5 text-destructive animate-fade-in mx-6 mt-3 rounded-md border px-4 py-2.5 font-mono text-xs">
           {error}
         </div>
       )}
 
       {/* ── Data Grid ────────────────────────────────── */}
-      <div className="flex-1 overflow-auto relative">
+      <div className="relative flex-1 overflow-auto">
         {/* Loading indicator (page navigation) */}
         {loading && records.length > 0 && (
-          <div className="sticky top-0 left-0 right-0 z-20 h-[2px] bg-accent/10 overflow-hidden">
-            <div className="loading-bar h-full w-1/4 bg-accent rounded-full" />
+          <div className="bg-accent/10 sticky top-0 right-0 left-0 z-20 h-[2px] overflow-hidden">
+            <div className="loading-bar bg-accent h-full w-1/4 rounded-full" />
           </div>
         )}
 
@@ -437,10 +407,10 @@ export default function BrowserPage({
             {Array.from({ length: 12 }).map((_, i) => (
               <div
                 key={i}
-                className="grid-skeleton-row flex items-center gap-4 border-b border-border/20 px-4 py-3"
+                className="grid-skeleton-row border-border/20 flex items-center gap-4 border-b px-4 py-3"
                 style={{ animationDelay: `${i * 80}ms` }}
               >
-                <div className="w-10 flex justify-end">
+                <div className="flex w-10 justify-end">
                   <Skeleton className="h-3 w-6" />
                 </div>
                 <Skeleton className="h-3.5 w-28" />
@@ -463,7 +433,7 @@ export default function BrowserPage({
                 onClick={() => openEditor("create")}
                 size="sm"
                 variant="outline"
-                className="gap-1.5 border-accent/30 font-mono text-xs text-accent hover:bg-accent/10"
+                className="border-accent/30 text-accent hover:bg-accent/10 gap-1.5 font-mono text-xs"
               >
                 <Plus className="h-3 w-3" />
                 new record
@@ -474,26 +444,23 @@ export default function BrowserPage({
           /* Data table */
           <TooltipProvider delayDuration={300}>
             <Table>
-              <TableHeader className="grid-header sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
+              <TableHeader className="grid-header bg-background/95 sticky top-0 z-10 backdrop-blur-sm">
                 <TableRow>
                   <TableHead className="w-14 px-4 py-2.5 text-right">
                     <span className="grid-row-num font-mono">#</span>
                   </TableHead>
-                  <TableHead
-                    className="px-4 py-2.5 text-left"
-                    style={{ width: 180 }}
-                  >
-                    <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">
+                  <TableHead className="px-4 py-2.5 text-left" style={{ width: 180 }}>
+                    <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                       PK
                     </span>
                   </TableHead>
                   <TableHead className="px-4 py-2.5 text-left" style={{ width: 70 }}>
-                    <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">
+                    <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                       Gen
                     </span>
                   </TableHead>
                   <TableHead className="px-4 py-2.5 text-left" style={{ width: 80 }}>
-                    <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">
+                    <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                       TTL
                     </span>
                   </TableHead>
@@ -503,7 +470,7 @@ export default function BrowserPage({
                       className="px-4 py-2.5 text-left"
                       style={{ minWidth: 140 }}
                     >
-                      <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">
+                      <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                         {col}
                       </span>
                     </TableHead>
@@ -515,36 +482,33 @@ export default function BrowserPage({
                 {records.map((record, idx) => (
                   <TableRow
                     key={record.key.pk + idx}
-                    className="record-grid-row border-b border-border/30 group hover:bg-transparent"
+                    className="record-grid-row border-border/30 group border-b hover:bg-transparent"
                     style={{ animationDelay: `${idx * 25}ms` }}
                   >
                     {/* Row Number */}
                     <TableCell className="w-14 px-4 py-2.5 text-right">
                       <span className="grid-row-num font-mono">
-                        {String(pagination.start + idx).padStart(
-                          padLength,
-                          "0"
-                        )}
+                        {String(pagination.start + idx).padStart(padLength, "0")}
                       </span>
                     </TableCell>
 
                     {/* PK */}
                     <TableCell className="px-4 py-2.5" style={{ width: 180 }}>
-                      <span className="font-mono text-[13px] font-medium text-foreground">
+                      <span className="text-foreground font-mono text-[13px] font-medium">
                         {truncateMiddle(String(record.key.pk), 28)}
                       </span>
                     </TableCell>
 
                     {/* Generation */}
                     <TableCell className="px-4 py-2.5" style={{ width: 70 }}>
-                      <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      <span className="text-muted-foreground font-mono text-xs tabular-nums">
                         {record.meta.generation}
                       </span>
                     </TableCell>
 
                     {/* TTL */}
                     <TableCell className="px-4 py-2.5" style={{ width: 80 }}>
-                      <span className="font-mono text-xs text-muted-foreground/60">
+                      <span className="text-muted-foreground/60 font-mono text-xs">
                         {record.meta.ttl === -1
                           ? "∞"
                           : record.meta.ttl === 0
@@ -567,7 +531,7 @@ export default function BrowserPage({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => setViewRecord(record)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                             >
                               <Eye className="h-3.5 w-3.5" />
                             </button>
@@ -581,7 +545,7 @@ export default function BrowserPage({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => openEditor("edit", record)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
@@ -595,15 +559,13 @@ export default function BrowserPage({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => openEditor("duplicate", record)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                             >
                               <Copy className="h-3.5 w-3.5" />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            <span className="font-mono text-[10px]">
-                              Duplicate
-                            </span>
+                            <span className="font-mono text-[10px]">Duplicate</span>
                           </TooltipContent>
                         </Tooltip>
 
@@ -611,15 +573,13 @@ export default function BrowserPage({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => setDeleteTarget(record)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            <span className="font-mono text-[10px]">
-                              Delete
-                            </span>
+                            <span className="font-mono text-[10px]">Delete</span>
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -634,34 +594,27 @@ export default function BrowserPage({
 
       {/* ── Status Bar ───────────────────────────────── */}
       {total > 0 && (
-        <div className="flex items-center justify-between border-t border-border/50 px-6 py-2 bg-card/80 backdrop-blur-md">
+        <div className="border-border/50 bg-card/80 flex items-center justify-between border-t px-6 py-2 backdrop-blur-md">
           {/* Range & page size */}
           <div className="flex items-center gap-3">
-            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
               {pagination.start}–{pagination.end}
               <span className="text-muted-foreground/40 mx-1.5">of</span>
               {formatNumber(total)}
             </span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={handlePageSizeChange}
-            >
-              <SelectTrigger className="h-6 w-[62px] border-border/40 bg-transparent font-mono text-[11px] text-muted-foreground px-2 [&>svg]:h-3 [&>svg]:w-3">
+            <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+              <SelectTrigger className="border-border/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px] [&>svg]:h-3 [&>svg]:w-3">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PAGE_SIZE_OPTIONS.map((size) => (
-                  <SelectItem
-                    key={size}
-                    value={String(size)}
-                    className="font-mono text-xs"
-                  >
+                  <SelectItem key={size} value={String(size)} className="font-mono text-xs">
                     {size}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40">
+            <span className="text-muted-foreground/40 text-[10px] tracking-wider uppercase">
               per page
             </span>
           </div>
@@ -687,7 +640,7 @@ export default function BrowserPage({
               p === "ellipsis" ? (
                 <span
                   key={`dots-${i}`}
-                  className="px-1 text-[11px] text-muted-foreground/30 font-mono select-none"
+                  className="text-muted-foreground/30 px-1 font-mono text-[11px] select-none"
                 >
                   ···
                 </span>
@@ -700,7 +653,7 @@ export default function BrowserPage({
                 >
                   {p}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -722,17 +675,12 @@ export default function BrowserPage({
       )}
 
       {/* ── View Record Dialog ───────────────────────── */}
-      <Dialog
-        open={!!viewRecord}
-        onOpenChange={(open) => !open && setViewRecord(null)}
-      >
-        <DialogContent className="sm:max-w-[620px] max-h-[80vh] gap-0 p-0 overflow-hidden border-border/50">
-          <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/40 space-y-0">
+      <Dialog open={!!viewRecord} onOpenChange={(open) => !open && setViewRecord(null)}>
+        <DialogContent className="border-border/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
+          <DialogHeader className="border-border/40 space-y-0 border-b px-5 pt-5 pb-3">
             <div className="flex items-center justify-between">
-              <DialogTitle className="font-mono text-sm font-medium">
-                Record Detail
-              </DialogTitle>
-              <span className="font-mono text-[11px] text-accent truncate ml-4 max-w-[250px]">
+              <DialogTitle className="font-mono text-sm font-medium">Record Detail</DialogTitle>
+              <span className="text-accent ml-4 max-w-[250px] truncate font-mono text-[11px]">
                 {viewRecord?.key.pk}
               </span>
             </div>
@@ -743,12 +691,12 @@ export default function BrowserPage({
 
           {viewRecord && (
             <ScrollArea className="max-h-[calc(80vh-60px)]">
-              <div className="p-5 space-y-5">
+              <div className="space-y-5 p-5">
                 {/* Key Section */}
                 <section>
-                  <h4 className="text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2.5 flex items-center gap-2">
+                  <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
                     Key
-                    <span className="flex-1 h-px bg-border/30" />
+                    <span className="bg-border/30 h-px flex-1" />
                   </h4>
                   <div className="grid gap-1.5 font-mono text-[13px]">
                     {(
@@ -756,19 +704,17 @@ export default function BrowserPage({
                         ["namespace", viewRecord.key.namespace],
                         ["set", viewRecord.key.set],
                         ["pk", viewRecord.key.pk],
-                        ...(viewRecord.key.digest
-                          ? [["digest", viewRecord.key.digest]]
-                          : []),
+                        ...(viewRecord.key.digest ? [["digest", viewRecord.key.digest]] : []),
                       ] as [string, string][]
                     ).map(([label, val]) => (
                       <div key={label} className="flex items-baseline gap-3">
-                        <span className="w-20 shrink-0 text-[11px] text-muted-foreground/50">
+                        <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
                           {label}
                         </span>
                         <span
                           className={cn(
                             label === "pk" && "text-accent",
-                            label === "digest" && "text-xs break-all"
+                            label === "digest" && "text-xs break-all",
                           )}
                         >
                           {val}
@@ -780,19 +726,19 @@ export default function BrowserPage({
 
                 {/* Metadata Section */}
                 <section>
-                  <h4 className="text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2.5 flex items-center gap-2">
+                  <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
                     Metadata
-                    <span className="flex-1 h-px bg-border/30" />
+                    <span className="bg-border/30 h-px flex-1" />
                   </h4>
                   <div className="grid gap-1.5 font-mono text-[13px]">
                     <div className="flex items-baseline gap-3">
-                      <span className="w-20 shrink-0 text-[11px] text-muted-foreground/50">
+                      <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
                         generation
                       </span>
                       <span>{viewRecord.meta.generation}</span>
                     </div>
                     <div className="flex items-baseline gap-3">
-                      <span className="w-20 shrink-0 text-[11px] text-muted-foreground/50">
+                      <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
                         ttl
                       </span>
                       <span>
@@ -805,13 +751,11 @@ export default function BrowserPage({
                     </div>
                     {viewRecord.meta.lastUpdateMs && (
                       <div className="flex items-baseline gap-3">
-                        <span className="w-20 shrink-0 text-[11px] text-muted-foreground/50">
+                        <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
                           updated
                         </span>
                         <span className="text-[12px]">
-                          {new Date(
-                            viewRecord.meta.lastUpdateMs
-                          ).toISOString()}
+                          {new Date(viewRecord.meta.lastUpdateMs).toISOString()}
                         </span>
                       </div>
                     )}
@@ -820,14 +764,14 @@ export default function BrowserPage({
 
                 {/* Bins Section */}
                 <section>
-                  <h4 className="text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 mb-2.5 flex items-center gap-2">
+                  <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
                     Bins
                     <span className="text-muted-foreground/30">
                       ({Object.keys(viewRecord.bins).length})
                     </span>
-                    <span className="flex-1 h-px bg-border/30" />
+                    <span className="bg-border/30 h-px flex-1" />
                   </h4>
-                  <div className="rounded-md border border-border/40 bg-background/50 p-3 overflow-auto max-h-[300px]">
+                  <div className="border-border/40 bg-background/50 max-h-[300px] overflow-auto rounded-md border p-3">
                     <JsonViewer data={viewRecord.bins} />
                   </div>
                 </section>
@@ -839,8 +783,8 @@ export default function BrowserPage({
 
       {/* ── Record Editor Dialog ─────────────────────── */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 border-border/50">
-          <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/40 space-y-0.5">
+        <DialogContent className="border-border/50 flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]">
+          <DialogHeader className="border-border/40 space-y-0.5 border-b px-5 pt-5 pb-3">
             <DialogTitle className="font-mono text-sm font-medium">
               {editorMode === "create"
                 ? "New Record"
@@ -848,7 +792,7 @@ export default function BrowserPage({
                   ? "Duplicate Record"
                   : "Edit Record"}
             </DialogTitle>
-            <DialogDescription className="font-mono text-xs text-muted-foreground/60">
+            <DialogDescription className="text-muted-foreground/60 font-mono text-xs">
               {decodedNs}
               <span className="text-muted-foreground/30 mx-1">.</span>
               {decodedSet}
@@ -856,11 +800,11 @@ export default function BrowserPage({
           </DialogHeader>
 
           <ScrollArea className="flex-1">
-            <div className="p-5 space-y-5">
+            <div className="space-y-5 p-5">
               {/* Key & TTL */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60">
+                  <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
                     Primary Key
                   </Label>
                   <Input
@@ -868,11 +812,11 @@ export default function BrowserPage({
                     value={editorPK}
                     onChange={(e) => setEditorPK(e.target.value)}
                     disabled={editorMode === "edit"}
-                    className="font-mono text-sm h-9 border-border/50 focus-visible:ring-accent/30"
+                    className="border-border/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60">
+                  <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
                     TTL (seconds)
                   </Label>
                   <Input
@@ -880,7 +824,7 @@ export default function BrowserPage({
                     placeholder="0 = default"
                     value={editorTTL}
                     onChange={(e) => setEditorTTL(e.target.value)}
-                    className="font-mono text-sm h-9 border-border/50 focus-visible:ring-accent/30"
+                    className="border-border/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
                   />
                 </div>
               </div>
@@ -888,7 +832,7 @@ export default function BrowserPage({
               {/* Bins */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60">
+                  <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
                     Bins
                   </Label>
                   <Button
@@ -896,7 +840,7 @@ export default function BrowserPage({
                     variant="outline"
                     size="sm"
                     onClick={addBin}
-                    className="h-6 gap-1 text-[11px] font-mono border-border/40 text-muted-foreground hover:text-accent hover:border-accent/30"
+                    className="border-border/40 text-muted-foreground hover:text-accent hover:border-accent/30 h-6 gap-1 font-mono text-[11px]"
                   >
                     <Plus className="h-3 w-3" />
                     Add
@@ -904,9 +848,7 @@ export default function BrowserPage({
                 </div>
 
                 {editorBins.map((bin) => {
-                  const isComplex = ["list", "map", "geojson"].includes(
-                    bin.type
-                  );
+                  const isComplex = ["list", "map", "geojson"].includes(bin.type);
                   const showCode = useCodeEditor[bin.id];
                   const typeAccent: Record<string, string> = {
                     string: "border-l-foreground/15",
@@ -922,35 +864,27 @@ export default function BrowserPage({
                     <div
                       key={bin.id}
                       className={cn(
-                        "space-y-2.5 rounded-md border border-border/40 border-l-2 p-3 transition-colors hover:border-border/60",
-                        typeAccent[bin.type] || "border-l-border"
+                        "border-border/40 hover:border-border/60 space-y-2.5 rounded-md border border-l-2 p-3 transition-colors",
+                        typeAccent[bin.type] || "border-l-border",
                       )}
                     >
                       <div className="flex items-center gap-2">
                         <Input
                           placeholder="Bin name"
                           value={bin.name}
-                          onChange={(e) =>
-                            updateBin(bin.id, "name", e.target.value)
-                          }
-                          className="flex-1 font-mono text-sm h-8 border-border/40"
+                          onChange={(e) => updateBin(bin.id, "name", e.target.value)}
+                          className="border-border/40 h-8 flex-1 font-mono text-sm"
                         />
                         <Select
                           value={bin.type}
-                          onValueChange={(v) =>
-                            updateBin(bin.id, "type", v)
-                          }
+                          onValueChange={(v) => updateBin(bin.id, "type", v)}
                         >
-                          <SelectTrigger className="w-[110px] h-8 font-mono text-xs border-border/40">
+                          <SelectTrigger className="border-border/40 h-8 w-[110px] font-mono text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {BIN_TYPES.map((t) => (
-                              <SelectItem
-                                key={t}
-                                value={t}
-                                className="font-mono text-xs"
-                              >
+                              <SelectItem key={t} value={t} className="font-mono text-xs">
                                 {t}
                               </SelectItem>
                             ))}
@@ -959,7 +893,7 @@ export default function BrowserPage({
                         {editorBins.length > 1 && (
                           <button
                             type="button"
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors"
                             onClick={() => removeBin(bin.id)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -970,7 +904,7 @@ export default function BrowserPage({
                       {isComplex && (
                         <button
                           type="button"
-                          className="text-[11px] font-mono text-muted-foreground/60 hover:text-accent transition-colors"
+                          className="text-muted-foreground/60 hover:text-accent font-mono text-[11px] transition-colors"
                           onClick={() =>
                             setUseCodeEditor((prev) => ({
                               ...prev,
@@ -983,12 +917,10 @@ export default function BrowserPage({
                       )}
 
                       {isComplex && showCode ? (
-                        <div className="h-[200px] rounded-md border border-border/40 overflow-hidden">
+                        <div className="border-border/40 h-[200px] overflow-hidden rounded-md border">
                           <CodeEditor
                             value={bin.value}
-                            onChange={(v) =>
-                              updateBin(bin.id, "value", v)
-                            }
+                            onChange={(v) => updateBin(bin.id, "value", v)}
                             language="json"
                             height="200px"
                           />
@@ -998,16 +930,13 @@ export default function BrowserPage({
                           placeholder={
                             bin.type === "bool"
                               ? "true / false"
-                              : bin.type === "integer" ||
-                                  bin.type === "float"
+                              : bin.type === "integer" || bin.type === "float"
                                 ? "0"
                                 : "Value"
                           }
                           value={bin.value}
-                          onChange={(e) =>
-                            updateBin(bin.id, "value", e.target.value)
-                          }
-                          className="font-mono text-sm h-8 border-border/40"
+                          onChange={(e) => updateBin(bin.id, "value", e.target.value)}
+                          className="border-border/40 h-8 font-mono text-sm"
                         />
                       )}
                     </div>
@@ -1017,19 +946,19 @@ export default function BrowserPage({
             </div>
           </ScrollArea>
 
-          <div className="flex items-center justify-end gap-2 border-t border-border/40 px-5 py-3">
+          <div className="border-border/40 flex items-center justify-end gap-2 border-t px-5 py-3">
             <Button
               variant="ghost"
               onClick={() => setEditorOpen(false)}
               disabled={saving}
-              className="h-8 text-xs font-mono"
+              className="h-8 font-mono text-xs"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSaveRecord}
               disabled={saving}
-              className="h-8 gap-1.5 text-xs font-mono"
+              className="h-8 gap-1.5 font-mono text-xs"
             >
               {saving && <Loader2 className="h-3 w-3 animate-spin" />}
               {editorMode === "edit" ? "Update" : "Create"}

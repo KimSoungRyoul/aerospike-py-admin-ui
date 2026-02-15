@@ -11,9 +11,7 @@ describe("FullPageError", () => {
   });
 
   it("renders custom title and message", () => {
-    render(
-      <FullPageError title="Failed to load" message="Network error" />,
-    );
+    render(<FullPageError title="Failed to load" message="Network error" />);
     expect(screen.getByText("Failed to load")).toBeInTheDocument();
     expect(screen.getByText("Network error")).toBeInTheDocument();
   });

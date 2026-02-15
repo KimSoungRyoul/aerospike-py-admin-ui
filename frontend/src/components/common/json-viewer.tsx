@@ -36,7 +36,7 @@ export function JsonViewer({ data, collapsed = false, level = 0, className }: Js
       <span className={cn("font-mono text-sm", className)}>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="inline-flex items-center hover:text-accent"
+          className="hover:text-accent inline-flex items-center"
         >
           {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
@@ -68,12 +68,15 @@ export function JsonViewer({ data, collapsed = false, level = 0, className }: Js
       <span className={cn("font-mono text-sm", className)}>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="inline-flex items-center hover:text-accent"
+          className="hover:text-accent inline-flex items-center"
         >
           {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
         {isCollapsed ? (
-          <span className="text-muted-foreground"> {"{"}...{entries.length} keys{"}"}</span>
+          <span className="text-muted-foreground">
+            {" "}
+            {"{"}...{entries.length} keys{"}"}
+          </span>
         ) : (
           <>
             {"{"}

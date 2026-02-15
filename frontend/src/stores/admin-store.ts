@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { AerospikeUser, AerospikeRole, CreateUserRequest, CreateRoleRequest } from "@/lib/api/types";
+import type {
+  AerospikeUser,
+  AerospikeRole,
+  CreateUserRequest,
+  CreateRoleRequest,
+} from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
 interface AdminState {

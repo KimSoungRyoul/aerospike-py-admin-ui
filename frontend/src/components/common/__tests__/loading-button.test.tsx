@@ -10,9 +10,7 @@ describe("LoadingButton", () => {
   });
 
   it("shows spinner when loading", () => {
-    const { container } = render(
-      <LoadingButton loading>Submit</LoadingButton>,
-    );
+    const { container } = render(<LoadingButton loading>Submit</LoadingButton>);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 

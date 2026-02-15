@@ -1,16 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  Trash2,
-  Eye,
-  Play,
-  Upload,
-  FileCode,
-  RefreshCw,
-  Loader2,
-} from "lucide-react";
+import { Plus, Trash2, Eye, Play, Upload, FileCode, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,11 +32,7 @@ import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";
 import { toast } from "sonner";
 
-export default function UDFsPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function UDFsPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
   const [udfs, setUdfs] = useState<UDFModule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,14 +170,12 @@ export default function UDFsPage({
   }, []);
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            UDF Modules
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">UDF Modules</h1>
+          <p className="text-muted-foreground mt-0.5 text-sm">
             Manage User-Defined Functions (Lua scripts)
           </p>
         </div>
@@ -218,7 +203,7 @@ export default function UDFsPage({
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive animate-fade-in">
+        <div className="border-destructive/30 bg-destructive/5 text-destructive animate-fade-in rounded-lg border p-3 text-sm">
           {error}
         </div>
       )}
@@ -256,13 +241,11 @@ export default function UDFsPage({
             <TableBody>
               {udfs.map((udf) => (
                 <TableRow key={udf.filename}>
-                  <TableCell className="font-mono font-medium">
-                    {udf.filename}
-                  </TableCell>
+                  <TableCell className="font-mono font-medium">{udf.filename}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{udf.type}</Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
+                  <TableCell className="text-muted-foreground font-mono text-xs">
                     {truncateMiddle(udf.hash, 24)}
                   </TableCell>
                   <TableCell>
@@ -286,7 +269,7 @@ export default function UDFsPage({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 text-destructive"
+                        className="text-destructive h-8 w-8 p-0"
                         onClick={() => setDeleteTarget(udf)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -302,14 +285,12 @@ export default function UDFsPage({
 
       {/* Upload / Paste Dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
+        <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Upload UDF Module</DialogTitle>
-            <DialogDescription>
-              Provide a Lua script filename and content.
-            </DialogDescription>
+            <DialogDescription>Provide a Lua script filename and content.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2 flex-1 overflow-hidden">
+          <div className="grid flex-1 gap-4 overflow-hidden py-2">
             <div className="grid gap-2">
               <Label>Filename</Label>
               <Input
@@ -318,9 +299,9 @@ export default function UDFsPage({
                 onChange={(e) => setUploadFilename(e.target.value)}
               />
             </div>
-            <div className="grid gap-2 flex-1 min-h-0">
+            <div className="grid min-h-0 flex-1 gap-2">
               <Label>Source Code</Label>
-              <div className="h-[300px] rounded-md border overflow-hidden">
+              <div className="h-[300px] overflow-hidden rounded-md border">
                 <CodeEditor
                   value={uploadContent}
                   onChange={(v) => setUploadContent(v)}
@@ -331,24 +312,14 @@ export default function UDFsPage({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setUploadOpen(false)}
-              disabled={uploading}
-            >
+            <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>
               Cancel
             </Button>
             <Button
               onClick={handleUpload}
-              disabled={
-                uploading ||
-                !uploadFilename.trim() ||
-                !uploadContent.trim()
-              }
+              disabled={uploading || !uploadFilename.trim() || !uploadContent.trim()}
             >
-              {uploading && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Upload
             </Button>
           </DialogFooter>
@@ -356,18 +327,13 @@ export default function UDFsPage({
       </Dialog>
 
       {/* View Source Dialog */}
-      <Dialog
-        open={!!viewSource}
-        onOpenChange={(open) => !open && setViewSource(null)}
-      >
-        <DialogContent className="sm:max-w-[700px] max-h-[80vh] flex flex-col">
+      <Dialog open={!!viewSource} onOpenChange={(open) => !open && setViewSource(null)}>
+        <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>{viewSource?.filename}</DialogTitle>
-            <DialogDescription>
-              Read-only view of the UDF source code.
-            </DialogDescription>
+            <DialogDescription>Read-only view of the UDF source code.</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 min-h-0 rounded-md border overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-md border">
             <CodeEditor
               value={viewSource?.content ?? "-- Source not available"}
               readOnly
@@ -383,9 +349,7 @@ export default function UDFsPage({
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Apply UDF</DialogTitle>
-            <DialogDescription>
-              Execute {applyModule} on a specific record.
-            </DialogDescription>
+            <DialogDescription>Execute {applyModule} on a specific record.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -432,25 +396,14 @@ export default function UDFsPage({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setApplyOpen(false)}
-              disabled={applying}
-            >
+            <Button variant="outline" onClick={() => setApplyOpen(false)} disabled={applying}>
               Cancel
             </Button>
             <Button
               onClick={handleApply}
-              disabled={
-                applying ||
-                !applyNs.trim() ||
-                !applyPK.trim() ||
-                !applyFunction.trim()
-              }
+              disabled={applying || !applyNs.trim() || !applyPK.trim() || !applyFunction.trim()}
             >
-              {applying && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Apply
             </Button>
           </DialogFooter>

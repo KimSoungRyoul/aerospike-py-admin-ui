@@ -37,27 +37,21 @@ const SetCard = React.memo(function SetCard({
   return (
     <button
       onClick={() =>
-        router.push(
-          `/browser/${connId}/${encodeURIComponent(ns)}/${encodeURIComponent(set.name)}`
-        )
+        router.push(`/browser/${connId}/${encodeURIComponent(ns)}/${encodeURIComponent(set.name)}`)
       }
-      className="group flex items-center gap-4 rounded-lg border border-border/60 bg-card px-4 py-3 text-left transition-all duration-150 hover:border-accent/40 hover:bg-accent/5 hover:shadow-sm card-interactive"
+      className="group border-border/60 bg-card hover:border-accent/40 hover:bg-accent/5 card-interactive flex items-center gap-4 rounded-lg border px-4 py-3 text-left transition-all duration-150 hover:shadow-sm"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent transition-colors group-hover:bg-accent/15">
+      <div className="bg-accent/10 text-accent group-hover:bg-accent/15 flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors">
         <Table2 className="h-4 w-4" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-mono font-medium text-sm truncate">
-          {set.name}
-        </p>
-        <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-mono text-sm font-medium">{set.name}</p>
+        <div className="text-muted-foreground mt-0.5 flex items-center gap-3 text-xs">
           <span>{formatNumber(set.objects)} records</span>
-          {set.memoryDataBytes > 0 && (
-            <span>{formatBytes(set.memoryDataBytes)}</span>
-          )}
+          {set.memoryDataBytes > 0 && <span>{formatBytes(set.memoryDataBytes)}</span>}
         </div>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+      <ChevronRight className="text-muted-foreground/40 group-hover:text-accent h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 });
@@ -81,18 +75,18 @@ const NamespaceSection = React.memo(function NamespaceSection({
     <div className="animate-fade-in">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50"
+        className="group hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors"
       >
         {expanded ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+          <ChevronDown className="text-muted-foreground/60 h-4 w-4 shrink-0" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+          <ChevronRight className="text-muted-foreground/60 h-4 w-4 shrink-0" />
         )}
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <div className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
           <Database className="h-4 w-4" />
         </div>
-        <div className="flex-1 text-left min-w-0">
-          <span className="font-semibold text-sm">{namespace.name}</span>
+        <div className="min-w-0 flex-1 text-left">
+          <span className="text-sm font-semibold">{namespace.name}</span>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="font-mono text-xs">
@@ -115,22 +109,17 @@ const NamespaceSection = React.memo(function NamespaceSection({
       <div
         className={cn(
           "overflow-hidden transition-all duration-200 ease-out",
-          expanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+          expanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0",
         )}
       >
-        <div className="grid gap-2 pl-10 pr-2 pb-3">
+        <div className="grid gap-2 pr-2 pb-3 pl-10">
           {namespace.sets.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">
+            <p className="text-muted-foreground py-4 text-center text-xs">
               No sets in this namespace
             </p>
           ) : (
             namespace.sets.map((set) => (
-              <SetCard
-                key={set.name}
-                set={set}
-                connId={connId}
-                ns={namespace.name}
-              />
+              <SetCard key={set.name} set={set} connId={connId} ns={namespace.name} />
             ))
           )}
         </div>
@@ -139,11 +128,7 @@ const NamespaceSection = React.memo(function NamespaceSection({
   );
 });
 
-export default function BrowserSetListPage({
-  params,
-}: {
-  params: Promise<{ connId: string }>;
-}) {
+export default function BrowserSetListPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
   const {
     data: clusterInfo,
@@ -156,7 +141,7 @@ export default function BrowserSetListPage({
   const totalSets = namespaces.reduce((sum, ns) => sum + ns.sets.length, 0);
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
         title="Data Browser"
         description="Select a namespace and set to browse records"
@@ -170,23 +155,17 @@ export default function BrowserSetListPage({
 
       {/* Stats */}
       {!loading && clusterInfo && (
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-4 text-sm">
           <div className="flex items-center gap-1.5">
             <Layers className="h-4 w-4" />
             <span>
-              <span className="font-semibold text-foreground">
-                {namespaces.length}
-              </span>{" "}
-              namespaces
+              <span className="text-foreground font-semibold">{namespaces.length}</span> namespaces
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <HardDrive className="h-4 w-4" />
             <span>
-              <span className="font-semibold text-foreground">
-                {totalSets}
-              </span>{" "}
-              sets
+              <span className="text-foreground font-semibold">{totalSets}</span> sets
             </span>
           </div>
         </div>
@@ -200,7 +179,7 @@ export default function BrowserSetListPage({
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-10 w-full" />
-              <div className="pl-10 space-y-2">
+              <div className="space-y-2 pl-10">
                 <Skeleton className="h-14 w-full" />
                 <Skeleton className="h-14 w-full" />
               </div>

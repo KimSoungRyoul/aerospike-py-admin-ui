@@ -28,9 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${outfit.variable} ${jetbrainsMono.variable} antialiased`}
-      >
+      <body className={`${outfit.variable} ${jetbrainsMono.variable} antialiased`}>
         <AppLayout>{children}</AppLayout>
         <Toaster
           position="bottom-right"
