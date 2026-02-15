@@ -543,3 +543,27 @@ kbd {
 .grid-skeleton-row {
   animation: glow-pulse 1.8s ease-in-out infinite;
 }
+
+/* ─── Responsive / Mobile ──────────────────────────── */
+
+/* Touch device minimum target size (WCAG 2.5.8) */
+@media (pointer: coarse) {
+  button:not([data-compact]):not(.page-num-btn),
+  [role="button"]:not([data-compact]) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Safe area padding for iOS notch/home indicator */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Row actions visible on touch devices (no hover) */
+@media (pointer: coarse) {
+  .record-grid-row .row-actions-group {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

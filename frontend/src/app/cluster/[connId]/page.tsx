@@ -352,19 +352,21 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
         <TabsList>
           <TabsTrigger value="nodes">
             <Server className="mr-1.5 h-3.5 w-3.5" />
-            Nodes ({cluster.nodes.length})
+            <span className="hidden sm:inline">Nodes ({cluster.nodes.length})</span>
+            <span className="sm:hidden">{cluster.nodes.length}</span>
           </TabsTrigger>
           <TabsTrigger value="namespaces">
             <Database className="mr-1.5 h-3.5 w-3.5" />
-            Namespaces ({cluster.namespaces.length})
+            <span className="hidden sm:inline">Namespaces ({cluster.namespaces.length})</span>
+            <span className="sm:hidden">{cluster.namespaces.length}</span>
           </TabsTrigger>
           <TabsTrigger value="metrics" className="gap-1">
             <Activity className="mr-1.5 h-3.5 w-3.5" />
-            Metrics
+            <span className="hidden sm:inline">Metrics</span>
           </TabsTrigger>
           <TabsTrigger value="prometheus" className="gap-1">
             <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-            Prometheus
+            <span className="hidden sm:inline">Prometheus</span>
           </TabsTrigger>
         </TabsList>
 
@@ -572,7 +574,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
         <TabsContent value="metrics" className="mt-4 space-y-6">
           {!metrics ? (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Skeleton key={i} className="h-[90px] rounded-lg" />
                 ))}
@@ -586,7 +588,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
           ) : (
             <>
               {/* Summary cards */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
                 <StatCard
                   label="Read Requests"
                   value={formatNumber(metrics.totalReadReqs)}
@@ -629,7 +631,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                     <CardDescription>Transactions per second over time</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[250px]">
+                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={tpsData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -674,7 +676,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                     <CardDescription>Active connections over time</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[250px]">
+                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={connData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -713,7 +715,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                     <CardDescription>Percentage of memory used per namespace</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[250px]">
+                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={memData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -762,7 +764,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[250px]">
+                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={devData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -904,7 +906,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                       OpenMetrics-compatible output from aerospike-py
                     </CardDescription>
                   </div>
-                  <div className="relative w-64">
+                  <div className="relative w-full sm:w-64">
                     <Search className="text-muted-foreground absolute top-2.5 left-2 h-4 w-4" />
                     <Input
                       placeholder="Filter metrics..."

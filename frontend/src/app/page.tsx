@@ -281,8 +281,8 @@ export default function ConnectionsPage() {
             Export
           </Button>
           <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Connection
+            <Plus className="mr-2 h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">New Connection</span>
           </Button>
         </div>
       </div>
@@ -343,7 +343,7 @@ export default function ConnectionsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+                          className="h-7 w-7 p-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <span className="sr-only">Actions</span>

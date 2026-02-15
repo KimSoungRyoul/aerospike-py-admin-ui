@@ -234,7 +234,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
               <TableRow>
                 <TableHead>Filename</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Hash</TableHead>
+                <TableHead className="hidden md:table-cell">Hash</TableHead>
                 <TableHead className="w-[160px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -245,7 +245,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
                   <TableCell>
                     <Badge variant="secondary">{udf.type}</Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
+                  <TableCell className="text-muted-foreground hidden font-mono text-xs md:table-cell">
                     {truncateMiddle(udf.hash, 24)}
                   </TableCell>
                   <TableCell>

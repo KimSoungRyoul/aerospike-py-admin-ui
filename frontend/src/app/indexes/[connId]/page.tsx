@@ -192,10 +192,10 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Namespace</TableHead>
-                <TableHead>Set</TableHead>
+                <TableHead className="hidden md:table-cell">Set</TableHead>
                 <TableHead>Bin</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>State</TableHead>
+                <TableHead className="hidden md:table-cell">State</TableHead>
                 <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -207,14 +207,14 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
                 >
                   <TableCell className="font-mono font-medium">{index.name}</TableCell>
                   <TableCell>{index.namespace}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     {index.set || <span className="text-muted-foreground italic">all</span>}
                   </TableCell>
                   <TableCell className="font-mono">{index.bin}</TableCell>
                   <TableCell>
                     <Badge variant={indexTypeBadgeVariant(index.type)}>{index.type}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <StatusBadge
                       status={
                         index.state === "ready"
