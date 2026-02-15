@@ -1,15 +1,15 @@
 services:
   aerospike:
-    container_name: aerospike-py-admin-ui-db
-    image: aerospike/aerospike-server-enterprise:8.0.0.4
+    container_name: aerospike
+    image: aerospike:ce-8.1.0.3_1
+    # cluster_name: docker
     ports:
       - "${AEROSPIKE_PORT_SERVICE:-3000}:3000"
       - "${AEROSPIKE_PORT_FABRIC:-3001}:3001"
       - "${AEROSPIKE_PORT_HEARTBEAT:-3002}:3002"
-    volumes:
-      - aerospike-data:/opt/aerospike/data
+
     healthcheck:
-      test: ["CMD", "aql", "-c", "status"]
+      test: ["CMD", "asinfo", "-v", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,6 +49,3 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  aerospike-data:
