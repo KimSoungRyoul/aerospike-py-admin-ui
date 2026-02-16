@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Key, Shield, Users, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Key, Shield, ShieldAlert, Users, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
@@ -52,6 +52,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
     roles,
     loading,
     error,
+    isEnterpriseRequired,
     fetchUsers,
     fetchRoles,
     createUser,
@@ -215,186 +216,197 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
 
       <InlineAlert message={error} />
 
-      <Tabs defaultValue="users">
-        <TabsList>
-          <TabsTrigger value="users">
-            <Users className="mr-2 h-4 w-4" />
-            Users ({users.length})
-          </TabsTrigger>
-          <TabsTrigger value="roles">
-            <Shield className="mr-2 h-4 w-4" />
-            Roles ({roles.length})
-          </TabsTrigger>
-        </TabsList>
+      {isEnterpriseRequired ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/5 p-12 text-center">
+          <ShieldAlert className="mb-4 h-12 w-12 text-amber-500" />
+          <h3 className="text-lg font-semibold">Enterprise Edition Required</h3>
+          <p className="text-muted-foreground mt-2 max-w-md">
+            User and role management requires Aerospike Enterprise Edition. The connected Aerospike
+            instance is running Community Edition.
+          </p>
+        </div>
+      ) : (
+        <Tabs defaultValue="users">
+          <TabsList>
+            <TabsTrigger value="users">
+              <Users className="mr-2 h-4 w-4" />
+              Users ({users.length})
+            </TabsTrigger>
+            <TabsTrigger value="roles">
+              <Shield className="mr-2 h-4 w-4" />
+              Roles ({roles.length})
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Users Tab */}
-        <TabsContent value="users" className="mt-4 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setCreateUserOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create User
-            </Button>
-          </div>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
+          {/* Users Tab */}
+          <TabsContent value="users" className="mt-4 space-y-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setCreateUserOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create User
+              </Button>
             </div>
-          ) : users.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No users"
-              description="Create a user to manage access control."
-              action={
-                <Button onClick={() => setCreateUserOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create User
-                </Button>
-              }
-            />
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead className="w-[120px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.username}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.map((role) => (
-                            <Badge key={role} variant="secondary" className="text-xs">
-                              {role}
-                            </Badge>
-                          ))}
-                          {user.roles.length === 0 && (
-                            <span className="text-muted-foreground text-sm italic">No roles</span>
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : users.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No users"
+                description="Create a user to manage access control."
+                action={
+                  <Button onClick={() => setCreateUserOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create User
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Roles</TableHead>
+                      <TableHead className="w-[120px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.username}>
+                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles.map((role) => (
+                              <Badge key={role} variant="secondary" className="text-xs">
+                                {role}
+                              </Badge>
+                            ))}
+                            {user.roles.length === 0 && (
+                              <span className="text-muted-foreground text-sm italic">No roles</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setChangePassUser(user.username);
+                                setNewPass("");
+                                setChangePassOpen(true);
+                              }}
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive h-8 w-8 p-0"
+                              onClick={() => setDeleteUserTarget(user.username)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Roles Tab */}
+          <TabsContent value="roles" className="mt-4 space-y-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setCreateRoleOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Role
+              </Button>
+            </div>
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : roles.length === 0 ? (
+              <EmptyState
+                icon={Shield}
+                title="No roles"
+                description="Create a role to define access privileges."
+                action={
+                  <Button onClick={() => setCreateRoleOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Role
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Role Name</TableHead>
+                      <TableHead>Privileges</TableHead>
+                      <TableHead className="hidden md:table-cell">Whitelist</TableHead>
+                      <TableHead className="hidden md:table-cell">Quotas</TableHead>
+                      <TableHead className="w-[80px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {roles.map((role) => (
+                      <TableRow key={role.name}>
+                        <TableCell className="font-medium">{role.name}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {role.privileges.map((priv, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {priv.code}
+                                {priv.namespace && `.${priv.namespace}`}
+                                {priv.set && `.${priv.set}`}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {role.whitelist.length > 0 ? (
+                            <span className="font-mono text-xs">{role.whitelist.join(", ")}</span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs italic">any</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => {
-                              setChangePassUser(user.username);
-                              setNewPass("");
-                              setChangePassOpen(true);
-                            }}
-                          >
-                            <Key className="h-4 w-4" />
-                          </Button>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <div className="space-y-0.5 text-xs">
+                            <div>R: {role.readQuota}</div>
+                            <div>W: {role.writeQuota}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-destructive h-8 w-8 p-0"
-                            onClick={() => setDeleteUserTarget(user.username)}
+                            onClick={() => setDeleteRoleTarget(role.name)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Roles Tab */}
-        <TabsContent value="roles" className="mt-4 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setCreateRoleOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Role
-            </Button>
-          </div>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : roles.length === 0 ? (
-            <EmptyState
-              icon={Shield}
-              title="No roles"
-              description="Create a role to define access privileges."
-              action={
-                <Button onClick={() => setCreateRoleOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Role
-                </Button>
-              }
-            />
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Role Name</TableHead>
-                    <TableHead>Privileges</TableHead>
-                    <TableHead className="hidden md:table-cell">Whitelist</TableHead>
-                    <TableHead className="hidden md:table-cell">Quotas</TableHead>
-                    <TableHead className="w-[80px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {roles.map((role) => (
-                    <TableRow key={role.name}>
-                      <TableCell className="font-medium">{role.name}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {role.privileges.map((priv, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {priv.code}
-                              {priv.namespace && `.${priv.namespace}`}
-                              {priv.set && `.${priv.set}`}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {role.whitelist.length > 0 ? (
-                          <span className="font-mono text-xs">{role.whitelist.join(", ")}</span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs italic">any</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="space-y-0.5 text-xs">
-                          <div>R: {role.readQuota}</div>
-                          <div>W: {role.writeQuota}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive h-8 w-8 p-0"
-                          onClick={() => setDeleteRoleTarget(role.name)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Create User Dialog */}
       <Dialog open={createUserOpen} onOpenChange={setCreateUserOpen}>

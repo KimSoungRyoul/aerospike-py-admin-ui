@@ -6,6 +6,7 @@ import type {
   CreateRoleRequest,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { isApiError } from "@/lib/api/errors";
 import { getErrorMessage } from "@/lib/utils";
 
 interface AdminState {
@@ -13,6 +14,7 @@ interface AdminState {
   roles: AerospikeRole[];
   loading: boolean;
   error: string | null;
+  isEnterpriseRequired: boolean;
 
   fetchUsers: (connId: string) => Promise<void>;
   fetchRoles: (connId: string) => Promise<void>;
@@ -28,14 +30,19 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   roles: [],
   loading: false,
   error: null,
+  isEnterpriseRequired: false,
 
   fetchUsers: async (connId) => {
     set({ loading: true, error: null });
     try {
       const users = await api.getUsers(connId);
-      set({ users, loading: false });
+      set({ users, loading: false, isEnterpriseRequired: false });
     } catch (error) {
-      set({ error: getErrorMessage(error), loading: false });
+      if (isApiError(error) && error.status === 403) {
+        set({ isEnterpriseRequired: true, loading: false, error: null });
+      } else {
+        set({ error: getErrorMessage(error), loading: false });
+      }
     }
   },
 
@@ -43,9 +50,13 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     set({ loading: true, error: null });
     try {
       const roles = await api.getRoles(connId);
-      set({ roles, loading: false });
+      set({ roles, loading: false, isEnterpriseRequired: false });
     } catch (error) {
-      set({ error: getErrorMessage(error), loading: false });
+      if (isApiError(error) && error.status === 403) {
+        set({ isEnterpriseRequired: true, loading: false, error: null });
+      } else {
+        set({ error: getErrorMessage(error), loading: false });
+      }
     }
   },
 
