@@ -97,6 +97,11 @@ export const api = {
 
   // Cluster
   getCluster: (connId: string) => request<import("./types").ClusterInfo>(`/api/clusters/${connId}`),
+  configureNamespace: (connId: string, data: import("./types").ConfigureNamespaceRequest) =>
+    request<{ message: string }>(`/api/clusters/${connId}/namespaces`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Records
   getRecords: (connId: string, ns: string, set: string, page = 1, pageSize = 25) =>
