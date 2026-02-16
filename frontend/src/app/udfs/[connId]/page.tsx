@@ -211,7 +211,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
-      ) : udfs.length === 0 ? (
+      ) : !error && udfs.length === 0 ? (
         <EmptyState
           icon={FileCode}
           title="No UDF modules"

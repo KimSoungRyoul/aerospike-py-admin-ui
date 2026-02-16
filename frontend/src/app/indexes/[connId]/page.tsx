@@ -174,7 +174,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
-      ) : !indexes || indexes.length === 0 ? (
+      ) : !error && (!indexes || indexes.length === 0) ? (
         <EmptyState
           icon={ListTree}
           title="No secondary indexes"
@@ -201,7 +201,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
               </TableRow>
             </TableHeader>
             <TableBody>
-              {indexes.map((index) => (
+              {indexes?.map((index) => (
                 <TableRow
                   key={`${index.namespace}-${index.name}`}
                   className="hover:bg-muted/30 transition-colors"
