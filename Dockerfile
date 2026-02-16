@@ -1,12 +1,12 @@
 # =============================================================================
 # Stage 1: Frontend build
 # =============================================================================
-FROM node:22-alpine AS frontend-deps
+FROM node:25-alpine AS frontend-deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
-FROM node:22-alpine AS frontend-builder
+FROM node:25-alpine AS frontend-builder
 WORKDIR /app
 COPY --from=frontend-deps /app/node_modules ./node_modules
 COPY frontend/ .
