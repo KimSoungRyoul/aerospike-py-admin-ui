@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { TerminalCommand } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/utils";
 
 export function useTerminal(connId: string) {
   const [history, setHistory] = useState<TerminalCommand[]>([]);
@@ -27,7 +28,7 @@ export function useTerminal(connId: string) {
           {
             id: crypto.randomUUID(),
             command,
-            output: `Error: ${(error as Error).message}`,
+            output: `Error: ${getErrorMessage(error)}`,
             timestamp: new Date().toISOString(),
             success: false,
           },
