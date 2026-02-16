@@ -2,12 +2,26 @@ from __future__ import annotations
 
 import os
 
+
+def _get_int(name: str, default: int) -> int:
+    """Parse an integer environment variable with validation."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        raise ValueError(f"Environment variable {name} must be an integer, got: {raw!r}") from None
+
+
 CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
 HOST: str = os.getenv("HOST", "0.0.0.0")
-PORT: int = int(os.getenv("PORT", "8000"))
+PORT: int = _get_int("PORT", 8000)
 
 DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/connections.db")
 
 AEROSPIKE_HOST: str = os.getenv("AEROSPIKE_HOST", "localhost")
-AEROSPIKE_PORT: int = int(os.getenv("AEROSPIKE_PORT", "3000"))
+AEROSPIKE_PORT: int = _get_int("AEROSPIKE_PORT", 3000)
+
+LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
