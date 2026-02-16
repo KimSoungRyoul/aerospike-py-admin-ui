@@ -5,15 +5,15 @@ import json
 import time
 
 from aerospike_py import INDEX_TYPE_LIST, predicates
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS
 from aerospike_py_admin_ui_api.converters import raw_to_record
+from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
 from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
 
 router = APIRouter(prefix="/api/query", tags=["query"])
-
-MAX_QUERY_RECORDS = 10_000
 
 
 def _build_predicate(pred):
@@ -68,6 +68,9 @@ def _execute_query_sync(conn_id: str, body: QueryRequest) -> dict:
 
 
 @router.post("/{conn_id}")
-async def execute_query(conn_id: str, body: QueryRequest) -> QueryResponse:
+async def execute_query(
+    body: QueryRequest,
+    conn_id: str = Depends(_get_verified_connection),
+) -> QueryResponse:
     result = await asyncio.to_thread(_execute_query_sync, conn_id, body)
     return QueryResponse(**result)

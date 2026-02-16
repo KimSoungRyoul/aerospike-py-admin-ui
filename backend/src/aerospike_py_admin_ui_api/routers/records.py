@@ -3,15 +3,18 @@ from __future__ import annotations
 import asyncio
 
 import aerospike_py
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.constants import MAX_SCAN_RECORDS
 from aerospike_py_admin_ui_api.converters import raw_to_record
-from aerospike_py_admin_ui_api.models.record import RecordListResponse, RecordWriteRequest
+from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
+from aerospike_py_admin_ui_api.models.record import (
+    RecordListResponse,
+    RecordWriteRequest,
+)
 
 router = APIRouter(prefix="/api/records", tags=["records"])
-
-MAX_SCAN_RECORDS = 10_000
 
 
 def _list_records_sync(conn_id: str, ns: str, set_name: str, page: int, page_size: int) -> dict:
@@ -38,15 +41,12 @@ def _list_records_sync(conn_id: str, ns: str, set_name: str, page: int, page_siz
 
 @router.get("/{conn_id}")
 async def get_records(
-    conn_id: str,
-    ns: str = "",
+    ns: str = Query(..., min_length=1),
     set: str = "",
     page: int = Query(1, ge=1),
-    pageSize: int = Query(25, ge=1),
+    pageSize: int = Query(25, ge=1, le=500),
+    conn_id: str = Depends(_get_verified_connection),
 ) -> RecordListResponse:
-    if not ns:
-        raise HTTPException(status_code=400, detail="Missing required query param: ns")
-
     result = await asyncio.to_thread(_list_records_sync, conn_id, ns, set, page, pageSize)
     return RecordListResponse(**result)
 
@@ -67,7 +67,10 @@ def _put_record_sync(conn_id: str, body: RecordWriteRequest):
 
 
 @router.post("/{conn_id}", status_code=201)
-async def put_record(conn_id: str, body: RecordWriteRequest):
+async def put_record(
+    body: RecordWriteRequest,
+    conn_id: str = Depends(_get_verified_connection),
+):
     k = body.key
     if not k.namespace or not k.set or not k.pk:
         raise HTTPException(status_code=400, detail="Missing required key fields: namespace, set, pk")
@@ -82,13 +85,10 @@ def _delete_record_sync(conn_id: str, ns: str, set_name: str, pk: str) -> None:
 
 @router.delete("/{conn_id}")
 async def delete_record(
-    conn_id: str,
-    ns: str = "",
-    set: str = "",
-    pk: str = "",
+    ns: str = Query(..., min_length=1),
+    set: str = Query(..., min_length=1),
+    pk: str = Query(..., min_length=1),
+    conn_id: str = Depends(_get_verified_connection),
 ) -> dict:
-    if not ns or not set or not pk:
-        raise HTTPException(status_code=400, detail="Missing required query params: ns, set, pk")
-
     await asyncio.to_thread(_delete_record_sync, conn_id, ns, set, pk)
     return {"message": "Record deleted"}

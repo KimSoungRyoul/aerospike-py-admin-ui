@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, INFO_STATISTICS, info_namespace
+from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
 from aerospike_py_admin_ui_api.info_parser import parse_kv_pairs, parse_list, safe_int
 from aerospike_py_admin_ui_api.models.metrics import (
     ClusterMetrics,
@@ -14,6 +17,8 @@ from aerospike_py_admin_ui_api.models.metrics import (
     MetricSeries,
     NamespaceMetrics,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 
@@ -42,13 +47,13 @@ def _fetch_metrics_sync(conn_id: str) -> dict:
     c = client_manager._get_client_sync(conn_id)
 
     # Cluster-level statistics
-    stats_raw = c.info_random_node("statistics")
+    stats_raw = c.info_random_node(INFO_STATISTICS)
     stats = parse_kv_pairs(stats_raw)
     uptime = safe_int(stats.get("uptime"))
     client_connections = safe_int(stats.get("client_connections"))
 
     # Namespace list
-    ns_raw = c.info_random_node("namespaces")
+    ns_raw = c.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
 
     ts_points = 60
@@ -61,7 +66,7 @@ def _fetch_metrics_sync(conn_id: str) -> dict:
     total_write_success = 0
 
     for i, ns_name in enumerate(ns_names):
-        ns_info_raw = c.info_random_node(f"namespace/{ns_name}")
+        ns_info_raw = c.info_random_node(info_namespace(ns_name))
         ns_stats = parse_kv_pairs(ns_info_raw)
 
         objects = safe_int(ns_stats.get("objects"))
@@ -140,11 +145,12 @@ def _fetch_metrics_sync(conn_id: str) -> dict:
 
 
 @router.get("/{conn_id}")
-async def get_metrics(conn_id: str) -> ClusterMetrics:
+async def get_metrics(conn_id: str = Depends(_get_verified_connection)) -> ClusterMetrics:
     try:
         data = await asyncio.to_thread(_fetch_metrics_sync, conn_id)
         return ClusterMetrics(**data)
     except Exception:
+        logger.exception("Failed to fetch metrics for connection '%s'", conn_id)
         return ClusterMetrics(
             connectionId=conn_id,
             timestamp=int(time.time() * 1000),
