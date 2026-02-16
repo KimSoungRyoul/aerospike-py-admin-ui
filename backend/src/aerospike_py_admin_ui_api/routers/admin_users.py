@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 
 from aerospike_py.exception import AdminError, AerospikeError
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
 from aerospike_py_admin_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
@@ -17,12 +18,11 @@ def _query_users_sync(conn_id: str) -> list[AerospikeUser]:
     c = client_manager._get_client_sync(conn_id)
     raw_users = c.admin_query_users_info()
     users: list[AerospikeUser] = []
-    for username, info in raw_users.items():
-        roles = info.get("roles", [])
+    for info in raw_users:
         users.append(
             AerospikeUser(
-                username=username,
-                roles=roles,
+                username=info.get("user", ""),
+                roles=info.get("roles", []),
                 readQuota=info.get("read_quota", 0),
                 writeQuota=info.get("write_quota", 0),
                 connections=info.get("connections", 0),
@@ -32,7 +32,7 @@ def _query_users_sync(conn_id: str) -> list[AerospikeUser]:
 
 
 @router.get("/{conn_id}/users")
-async def get_users(conn_id: str) -> list[AerospikeUser]:
+async def get_users(conn_id: str = Depends(_get_verified_connection)) -> list[AerospikeUser]:
     try:
         return await asyncio.to_thread(_query_users_sync, conn_id)
     except AdminError:
@@ -49,7 +49,10 @@ def _create_user_sync(conn_id: str, username: str, password: str, roles: list[st
 
 
 @router.post("/{conn_id}/users", status_code=201)
-async def create_user(conn_id: str, body: CreateUserRequest) -> AerospikeUser:
+async def create_user(
+    body: CreateUserRequest,
+    conn_id: str = Depends(_get_verified_connection),
+) -> AerospikeUser:
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
@@ -73,7 +76,10 @@ def _change_password_sync(conn_id: str, username: str, password: str) -> None:
 
 
 @router.patch("/{conn_id}/users")
-async def change_password(conn_id: str, body: ChangePasswordRequest) -> dict:
+async def change_password(
+    body: ChangePasswordRequest,
+    conn_id: str = Depends(_get_verified_connection),
+) -> dict:
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
@@ -91,10 +97,10 @@ def _drop_user_sync(conn_id: str, username: str) -> None:
 
 
 @router.delete("/{conn_id}/users")
-async def delete_user(conn_id: str, username: str = "") -> dict:
-    if not username:
-        raise HTTPException(status_code=400, detail="Missing required query param: username")
-
+async def delete_user(
+    username: str = Query(..., min_length=1),
+    conn_id: str = Depends(_get_verified_connection),
+) -> dict:
     try:
         await asyncio.to_thread(_drop_user_sync, conn_id, username)
     except AdminError:
