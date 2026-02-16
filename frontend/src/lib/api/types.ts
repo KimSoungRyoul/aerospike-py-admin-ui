@@ -68,6 +68,12 @@ export interface ClusterInfo {
   namespaces: NamespaceInfo[];
 }
 
+export interface ConfigureNamespaceRequest {
+  name: string;
+  memorySize: number;
+  replicationFactor: number;
+}
+
 // === Records ===
 export type BinValue =
   | string

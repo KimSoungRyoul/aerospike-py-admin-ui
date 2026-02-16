@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AerospikeRecord, RecordListResponse, RecordWriteRequest } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/utils";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface BrowserState {
@@ -60,7 +61,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      set({ error: (error as Error).message, loading: false });
+      set({ error: getErrorMessage(error), loading: false });
     }
   },
 
@@ -72,7 +73,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
         await get().fetchRecords(connId, selectedNamespace, selectedSet, page, pageSize);
       }
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -83,7 +84,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
       const { page, pageSize } = get();
       await get().fetchRecords(connId, ns, setName, page, pageSize);
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },

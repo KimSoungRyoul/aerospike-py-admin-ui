@@ -1,3 +1,5 @@
+import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -7,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from aerospike_py_admin_ui_api import config, db
 from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.logging_config import setup_logging
 from aerospike_py_admin_ui_api.routers import (
     admin_roles,
     admin_users,
@@ -20,13 +23,18 @@ from aerospike_py_admin_ui_api.routers import (
     udfs,
 )
 
+setup_logging(config.LOG_LEVEL)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    logger.info("Starting Aerospike Py Admin UI API")
     db.init_db()
     yield
     await client_manager.close_all()
     db.close_db()
+    logger.info("Shutdown complete")
 
 
 app = FastAPI(title="Aerospike Py Admin UI API", version="0.1.0", lifespan=lifespan)
@@ -38,6 +46,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Request logging middleware
+# ---------------------------------------------------------------------------
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    start = time.monotonic()
+    response = await call_next(request)
+    elapsed_ms = (time.monotonic() - start) * 1000
+    logger.info(
+        "%s %s %d %.1fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
+
 
 # ---------------------------------------------------------------------------
 # Global exception handlers for aerospike-py errors

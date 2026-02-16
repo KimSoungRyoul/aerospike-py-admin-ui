@@ -3,9 +3,10 @@ from __future__ import annotations
 import asyncio
 
 from aerospike_py.exception import AdminError, AerospikeError
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from aerospike_py_admin_ui_api.client_manager import client_manager
+from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
 from aerospike_py_admin_ui_api.models.admin import AerospikeRole, CreateRoleRequest, Privilege
 
 router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
@@ -17,7 +18,7 @@ def _query_roles_sync(conn_id: str) -> list[AerospikeRole]:
     c = client_manager._get_client_sync(conn_id)
     raw_roles = c.admin_query_roles()
     roles: list[AerospikeRole] = []
-    for role_name, info in raw_roles.items():
+    for info in raw_roles:
         privs_raw = info.get("privileges", [])
         privileges: list[Privilege] = []
         for p in privs_raw:
@@ -34,7 +35,7 @@ def _query_roles_sync(conn_id: str) -> list[AerospikeRole]:
 
         roles.append(
             AerospikeRole(
-                name=role_name,
+                name=info.get("role", ""),
                 privileges=privileges,
                 whitelist=info.get("whitelist", []),
                 readQuota=info.get("read_quota", 0),
@@ -45,7 +46,7 @@ def _query_roles_sync(conn_id: str) -> list[AerospikeRole]:
 
 
 @router.get("/{conn_id}/roles")
-async def get_roles(conn_id: str) -> list[AerospikeRole]:
+async def get_roles(conn_id: str = Depends(_get_verified_connection)) -> list[AerospikeRole]:
     try:
         return await asyncio.to_thread(_query_roles_sync, conn_id)
     except AdminError:
@@ -69,7 +70,10 @@ def _create_role_sync(conn_id: str, body: CreateRoleRequest) -> None:
 
 
 @router.post("/{conn_id}/roles", status_code=201)
-async def create_role(conn_id: str, body: CreateRoleRequest) -> AerospikeRole:
+async def create_role(
+    body: CreateRoleRequest,
+    conn_id: str = Depends(_get_verified_connection),
+) -> AerospikeRole:
     if not body.name or not body.privileges:
         raise HTTPException(status_code=400, detail="Missing required fields: name, privileges")
 
@@ -93,10 +97,10 @@ def _drop_role_sync(conn_id: str, name: str) -> None:
 
 
 @router.delete("/{conn_id}/roles")
-async def delete_role(conn_id: str, name: str = "") -> dict:
-    if not name:
-        raise HTTPException(status_code=400, detail="Missing required query param: name")
-
+async def delete_role(
+    name: str = Query(..., min_length=1),
+    conn_id: str = Depends(_get_verified_connection),
+) -> dict:
     try:
         await asyncio.to_thread(_drop_role_sync, conn_id, name)
     except AdminError:

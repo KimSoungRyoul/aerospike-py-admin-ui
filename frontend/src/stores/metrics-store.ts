@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ClusterMetrics } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/utils";
 import { METRIC_INTERVAL_MS } from "@/lib/constants";
 
 interface MetricsState {
@@ -36,7 +37,7 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
       const metrics = await api.getMetrics(connId);
       set({ metrics, loading: false, _isFetching: false });
     } catch (error) {
-      set({ error: (error as Error).message, loading: false, _isFetching: false });
+      set({ error: getErrorMessage(error), loading: false, _isFetching: false });
     }
   },
 

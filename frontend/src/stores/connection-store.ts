@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ConnectionProfile, ConnectionStatus } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/utils";
 
 interface ConnectionState {
   connections: ConnectionProfile[];
@@ -34,7 +35,7 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
       const connections = await api.getConnections();
       set({ connections, loading: false });
     } catch (error) {
-      set({ error: (error as Error).message, loading: false });
+      set({ error: getErrorMessage(error), loading: false });
     }
   },
 
@@ -72,7 +73,7 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
       await api.createConnection(data);
       await get().fetchConnections();
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -82,7 +83,7 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
       await api.updateConnection(id, data);
       await get().fetchConnections();
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -96,7 +97,7 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
       }
       await get().fetchConnections();
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -105,7 +106,7 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
     try {
       return await api.testConnection(id);
     } catch (error) {
-      return { success: false, message: (error as Error).message };
+      return { success: false, message: getErrorMessage(error) };
     }
   },
 }));

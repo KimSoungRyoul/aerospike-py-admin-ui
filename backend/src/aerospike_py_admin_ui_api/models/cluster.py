@@ -44,3 +44,9 @@ class ClusterInfo(BaseModel):
     connectionId: str
     nodes: list[ClusterNode]
     namespaces: list[NamespaceInfo]
+
+
+class CreateNamespaceRequest(BaseModel):
+    name: str
+    memorySize: int = 1_073_741_824  # 1 GB
+    replicationFactor: int = 2

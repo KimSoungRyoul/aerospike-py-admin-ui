@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AerospikeRecord, QueryType, QueryPredicate, QueryResponse } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/utils";
 
 interface QueryState {
   namespace: string;
@@ -77,7 +78,7 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
         hasExecuted: true,
       });
     } catch (error) {
-      set({ error: (error as Error).message, loading: false });
+      set({ error: getErrorMessage(error), loading: false });
     }
   },
 

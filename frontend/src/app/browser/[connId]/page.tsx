@@ -1,22 +1,34 @@
 "use client";
 
-import React, { use } from "react";
+import React, { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Database, RefreshCw, ChevronRight, Layers, HardDrive } from "lucide-react";
+import { Database, RefreshCw, ChevronRight, Layers, HardDrive, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { StatusBadge } from "@/components/common/status-badge";
+import { LoadingButton } from "@/components/common/loading-button";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { api } from "@/lib/api/client";
 import { formatNumber, formatBytes, formatPercent } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function BrowserSetListPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
@@ -30,6 +42,79 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
 
   const namespaces = clusterInfo?.namespaces ?? [];
   const totalSets = namespaces.reduce((sum, ns) => sum + ns.sets.length, 0);
+
+  // Configure Namespace dialog state
+  const [configNsOpen, setConfigNsOpen] = useState(false);
+  const [configNsName, setConfigNsName] = useState("");
+  const [nsMemorySizeMB, setNsMemorySizeMB] = useState("1024");
+  const [nsReplicationFactor, setNsReplicationFactor] = useState("2");
+  const [configuringNs, setConfiguringNs] = useState(false);
+
+  // Create Set dialog state
+  const [createSetOpen, setCreateSetOpen] = useState(false);
+  const [createSetNs, setCreateSetNs] = useState("");
+  const [setName, setSetName] = useState("");
+
+  const openConfigureNsDialog = (ns: {
+    name: string;
+    memoryTotal: number;
+    replicationFactor: number;
+  }) => {
+    setConfigNsName(ns.name);
+    setNsMemorySizeMB(String(Math.round(ns.memoryTotal / (1024 * 1024))));
+    setNsReplicationFactor(String(ns.replicationFactor));
+    setConfigNsOpen(true);
+  };
+
+  const handleConfigureNamespace = async () => {
+    const memorySizeMB = parseInt(nsMemorySizeMB, 10);
+    if (isNaN(memorySizeMB) || memorySizeMB <= 0) {
+      toast.error("Memory size must be a positive number");
+      return;
+    }
+    const rf = parseInt(nsReplicationFactor, 10);
+    if (isNaN(rf) || rf < 1) {
+      toast.error("Replication factor must be at least 1");
+      return;
+    }
+
+    setConfiguringNs(true);
+    try {
+      await api.configureNamespace(connId, {
+        name: configNsName,
+        memorySize: memorySizeMB * 1024 * 1024,
+        replicationFactor: rf,
+      });
+      toast.success(`Namespace "${configNsName}" configured successfully`);
+      setConfigNsOpen(false);
+      await fetchData();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setConfiguringNs(false);
+    }
+  };
+
+  const handleCreateSet = () => {
+    if (!setName.trim()) {
+      toast.error("Set name is required");
+      return;
+    }
+    router.push(
+      `/browser/${connId}/${encodeURIComponent(createSetNs)}/${encodeURIComponent(setName.trim())}`,
+    );
+    setCreateSetOpen(false);
+    setSetName("");
+    toast.success(
+      `Navigating to set "${setName.trim()}" — create your first record to initialize it`,
+    );
+  };
+
+  const openCreateSetDialog = (namespaceName: string) => {
+    setCreateSetNs(namespaceName);
+    setSetName("");
+    setCreateSetOpen(true);
+  };
 
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
@@ -105,7 +190,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
         <EmptyState
           icon={Database}
           title="No namespaces"
-          description="No namespaces found in this cluster."
+          description="No namespaces found. Namespaces must be defined in aerospike.conf and require a server restart."
         />
       ) : (
         <div className="grid gap-4">
@@ -132,6 +217,15 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                       {!ns.stopWrites && !ns.hwmBreached && (
                         <StatusBadge status="ready" label="Healthy" />
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => openConfigureNsDialog(ns)}
+                        aria-label={`Configure namespace ${ns.name}`}
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -198,9 +292,20 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                   {/* Sets */}
                   <Separator />
                   <div>
-                    <h4 className="text-muted-foreground mb-2.5 text-xs font-medium tracking-wider uppercase">
-                      Sets ({ns.sets.length})
-                    </h4>
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <h4 className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+                        Sets ({ns.sets.length})
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => openCreateSetDialog(ns.name)}
+                      >
+                        <Plus className="mr-1 h-3 w-3" />
+                        Create Set
+                      </Button>
+                    </div>
                     {ns.sets.length === 0 ? (
                       <p className="text-muted-foreground py-3 text-center text-xs">
                         No sets in this namespace
@@ -240,6 +345,86 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
           })}
         </div>
       )}
+
+      {/* Configure Namespace Dialog */}
+      <Dialog open={configNsOpen} onOpenChange={setConfigNsOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Configure Namespace</DialogTitle>
+            <DialogDescription>
+              Update runtime configuration for namespace &quot;{configNsName}&quot;. Changes apply
+              immediately without restart. Not all parameters may be dynamically tunable.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Namespace</Label>
+              <Input value={configNsName} disabled />
+            </div>
+            <div className="grid gap-2">
+              <Label>Memory Size (MB)</Label>
+              <Input
+                type="number"
+                placeholder="1024"
+                value={nsMemorySizeMB}
+                onChange={(e) => setNsMemorySizeMB(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Replication Factor</Label>
+              <Input
+                type="number"
+                placeholder="2"
+                value={nsReplicationFactor}
+                onChange={(e) => setNsReplicationFactor(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfigNsOpen(false)}
+              disabled={configuringNs}
+            >
+              Cancel
+            </Button>
+            <LoadingButton onClick={handleConfigureNamespace} loading={configuringNs}>
+              Apply
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Set Dialog */}
+      <Dialog open={createSetOpen} onOpenChange={setCreateSetOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Create Set</DialogTitle>
+            <DialogDescription>
+              Create a new set in namespace &quot;{createSetNs}&quot;. Sets are created when the
+              first record is written.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Set Name</Label>
+              <Input
+                placeholder="my_set"
+                value={setName}
+                onChange={(e) => setSetName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateSetOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateSet} disabled={!setName.trim()}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import type {
   CreateRoleRequest,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/utils";
 
 interface AdminState {
   users: AerospikeUser[];
@@ -34,7 +35,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       const users = await api.getUsers(connId);
       set({ users, loading: false });
     } catch (error) {
-      set({ error: (error as Error).message, loading: false });
+      set({ error: getErrorMessage(error), loading: false });
     }
   },
 
@@ -44,7 +45,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       const roles = await api.getRoles(connId);
       set({ roles, loading: false });
     } catch (error) {
-      set({ error: (error as Error).message, loading: false });
+      set({ error: getErrorMessage(error), loading: false });
     }
   },
 
@@ -53,7 +54,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       await api.createUser(connId, data);
       await get().fetchUsers(connId);
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -62,7 +63,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     try {
       await api.changePassword(connId, username, password);
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -72,7 +73,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       await api.deleteUser(connId, username);
       await get().fetchUsers(connId);
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -82,7 +83,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       await api.createRole(connId, data);
       await get().fetchRoles(connId);
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
@@ -92,7 +93,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       await api.deleteRole(connId, name);
       await get().fetchRoles(connId);
     } catch (error) {
-      set({ error: (error as Error).message });
+      set({ error: getErrorMessage(error) });
       throw error;
     }
   },
