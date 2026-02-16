@@ -16,6 +16,9 @@ def raw_to_record(raw: tuple[tuple, dict, dict]) -> AerospikeRecord:
     """
     key_tuple, meta, bins = raw
 
+    if key_tuple is None:
+        key_tuple = ()
+
     ns: str = key_tuple[0] if len(key_tuple) > 0 else ""
     set_name: str = key_tuple[1] if len(key_tuple) > 1 else ""
     pk: Any = key_tuple[2] if len(key_tuple) > 2 else ""
