@@ -42,6 +42,7 @@ import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { api } from "@/lib/api/client";
 import type { AerospikeRecord, BinValue, ClusterInfo, PredicateOperator } from "@/lib/api/types";
 import { formatDuration, formatNumber, truncateMiddle } from "@/lib/formatters";
+import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
 const OPERATORS: { value: PredicateOperator; label: string }[] = [
@@ -77,6 +78,7 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
 
   const [clusterInfo, setClusterInfo] = useState<ClusterInfo | null>(null);
   const [loadingCluster, setLoadingCluster] = useState(true);
+  const [clusterError, setClusterError] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<string>("builder");
 
   // Predicate local state
@@ -94,11 +96,12 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
       try {
         const info = await api.getCluster(connId);
         setClusterInfo(info);
+        setClusterError(null);
         if (info.namespaces.length > 0 && !store.namespace) {
           store.setNamespace(info.namespaces[0].name);
         }
-      } catch {
-        // silent
+      } catch (err) {
+        setClusterError(getErrorMessage(err));
       } finally {
         setLoadingCluster(false);
       }
@@ -299,6 +302,7 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
             </SelectContent>
           </Select>
         )}
+        {clusterError && <InlineAlert message={`Failed to load namespaces: ${clusterError}`} />}
       </div>
 
       {/* Set */}
