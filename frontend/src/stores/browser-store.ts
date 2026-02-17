@@ -68,10 +68,8 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   putRecord: async (connId, data) => {
     try {
       await api.putRecord(connId, data);
-      const { selectedNamespace, selectedSet, page, pageSize } = get();
-      if (selectedNamespace && selectedSet) {
-        await get().fetchRecords(connId, selectedNamespace, selectedSet, page, pageSize);
-      }
+      const { page, pageSize } = get();
+      await get().fetchRecords(connId, data.key.namespace, data.key.set, page, pageSize);
     } catch (error) {
       set({ error: getErrorMessage(error) });
       throw error;

@@ -14,6 +14,10 @@ import {
   ChevronsRight,
   Loader2,
   Database,
+  Code,
+  Check,
+  Minus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,14 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -49,6 +45,7 @@ import { InlineAlert } from "@/components/common/inline-alert";
 import { JsonViewer } from "@/components/common/json-viewer";
 import { CodeEditor } from "@/components/common/code-editor";
 import { useBrowserStore } from "@/stores/browser-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { usePagination } from "@/hooks/use-pagination";
 import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/types";
 import { PAGE_SIZE_OPTIONS, BIN_TYPES, type BinType } from "@/lib/constants";
@@ -198,6 +195,15 @@ export default function BrowserPage({
 
   const pagination = usePagination({ total, page, pageSize });
 
+  const connections = useConnectionStore((s) => s.connections);
+  const currentConnection = useMemo(
+    () => connections.find((c) => c.id === connId),
+    [connections, connId],
+  );
+
+  const [selectedPKs, setSelectedPKs] = useState<Set<string>>(new Set());
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+
   const [viewRecord, setViewRecord] = useState<AerospikeRecord | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit" | "duplicate">("create");
@@ -339,6 +345,44 @@ export default function BrowserPage({
     [connId, decodedNs, decodedSet, setPageSize, fetchRecords],
   );
 
+  const togglePK = useCallback((pk: string) => {
+    setSelectedPKs((prev) => {
+      const next = new Set(prev);
+      if (next.has(pk)) next.delete(pk);
+      else next.add(pk);
+      return next;
+    });
+  }, []);
+
+  const toggleAllPKs = useCallback(() => {
+    setSelectedPKs((prev) => {
+      if (prev.size === records.length) return new Set();
+      return new Set(records.map((r) => String(r.key.pk)));
+    });
+  }, [records]);
+
+  const generateBatchReadCode = useCallback(() => {
+    const selected = records.filter((r) => selectedPKs.has(String(r.key.pk)));
+    const host = currentConnection?.hosts?.[0] ?? "127.0.0.1";
+    const port = currentConnection?.port ?? 3000;
+    const keysStr = selected
+      .map((r) => `    ("${decodedNs}", "${decodedSet}", "${r.key.pk}")`)
+      .join(",\n");
+
+    return `import aerospike
+from aerospike_helpers.batch import records as br
+
+keys = [
+${keysStr},
+]
+
+client = aerospike.client({"hosts": [("${host}", ${port})]}).connect()
+batch_results = client.batch_read(keys)
+
+for result in batch_results:
+    print(result.key, result.bins)`;
+  }, [records, selectedPKs, decodedNs, decodedSet, currentConnection]);
+
   const padLength = String(pagination.end).length;
   const { isDesktop } = useBreakpoint();
 
@@ -355,12 +399,15 @@ export default function BrowserPage({
                 onClick={() => router.push(`/browser/${connId}`)}
                 className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
               >
-                data
+                Namespaces
               </button>
               <span className="text-muted-foreground/30 mx-1 shrink-0 sm:mx-1.5">›</span>
-              <span className="text-muted-foreground max-w-[60px] truncate sm:max-w-none">
+              <button
+                onClick={() => router.push(`/browser/${connId}`)}
+                className="text-muted-foreground hover:text-foreground max-w-[60px] truncate transition-colors sm:max-w-none"
+              >
                 {decodedNs}
-              </span>
+              </button>
               <span className="text-muted-foreground/30 mx-1 shrink-0 sm:mx-1.5">›</span>
               <span className="text-accent max-w-[80px] truncate font-medium sm:max-w-none">
                 {decodedSet}
@@ -454,9 +501,22 @@ export default function BrowserPage({
                 style={{ animationDelay: `${idx * 25}ms` }}
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-accent font-mono text-sm font-medium">
-                    {truncateMiddle(String(record.key.pk), 24)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => togglePK(String(record.key.pk))}
+                      className={cn(
+                        "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                        selectedPKs.has(String(record.key.pk))
+                          ? "border-accent bg-accent text-accent-foreground"
+                          : "border-muted-foreground/30 hover:border-muted-foreground/50",
+                      )}
+                    >
+                      {selectedPKs.has(String(record.key.pk)) && <Check className="h-3 w-3" />}
+                    </button>
+                    <span className="text-accent font-mono text-sm font-medium">
+                      {truncateMiddle(String(record.key.pk), 24)}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setViewRecord(record)}
@@ -518,71 +578,117 @@ export default function BrowserPage({
         ) : (
           /* Desktop data table */
           <TooltipProvider delayDuration={300}>
-            <Table>
-              <TableHeader className="grid-header bg-background/95 sticky top-0 z-10 backdrop-blur-sm">
-                <TableRow>
-                  <TableHead className="w-14 px-4 py-2.5 text-right">
+            <table
+              className="table-pin-rows table table-fixed"
+              style={{
+                minWidth: 40 + 56 + 180 + 70 + 80 + binColumns.length * 160 + 130,
+              }}
+            >
+              <colgroup>
+                <col style={{ width: 40 }} />
+                <col style={{ width: 56 }} />
+                <col style={{ width: 180 }} />
+                <col style={{ width: 70 }} />
+                <col style={{ width: 80 }} />
+                {binColumns.map((col) => (
+                  <col key={col} style={{ width: 160 }} />
+                ))}
+                <col style={{ width: 130 }} />
+              </colgroup>
+              <thead className="grid-header">
+                <tr>
+                  <th className="bg-base-100 sticky left-0 z-30 px-2 py-2.5 text-center">
+                    <button
+                      onClick={toggleAllPKs}
+                      className={cn(
+                        "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                        selectedPKs.size === records.length && records.length > 0
+                          ? "border-accent bg-accent text-accent-foreground"
+                          : selectedPKs.size > 0
+                            ? "border-accent/60 bg-accent/20"
+                            : "border-muted-foreground/30 hover:border-muted-foreground/50",
+                      )}
+                    >
+                      {selectedPKs.size === records.length && records.length > 0 ? (
+                        <Check className="h-3 w-3" />
+                      ) : selectedPKs.size > 0 ? (
+                        <Minus className="h-3 w-3" />
+                      ) : null}
+                    </button>
+                  </th>
+                  <th className="bg-base-100 sticky left-10 z-30 px-4 py-2.5 text-right">
                     <span className="grid-row-num font-mono">#</span>
-                  </TableHead>
-                  <TableHead className="px-4 py-2.5 text-left" style={{ width: 180 }}>
+                  </th>
+                  <th className="px-4 py-2.5 text-left">
                     <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                       PK
                     </span>
-                  </TableHead>
-                  <TableHead className="px-4 py-2.5 text-left" style={{ width: 70 }}>
+                  </th>
+                  <th className="px-4 py-2.5 text-left">
                     <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                       Gen
                     </span>
-                  </TableHead>
-                  <TableHead className="px-4 py-2.5 text-left" style={{ width: 80 }}>
+                  </th>
+                  <th className="px-4 py-2.5 text-left">
                     <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
                       TTL
                     </span>
-                  </TableHead>
+                  </th>
                   {binColumns.map((col) => (
-                    <TableHead
-                      key={col}
-                      className="px-4 py-2.5 text-left"
-                      style={{ minWidth: 140 }}
-                    >
-                      <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
+                    <th key={col} className="px-4 py-2.5 text-left">
+                      <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em]">
                         {col}
                       </span>
-                    </TableHead>
+                    </th>
                   ))}
-                  <TableHead className="w-[130px] px-4 py-2.5" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                  <th className="bg-base-100 sticky right-0 z-30 px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
                 {records.map((record, idx) => (
-                  <TableRow
+                  <tr
                     key={record.key.pk + idx}
                     className="record-grid-row border-border/30 group border-b hover:bg-transparent"
                     style={{ animationDelay: `${idx * 25}ms` }}
                   >
-                    {/* Row Number */}
-                    <TableCell className="w-14 px-4 py-2.5 text-right">
+                    {/* Checkbox (pinned left) */}
+                    <td className="bg-base-100 sticky left-0 z-10 px-2 py-2.5 text-center">
+                      <button
+                        onClick={() => togglePK(String(record.key.pk))}
+                        className={cn(
+                          "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                          selectedPKs.has(String(record.key.pk))
+                            ? "border-accent bg-accent text-accent-foreground"
+                            : "border-muted-foreground/30 hover:border-muted-foreground/50",
+                        )}
+                      >
+                        {selectedPKs.has(String(record.key.pk)) && <Check className="h-3 w-3" />}
+                      </button>
+                    </td>
+
+                    {/* Row Number (pinned left) */}
+                    <td className="bg-base-100 sticky left-10 z-10 px-4 py-2.5 text-right">
                       <span className="grid-row-num font-mono">
                         {String(pagination.start + idx).padStart(padLength, "0")}
                       </span>
-                    </TableCell>
+                    </td>
 
                     {/* PK */}
-                    <TableCell className="px-4 py-2.5" style={{ width: 180 }}>
-                      <span className="text-foreground font-mono text-[13px] font-medium">
+                    <td className="overflow-hidden px-4 py-2.5">
+                      <span className="text-foreground truncate font-mono text-[13px] font-medium">
                         {truncateMiddle(String(record.key.pk), 28)}
                       </span>
-                    </TableCell>
+                    </td>
 
                     {/* Generation */}
-                    <TableCell className="px-4 py-2.5" style={{ width: 70 }}>
+                    <td className="px-4 py-2.5">
                       <span className="text-muted-foreground font-mono text-xs tabular-nums">
                         {record.meta.generation}
                       </span>
-                    </TableCell>
+                    </td>
 
                     {/* TTL */}
-                    <TableCell className="px-4 py-2.5" style={{ width: 80 }}>
+                    <td className="px-4 py-2.5">
                       <span className="text-muted-foreground/60 font-mono text-xs">
                         {record.meta.ttl === -1
                           ? "∞"
@@ -590,17 +696,17 @@ export default function BrowserPage({
                             ? "—"
                             : `${record.meta.ttl}s`}
                       </span>
-                    </TableCell>
+                    </td>
 
                     {/* Bin Values */}
                     {binColumns.map((col) => (
-                      <TableCell key={col} className="px-4 py-2.5">
+                      <td key={col} className="overflow-hidden px-4 py-2.5">
                         {renderCellValue(record.bins[col])}
-                      </TableCell>
+                      </td>
                     ))}
 
-                    {/* Row Actions (hover reveal) */}
-                    <TableCell className="w-[130px] px-4 py-2.5">
+                    {/* Row Actions (pinned right) */}
+                    <td className="bg-base-100 sticky right-0 z-10 px-4 py-2.5">
                       <div className="row-actions-group flex items-center justify-end gap-0.5">
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -658,14 +764,44 @@ export default function BrowserPage({
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </TooltipProvider>
         )}
       </div>
+
+      {/* ── Selection Toolbar ─────────────────────────── */}
+      {selectedPKs.size > 0 && (
+        <div className="border-accent/30 bg-accent/5 border-t px-3 py-2 backdrop-blur-md sm:px-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-accent font-mono text-[11px] font-medium tabular-nums">
+                {selectedPKs.size} selected
+              </span>
+              <button
+                onClick={() => setSelectedPKs(new Set())}
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-[11px] transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </button>
+            </div>
+            <Button
+              onClick={() => setBatchDialogOpen(true)}
+              size="sm"
+              variant="outline"
+              className="border-accent/30 text-accent hover:bg-accent/10 hover:border-accent/50 h-7 gap-1.5 font-mono text-xs transition-colors"
+              data-compact
+            >
+              <Code className="h-3 w-3" />
+              Generate batch_read
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ── Status Bar ───────────────────────────────── */}
       {total > 0 && (
@@ -867,7 +1003,7 @@ export default function BrowserPage({
       </Dialog>
 
       {/* ── Record Editor Dialog ─────────────────────── */}
-      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+      <Dialog open={editorOpen} onOpenChange={setEditorOpen} preventClose>
         <DialogContent className="border-border/50 flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]">
           <DialogHeader className="border-border/40 space-y-0.5 border-b px-5 pt-5 pb-3">
             <DialogTitle className="font-mono text-sm font-medium">
@@ -1049,6 +1185,44 @@ export default function BrowserPage({
               {editorMode === "edit" ? "Update" : "Create"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Batch Read Code Dialog ────────────────────── */}
+      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+        <DialogContent className="border-border/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
+          <DialogHeader className="border-border/40 space-y-0 border-b px-5 pt-5 pb-3">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="font-mono text-sm font-medium">batch_read Code</DialogTitle>
+              <span className="text-accent ml-4 font-mono text-[11px]">
+                {selectedPKs.size} keys
+              </span>
+            </div>
+            <DialogDescription className="text-muted-foreground/60 font-mono text-xs">
+              Python aerospike client batch_read snippet
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[calc(80vh-100px)]">
+            <div className="p-5">
+              <div className="border-border/40 bg-background/50 relative overflow-hidden rounded-md border">
+                <div className="border-border/30 flex items-center justify-end border-b px-3 py-1.5">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generateBatchReadCode());
+                      toast.success("Copied to clipboard");
+                    }}
+                    className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] transition-colors"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy
+                  </button>
+                </div>
+                <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed">
+                  <code>{generateBatchReadCode()}</code>
+                </pre>
+              </div>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
