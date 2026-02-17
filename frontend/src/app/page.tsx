@@ -153,17 +153,19 @@ export default function ConnectionsPage() {
   };
 
   const handleTest = async () => {
-    if (!editingId) {
-      setTestResult({
-        success: false,
-        message: "Save the cluster first to test it.",
-      });
-      return;
-    }
+    if (!form.hosts.trim()) return;
     setTesting(true);
     setTestResult(null);
     try {
-      const result = await testConnection(editingId);
+      const result = await testConnection({
+        hosts: form.hosts
+          .split(",")
+          .map((h) => h.trim())
+          .filter(Boolean),
+        port: parseInt(form.port, 10) || 3000,
+        username: form.username || undefined,
+        password: form.password || undefined,
+      });
       setTestResult(result);
     } finally {
       setTesting(false);
@@ -382,7 +384,9 @@ export default function ConnectionsPage() {
                     </DropdownMenu>
                   </div>
                   <CardDescription className="font-mono text-xs tracking-wide">
-                    {conn.hosts.join(", ")}:{conn.port}
+                    {conn.hosts.every((h) => h.includes(":"))
+                      ? conn.hosts.join(", ")
+                      : `${conn.hosts.join(", ")}:${conn.port}`}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pb-4">
@@ -438,17 +442,17 @@ export default function ConnectionsPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="conn-hosts">Hosts (comma-separated)</Label>
+              <Label htmlFor="conn-hosts">Hosts (comma-separated, host:port supported)</Label>
               <Input
                 id="conn-hosts"
-                placeholder="127.0.0.1, 10.0.0.2"
+                placeholder="host1:3000, host2:3010"
                 value={form.hosts}
                 onChange={(e) => setForm({ ...form, hosts: e.target.value })}
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="conn-port">Port</Label>
+              <Label htmlFor="conn-port">Default Port</Label>
               <Input
                 id="conn-port"
                 type="number"
@@ -527,22 +531,20 @@ export default function ConnectionsPage() {
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            {editingId && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleTest}
-                disabled={testing}
-                className="mr-auto"
-              >
-                {testing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wifi className="mr-2 h-4 w-4" />
-                )}
-                Test Cluster
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTest}
+              disabled={testing || !form.hosts.trim()}
+              className="mr-auto"
+            >
+              {testing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Wifi className="mr-2 h-4 w-4" />
+              )}
+              Test Cluster
+            </Button>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>

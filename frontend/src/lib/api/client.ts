@@ -90,9 +90,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
   deleteConnection: (id: string) => request<void>(`/api/connections/${id}`, { method: "DELETE" }),
-  testConnection: (id: string) =>
-    request<{ success: boolean; message: string }>(`/api/connections/${id}`, {
+  testConnection: (data: { hosts: string[]; port: number; username?: string; password?: string }) =>
+    request<{ success: boolean; message: string }>("/api/connections/test", {
       method: "POST",
+      body: JSON.stringify(data),
     }),
 
   // Cluster

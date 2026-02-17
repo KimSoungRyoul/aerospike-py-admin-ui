@@ -3,10 +3,9 @@ from __future__ import annotations
 import asyncio
 
 from aerospike_py.exception import AdminError, AerospikeError
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
@@ -14,8 +13,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin-users"])
 _EE_MSG = "User/role management requires Aerospike Enterprise Edition"
 
 
-def _query_users_sync(conn_id: str) -> list[AerospikeUser]:
-    c = client_manager._get_client_sync(conn_id)
+def _query_users_sync(c) -> list[AerospikeUser]:
     raw_users = c.admin_query_users_info()
     users: list[AerospikeUser] = []
     for info in raw_users:
@@ -32,9 +30,9 @@ def _query_users_sync(conn_id: str) -> list[AerospikeUser]:
 
 
 @router.get("/{conn_id}/users")
-async def get_users(conn_id: str = Depends(_get_verified_connection)) -> list[AerospikeUser]:
+async def get_users(client: AerospikeClient) -> list[AerospikeUser]:
     try:
-        return await asyncio.to_thread(_query_users_sync, conn_id)
+        return await asyncio.to_thread(_query_users_sync, client)
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
     except AerospikeError as e:
@@ -43,21 +41,17 @@ async def get_users(conn_id: str = Depends(_get_verified_connection)) -> list[Ae
         raise
 
 
-def _create_user_sync(conn_id: str, username: str, password: str, roles: list[str]) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _create_user_sync(c, username: str, password: str, roles: list[str]) -> None:
     c.admin_create_user(username, password, roles)
 
 
 @router.post("/{conn_id}/users", status_code=201)
-async def create_user(
-    body: CreateUserRequest,
-    conn_id: str = Depends(_get_verified_connection),
-) -> AerospikeUser:
+async def create_user(body: CreateUserRequest, client: AerospikeClient) -> AerospikeUser:
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
     try:
-        await asyncio.to_thread(_create_user_sync, conn_id, body.username, body.password, body.roles or [])
+        await asyncio.to_thread(_create_user_sync, client, body.username, body.password, body.roles or [])
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
 
@@ -70,39 +64,34 @@ async def create_user(
     )
 
 
-def _change_password_sync(conn_id: str, username: str, password: str) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _change_password_sync(c, username: str, password: str) -> None:
     c.admin_change_password(username, password)
 
 
 @router.patch("/{conn_id}/users")
-async def change_password(
-    body: ChangePasswordRequest,
-    conn_id: str = Depends(_get_verified_connection),
-) -> dict:
+async def change_password(body: ChangePasswordRequest, client: AerospikeClient) -> dict:
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
     try:
-        await asyncio.to_thread(_change_password_sync, conn_id, body.username, body.password)
+        await asyncio.to_thread(_change_password_sync, client, body.username, body.password)
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
 
     return {"message": "Password updated"}
 
 
-def _drop_user_sync(conn_id: str, username: str) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _drop_user_sync(c, username: str) -> None:
     c.admin_drop_user(username)
 
 
 @router.delete("/{conn_id}/users")
 async def delete_user(
+    client: AerospikeClient,
     username: str = Query(..., min_length=1),
-    conn_id: str = Depends(_get_verified_connection),
 ) -> dict:
     try:
-        await asyncio.to_thread(_drop_user_sync, conn_id, username)
+        await asyncio.to_thread(_drop_user_sync, client, username)
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
 

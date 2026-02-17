@@ -24,14 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -187,35 +179,35 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
           }
         />
       ) : (
-        <div className="border-border/60 overflow-hidden rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Namespace</TableHead>
-                <TableHead className="hidden md:table-cell">Set</TableHead>
-                <TableHead>Bin</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="hidden md:table-cell">State</TableHead>
-                <TableHead className="w-[80px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="border-border/60 overflow-x-auto rounded-xl border">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Namespace</th>
+                <th className="hidden md:table-cell">Set</th>
+                <th>Bin</th>
+                <th>Type</th>
+                <th className="hidden md:table-cell">State</th>
+                <th className="w-[80px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
               {indexes?.map((index) => (
-                <TableRow
+                <tr
                   key={`${index.namespace}-${index.name}`}
                   className="hover:bg-muted/30 transition-colors"
                 >
-                  <TableCell className="font-mono font-medium">{index.name}</TableCell>
-                  <TableCell>{index.namespace}</TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <td className="font-mono font-medium">{index.name}</td>
+                  <td>{index.namespace}</td>
+                  <td className="hidden md:table-cell">
                     {index.set || <span className="text-muted-foreground italic">all</span>}
-                  </TableCell>
-                  <TableCell className="font-mono">{index.bin}</TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="font-mono">{index.bin}</td>
+                  <td>
                     <Badge variant={indexTypeBadgeVariant(index.type)}>{index.type}</Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  </td>
+                  <td className="hidden md:table-cell">
                     <StatusBadge
                       status={
                         index.state === "ready"
@@ -225,8 +217,8 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
                             : "error"
                       }
                     />
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -235,11 +227,11 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       )}
 

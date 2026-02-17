@@ -14,14 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -224,27 +216,27 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
           }
         />
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Filename</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="hidden md:table-cell">Hash</TableHead>
-                <TableHead className="w-[160px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className="overflow-x-auto rounded-md border">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Filename</th>
+                <th>Type</th>
+                <th className="hidden md:table-cell">Hash</th>
+                <th className="w-[160px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
               {udfs.map((udf) => (
-                <TableRow key={udf.filename}>
-                  <TableCell className="font-mono font-medium">{udf.filename}</TableCell>
-                  <TableCell>
+                <tr key={udf.filename}>
+                  <td className="font-mono font-medium">{udf.filename}</td>
+                  <td>
                     <Badge variant="secondary">{udf.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden font-mono text-xs md:table-cell">
+                  </td>
+                  <td className="text-muted-foreground hidden font-mono text-xs md:table-cell">
                     {truncateMiddle(udf.hash, 24)}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td>
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
@@ -271,11 +263,11 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       )}
 

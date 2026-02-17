@@ -16,10 +16,11 @@ const DialogContext = React.createContext<DialogContextValue>({
 interface DialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  preventClose?: boolean;
   children: React.ReactNode;
 }
 
-const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
+const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, preventClose, children }) => {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
 
   React.useEffect(() => {
@@ -43,10 +44,10 @@ const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
       className="modal"
       onCancel={(e) => {
         e.preventDefault();
-        handleClose();
+        if (!preventClose) handleClose();
       }}
       onClick={(e) => {
-        if (e.target === dialogRef.current) handleClose();
+        if (e.target === dialogRef.current && !preventClose) handleClose();
       }}
     >
       <DialogContext.Provider value={{ onClose: handleClose }}>{children}</DialogContext.Provider>

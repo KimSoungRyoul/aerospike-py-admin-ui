@@ -18,7 +18,12 @@ interface ConnectionState {
   createConnection: (data: Partial<ConnectionProfile>) => Promise<void>;
   updateConnection: (id: string, data: Partial<ConnectionProfile>) => Promise<void>;
   deleteConnection: (id: string) => Promise<void>;
-  testConnection: (id: string) => Promise<{ success: boolean; message: string }>;
+  testConnection: (data: {
+    hosts: string[];
+    port: number;
+    username?: string;
+    password?: string;
+  }) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useConnectionStore = create<ConnectionState>()((set, get) => ({
@@ -102,9 +107,9 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
     }
   },
 
-  testConnection: async (id) => {
+  testConnection: async (data) => {
     try {
-      return await api.testConnection(id);
+      return await api.testConnection(data);
     } catch (error) {
       return { success: false, message: getErrorMessage(error) };
     }

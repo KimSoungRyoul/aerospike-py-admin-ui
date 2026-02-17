@@ -3,10 +3,9 @@ from __future__ import annotations
 import asyncio
 
 from aerospike_py.exception import AdminError, AerospikeError
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.admin import AerospikeRole, CreateRoleRequest, Privilege
 
 router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
@@ -14,8 +13,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
 _EE_MSG = "User/role management requires Aerospike Enterprise Edition"
 
 
-def _query_roles_sync(conn_id: str) -> list[AerospikeRole]:
-    c = client_manager._get_client_sync(conn_id)
+def _query_roles_sync(c) -> list[AerospikeRole]:
     raw_roles = c.admin_query_roles()
     roles: list[AerospikeRole] = []
     for info in raw_roles:
@@ -46,9 +44,9 @@ def _query_roles_sync(conn_id: str) -> list[AerospikeRole]:
 
 
 @router.get("/{conn_id}/roles")
-async def get_roles(conn_id: str = Depends(_get_verified_connection)) -> list[AerospikeRole]:
+async def get_roles(client: AerospikeClient) -> list[AerospikeRole]:
     try:
-        return await asyncio.to_thread(_query_roles_sync, conn_id)
+        return await asyncio.to_thread(_query_roles_sync, client)
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
     except AerospikeError as e:
@@ -57,8 +55,7 @@ async def get_roles(conn_id: str = Depends(_get_verified_connection)) -> list[Ae
         raise
 
 
-def _create_role_sync(conn_id: str, body: CreateRoleRequest) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _create_role_sync(c, body: CreateRoleRequest) -> None:
     privileges = [{"code": p.code, "ns": p.namespace or "", "set": p.set or ""} for p in body.privileges]
     c.admin_create_role(
         body.name,
@@ -70,15 +67,12 @@ def _create_role_sync(conn_id: str, body: CreateRoleRequest) -> None:
 
 
 @router.post("/{conn_id}/roles", status_code=201)
-async def create_role(
-    body: CreateRoleRequest,
-    conn_id: str = Depends(_get_verified_connection),
-) -> AerospikeRole:
+async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> AerospikeRole:
     if not body.name or not body.privileges:
         raise HTTPException(status_code=400, detail="Missing required fields: name, privileges")
 
     try:
-        await asyncio.to_thread(_create_role_sync, conn_id, body)
+        await asyncio.to_thread(_create_role_sync, client, body)
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
 
@@ -91,18 +85,17 @@ async def create_role(
     )
 
 
-def _drop_role_sync(conn_id: str, name: str) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _drop_role_sync(c, name: str) -> None:
     c.admin_drop_role(name)
 
 
 @router.delete("/{conn_id}/roles")
 async def delete_role(
+    client: AerospikeClient,
     name: str = Query(..., min_length=1),
-    conn_id: str = Depends(_get_verified_connection),
 ) -> dict:
     try:
-        await asyncio.to_thread(_drop_role_sync, conn_id, name)
+        await asyncio.to_thread(_drop_role_sync, client, name)
     except AdminError:
         raise HTTPException(status_code=403, detail=_EE_MSG) from None
 

@@ -44,5 +44,12 @@ class UpdateConnectionRequest(BaseModel):
     color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
 
 
+class TestConnectionRequest(BaseModel):
+    hosts: list[str] = Field(min_length=1)
+    port: int = Field(ge=1, le=65535, default=3000)
+    username: str | None = None
+    password: str | None = None
+
+
 class ConnectionWithStatus(ConnectionProfile):
     status: ConnectionStatus

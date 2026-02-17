@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
 from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, info_sindex
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.info_parser import parse_list, parse_records
 from aerospike_py_admin_ui_api.models.index import CreateIndexRequest, SecondaryIndex
 
@@ -16,8 +15,7 @@ _STATE_MAP = {"RW": "ready", "WO": "building", "D": "error"}
 _TYPE_MAP = {"numeric": "numeric", "string": "string", "geo2dsphere": "geo2dsphere"}
 
 
-def _list_indexes_sync(conn_id: str) -> list[SecondaryIndex]:
-    c = client_manager._get_client_sync(conn_id)
+def _list_indexes_sync(c) -> list[SecondaryIndex]:
     ns_raw = c.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
 
@@ -44,12 +42,11 @@ def _list_indexes_sync(conn_id: str) -> list[SecondaryIndex]:
 
 
 @router.get("/{conn_id}")
-async def get_indexes(conn_id: str = Depends(_get_verified_connection)) -> list[SecondaryIndex]:
-    return await asyncio.to_thread(_list_indexes_sync, conn_id)
+async def get_indexes(client: AerospikeClient) -> list[SecondaryIndex]:
+    return await asyncio.to_thread(_list_indexes_sync, client)
 
 
-def _create_index_sync(conn_id: str, body: CreateIndexRequest) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _create_index_sync(c, body: CreateIndexRequest) -> None:
     if body.type == "numeric":
         c.index_integer_create(body.namespace, body.set, body.bin, body.name)
     elif body.type == "string":
@@ -61,11 +58,8 @@ def _create_index_sync(conn_id: str, body: CreateIndexRequest) -> None:
 
 
 @router.post("/{conn_id}", status_code=201)
-async def create_index(
-    body: CreateIndexRequest,
-    conn_id: str = Depends(_get_verified_connection),
-) -> SecondaryIndex:
-    await asyncio.to_thread(_create_index_sync, conn_id, body)
+async def create_index(body: CreateIndexRequest, client: AerospikeClient) -> SecondaryIndex:
+    await asyncio.to_thread(_create_index_sync, client, body)
     return SecondaryIndex(
         name=body.name,
         namespace=body.namespace,
@@ -76,16 +70,15 @@ async def create_index(
     )
 
 
-def _delete_index_sync(conn_id: str, ns: str, name: str) -> None:
-    c = client_manager._get_client_sync(conn_id)
+def _delete_index_sync(c, ns: str, name: str) -> None:
     c.index_remove(ns, name)
 
 
 @router.delete("/{conn_id}")
 async def delete_index(
+    client: AerospikeClient,
     name: str = Query(..., min_length=1),
     ns: str = Query(..., min_length=1),
-    conn_id: str = Depends(_get_verified_connection),
 ) -> dict:
-    await asyncio.to_thread(_delete_index_sync, conn_id, ns, name)
+    await asyncio.to_thread(_delete_index_sync, client, ns, name)
     return {"message": "Index deleted"}
