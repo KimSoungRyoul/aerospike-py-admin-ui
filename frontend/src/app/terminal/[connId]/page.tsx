@@ -106,7 +106,7 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
               <div
                 className={cn(
                   "ml-[4.5rem] break-all whitespace-pre-wrap",
-                  entry.success ? "text-zinc-400" : "text-red-400",
+                  entry.success ? "text-zinc-400" : "text-destructive",
                 )}
               >
                 {entry.output}

@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback, useMemo } from "react";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { Plus, Trash2, RefreshCw, ListTree } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
@@ -25,8 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { DataTable } from "@/components/common/data-table";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { api } from "@/lib/api/client";
@@ -138,6 +139,74 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
 
   const namespaces = clusterInfo?.namespaces ?? [];
 
+  const indexColumns = useMemo<ColumnDef<SecondaryIndex>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ getValue }) => (
+          <span className="font-mono font-medium">{getValue() as string}</span>
+        ),
+      },
+      {
+        accessorKey: "namespace",
+        header: "Namespace",
+      },
+      {
+        accessorKey: "set",
+        header: "Set",
+        cell: ({ getValue }) => {
+          const val = getValue() as string;
+          return val ? val : <span className="text-muted-foreground italic">all</span>;
+        },
+        meta: { className: "hidden md:table-cell" },
+      },
+      {
+        accessorKey: "bin",
+        header: "Bin",
+        cell: ({ getValue }) => <span className="font-mono">{getValue() as string}</span>,
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ getValue }) => {
+          const type = getValue() as IndexType;
+          return <Badge variant={indexTypeBadgeVariant(type)}>{type}</Badge>;
+        },
+      },
+      {
+        accessorKey: "state",
+        header: "State",
+        cell: ({ getValue }) => {
+          const state = getValue() as string;
+          return (
+            <StatusBadge
+              status={state === "ready" ? "ready" : state === "building" ? "building" : "error"}
+            />
+          );
+        },
+        meta: { className: "hidden md:table-cell" },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 80,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive h-8 w-8 p-0"
+            onClick={() => setDeleteTarget(row.original)}
+            aria-label="Delete index"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
@@ -160,80 +229,28 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
       <InlineAlert message={error} />
 
       {/* Table */}
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : !error && (!indexes || indexes.length === 0) ? (
-        <EmptyState
-          icon={ListTree}
-          title="No secondary indexes"
-          description="Create an index to speed up queries on specific bins."
-          action={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Index
-            </Button>
-          }
-        />
-      ) : (
-        <div className="border-border/60 overflow-x-auto rounded-xl border">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th className="hidden md:table-cell">Set</th>
-                <th>Bin</th>
-                <th>Type</th>
-                <th className="hidden md:table-cell">State</th>
-                <th className="w-[80px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {indexes?.map((index) => (
-                <tr
-                  key={`${index.namespace}-${index.name}`}
-                  className="hover:bg-muted/30 transition-colors"
-                >
-                  <td className="font-mono font-medium">{index.name}</td>
-                  <td>{index.namespace}</td>
-                  <td className="hidden md:table-cell">
-                    {index.set || <span className="text-muted-foreground italic">all</span>}
-                  </td>
-                  <td className="font-mono">{index.bin}</td>
-                  <td>
-                    <Badge variant={indexTypeBadgeVariant(index.type)}>{index.type}</Badge>
-                  </td>
-                  <td className="hidden md:table-cell">
-                    <StatusBadge
-                      status={
-                        index.state === "ready"
-                          ? "ready"
-                          : index.state === "building"
-                            ? "building"
-                            : "error"
-                      }
-                    />
-                  </td>
-                  <td>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive h-8 w-8 p-0"
-                      onClick={() => setDeleteTarget(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        data={indexes ?? []}
+        columns={indexColumns}
+        loading={loading}
+        emptyState={
+          !error ? (
+            <EmptyState
+              icon={ListTree}
+              title="No secondary indexes"
+              description="Create an index to speed up queries on specific bins."
+              action={
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Index
+                </Button>
+              }
+            />
+          ) : undefined
+        }
+        className="border-border/60 rounded-lg border"
+        testId="indexes-table"
+      />
 
       {/* Create Index Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

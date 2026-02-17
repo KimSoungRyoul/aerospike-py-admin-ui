@@ -32,7 +32,7 @@ describe("InlineAlert", () => {
   it("applies warning variant", () => {
     render(<InlineAlert message="Warning" variant="warning" />);
     const el = screen.getByText("Warning");
-    expect(el.className).toContain("border-amber");
+    expect(el.className).toContain("border-warning");
   });
 
   it("applies info variant", () => {

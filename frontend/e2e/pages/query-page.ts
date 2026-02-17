@@ -42,7 +42,7 @@ export class QueryPage {
   }
 
   getResultsTable(): Locator {
-    return this.page.locator("table").first();
+    return this.page.getByTestId("query-results-table");
   }
 
   getExportJsonBtn(): Locator {

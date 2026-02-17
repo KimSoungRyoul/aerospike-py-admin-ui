@@ -16,49 +16,43 @@ type StatusType =
 const statusConfig: Record<StatusType, { label: string; className: string; dotColor: string }> = {
   connected: {
     label: "Connected",
-    className:
-      "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-500/20",
-    dotColor: "bg-emerald-500",
+    className: "bg-success/10 text-success border-success/20",
+    dotColor: "bg-success",
   },
   disconnected: {
     label: "Disconnected",
-    className: "bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-400 border-red-500/20",
-    dotColor: "bg-red-500",
+    className: "bg-destructive/10 text-destructive border-destructive/20",
+    dotColor: "bg-destructive",
   },
   checking: {
     label: "Checking...",
-    className:
-      "bg-slate-500/10 text-slate-700 dark:bg-slate-500/15 dark:text-slate-400 border-slate-500/20",
-    dotColor: "bg-slate-400",
+    className: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
+    dotColor: "bg-muted-foreground",
   },
   ready: {
     label: "Ready",
-    className:
-      "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-500/20",
-    dotColor: "bg-emerald-500",
+    className: "bg-success/10 text-success border-success/20",
+    dotColor: "bg-success",
   },
   building: {
     label: "Building",
-    className:
-      "bg-amber-500/10 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border-amber-500/20",
-    dotColor: "bg-amber-500",
+    className: "bg-warning/10 text-warning border-warning/20",
+    dotColor: "bg-warning",
   },
   error: {
     label: "Error",
-    className: "bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-400 border-red-500/20",
-    dotColor: "bg-red-500",
+    className: "bg-destructive/10 text-destructive border-destructive/20",
+    dotColor: "bg-destructive",
   },
   live: {
     label: "Live",
-    className:
-      "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-500/20",
-    dotColor: "bg-emerald-500",
+    className: "bg-success/10 text-success border-success/20",
+    dotColor: "bg-success",
   },
   warning: {
     label: "Warning",
-    className:
-      "bg-amber-500/10 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border-amber-500/20",
-    dotColor: "bg-amber-500",
+    className: "bg-warning/10 text-warning border-warning/20",
+    dotColor: "bg-warning",
   },
 };
 
