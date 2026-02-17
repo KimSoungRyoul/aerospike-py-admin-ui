@@ -16,14 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -265,20 +257,20 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                 }
               />
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Roles</TableHead>
-                      <TableHead className="w-[120px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <div className="overflow-x-auto rounded-md border">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Roles</th>
+                      <th className="w-[120px]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {users.map((user) => (
-                      <TableRow key={user.username}>
-                        <TableCell className="font-medium">{user.username}</TableCell>
-                        <TableCell>
+                      <tr key={user.username}>
+                        <td className="font-medium">{user.username}</td>
+                        <td>
                           <div className="flex flex-wrap gap-1">
                             {user.roles.map((role) => (
                               <Badge key={role} variant="secondary" className="text-xs">
@@ -289,8 +281,8 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                               <span className="text-muted-foreground text-sm italic">No roles</span>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td>
                           <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
@@ -313,11 +305,11 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             )}
           </TabsContent>
@@ -349,22 +341,22 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                 }
               />
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Role Name</TableHead>
-                      <TableHead>Privileges</TableHead>
-                      <TableHead className="hidden md:table-cell">Whitelist</TableHead>
-                      <TableHead className="hidden md:table-cell">Quotas</TableHead>
-                      <TableHead className="w-[80px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <div className="overflow-x-auto rounded-md border">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Role Name</th>
+                      <th>Privileges</th>
+                      <th className="hidden md:table-cell">Whitelist</th>
+                      <th className="hidden md:table-cell">Quotas</th>
+                      <th className="w-[80px]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {roles.map((role) => (
-                      <TableRow key={role.name}>
-                        <TableCell className="font-medium">{role.name}</TableCell>
-                        <TableCell>
+                      <tr key={role.name}>
+                        <td className="font-medium">{role.name}</td>
+                        <td>
                           <div className="flex flex-wrap gap-1">
                             {role.privileges.map((priv, i) => (
                               <Badge key={i} variant="outline" className="text-xs">
@@ -374,21 +366,21 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                               </Badge>
                             ))}
                           </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        </td>
+                        <td className="hidden md:table-cell">
                           {role.whitelist.length > 0 ? (
                             <span className="font-mono text-xs">{role.whitelist.join(", ")}</span>
                           ) : (
                             <span className="text-muted-foreground text-xs italic">any</span>
                           )}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        </td>
+                        <td className="hidden md:table-cell">
                           <div className="space-y-0.5 text-xs">
                             <div>R: {role.readQuota}</div>
                             <div>W: {role.writeQuota}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>
+                        </td>
+                        <td>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -397,11 +389,11 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             )}
           </TabsContent>

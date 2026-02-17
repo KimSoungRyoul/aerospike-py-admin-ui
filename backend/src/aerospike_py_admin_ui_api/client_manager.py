@@ -36,7 +36,16 @@ class ClientManager:
         if profile is None:
             raise ValueError(f"Connection profile '{conn_id}' not found")
 
-        hosts = [(h, profile.port) for h in profile.hosts]
+        hosts = []
+        for h in profile.hosts:
+            if ":" in h:
+                host, port_str = h.rsplit(":", 1)
+                try:
+                    hosts.append((host, int(port_str)))
+                except ValueError:
+                    hosts.append((h, profile.port))
+            else:
+                hosts.append((h, profile.port))
         config: dict[str, Any] = {"hosts": hosts}
         if profile.username and profile.password:
             config["user"] = profile.username

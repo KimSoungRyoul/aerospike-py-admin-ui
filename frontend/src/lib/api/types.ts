@@ -60,6 +60,8 @@ export interface SetInfo {
   tombstones: number;
   memoryDataBytes: number;
   stopWritesCount: number;
+  nodeCount?: number;
+  totalNodes?: number;
 }
 
 export interface ClusterInfo {

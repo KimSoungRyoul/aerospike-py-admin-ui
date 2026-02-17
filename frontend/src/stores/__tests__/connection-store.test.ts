@@ -165,15 +165,18 @@ describe("useConnectionStore", () => {
   it("testConnection returns result on success", async () => {
     mockApi.testConnection.mockResolvedValue({ success: true, message: "OK" });
 
-    const result = await useConnectionStore.getState().testConnection("conn-1");
+    const testData = { hosts: ["localhost"], port: 3000 };
+    const result = await useConnectionStore.getState().testConnection(testData);
 
     expect(result).toEqual({ success: true, message: "OK" });
+    expect(mockApi.testConnection).toHaveBeenCalledWith(testData);
   });
 
   it("testConnection returns error result on failure", async () => {
     mockApi.testConnection.mockRejectedValue(new Error("Connection refused"));
 
-    const result = await useConnectionStore.getState().testConnection("conn-1");
+    const testData = { hosts: ["localhost"], port: 3000 };
+    const result = await useConnectionStore.getState().testConnection(testData);
 
     expect(result).toEqual({ success: false, message: "Connection refused" });
   });

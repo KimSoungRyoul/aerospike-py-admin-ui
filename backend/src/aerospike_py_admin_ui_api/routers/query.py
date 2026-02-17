@@ -5,12 +5,11 @@ import json
 import time
 
 from aerospike_py import INDEX_TYPE_LIST, predicates
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
-from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS
+from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_SCAN
 from aerospike_py_admin_ui_api.converters import raw_to_record
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
 
 router = APIRouter(prefix="/api/query", tags=["query"])
@@ -33,8 +32,7 @@ def _build_predicate(pred):
     raise ValueError(f"Unknown predicate operator: {op}")
 
 
-def _execute_query_sync(conn_id: str, body: QueryRequest) -> dict:
-    c = client_manager._get_client_sync(conn_id)
+def _execute_query_sync(c, body: QueryRequest) -> dict:
     start_time = time.monotonic()
 
     if body.type == "query" and body.predicate:
@@ -42,12 +40,12 @@ def _execute_query_sync(conn_id: str, body: QueryRequest) -> dict:
         q.where(_build_predicate(body.predicate))
         if body.selectBins:
             q.select(*body.selectBins)
-        raw_results = q.results({"total_timeout": 30000})
+        raw_results = q.results(POLICY_QUERY)
     else:
         scan = c.scan(body.namespace, body.set or "")
         if body.selectBins:
             scan.select(*body.selectBins)
-        raw_results = scan.results({"total_timeout": 30000})
+        raw_results = scan.results(POLICY_SCAN)
 
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
     scanned = len(raw_results)
@@ -68,9 +66,6 @@ def _execute_query_sync(conn_id: str, body: QueryRequest) -> dict:
 
 
 @router.post("/{conn_id}")
-async def execute_query(
-    body: QueryRequest,
-    conn_id: str = Depends(_get_verified_connection),
-) -> QueryResponse:
-    result = await asyncio.to_thread(_execute_query_sync, conn_id, body)
+async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryResponse:
+    result = await asyncio.to_thread(_execute_query_sync, client, body)
     return QueryResponse(**result)
