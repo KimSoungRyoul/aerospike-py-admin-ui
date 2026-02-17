@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback, useMemo } from "react";
 import { Plus, Trash2, Eye, Play, Upload, FileCode, RefreshCw } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,8 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { DataTable } from "@/components/common/data-table";
 import { EmptyState } from "@/components/common/empty-state";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { LoadingButton } from "@/components/common/loading-button";
@@ -165,6 +166,71 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
     setApplyOpen(true);
   }, []);
 
+  const udfColumns = useMemo<ColumnDef<UDFModule>[]>(
+    () => [
+      {
+        accessorKey: "filename",
+        header: "Filename",
+        cell: ({ getValue }) => (
+          <span className="font-mono font-medium">{getValue() as string}</span>
+        ),
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ getValue }) => <Badge variant="secondary">{getValue() as string}</Badge>,
+      },
+      {
+        accessorKey: "hash",
+        header: "Hash",
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground font-mono text-xs">
+            {truncateMiddle(getValue() as string, 24)}
+          </span>
+        ),
+        meta: { className: "hidden md:table-cell" },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 160,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setViewSource(row.original)}
+              aria-label="View source"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => openApplyDialog(row.original)}
+              aria-label="Apply UDF"
+            >
+              <Play className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive h-8 w-8 p-0"
+              onClick={() => setDeleteTarget(row.original)}
+              aria-label="Delete UDF"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+
+    [openApplyDialog],
+  );
+
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
@@ -197,79 +263,28 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       <InlineAlert message={error} />
 
       {/* Table */}
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : !error && udfs.length === 0 ? (
-        <EmptyState
-          icon={FileCode}
-          title="No UDF modules"
-          description="Upload a Lua script to register a User-Defined Function."
-          action={
-            <Button onClick={handleFileInput}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload File
-            </Button>
-          }
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Filename</th>
-                <th>Type</th>
-                <th className="hidden md:table-cell">Hash</th>
-                <th className="w-[160px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {udfs.map((udf) => (
-                <tr key={udf.filename}>
-                  <td className="font-mono font-medium">{udf.filename}</td>
-                  <td>
-                    <Badge variant="secondary">{udf.type}</Badge>
-                  </td>
-                  <td className="text-muted-foreground hidden font-mono text-xs md:table-cell">
-                    {truncateMiddle(udf.hash, 24)}
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setViewSource(udf)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => openApplyDialog(udf)}
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive h-8 w-8 p-0"
-                        onClick={() => setDeleteTarget(udf)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        data={udfs}
+        columns={udfColumns}
+        loading={loading}
+        emptyState={
+          !error ? (
+            <EmptyState
+              icon={FileCode}
+              title="No UDF modules"
+              description="Upload a Lua script to register a User-Defined Function."
+              action={
+                <Button onClick={handleFileInput}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload File
+                </Button>
+              }
+            />
+          ) : undefined
+        }
+        className="rounded-lg border"
+        testId="udfs-table"
+      />
 
       {/* Upload / Paste Dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

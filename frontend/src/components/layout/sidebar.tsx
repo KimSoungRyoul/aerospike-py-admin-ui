@@ -64,10 +64,10 @@ const ConnectionItem = React.memo(function ConnectionItem({
           className={cn(
             "ring-offset-sidebar h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-offset-1 transition-shadow",
             isChecking && !status
-              ? "ring-slate-400/30"
+              ? "ring-muted-foreground/30"
               : status?.connected
-                ? "status-glow-green ring-emerald-500/30"
-                : "status-glow-red ring-red-500/30",
+                ? "status-glow-green ring-success/30"
+                : "status-glow-red ring-destructive/30",
           )}
           style={{ backgroundColor: connection.color }}
         />
@@ -76,10 +76,10 @@ const ConnectionItem = React.memo(function ConnectionItem({
           className={cn(
             "ml-auto h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
             isChecking && !status
-              ? "animate-pulse bg-slate-400"
+              ? "bg-muted-foreground animate-pulse"
               : status?.connected
-                ? "bg-emerald-500"
-                : "bg-red-500",
+                ? "bg-success"
+                : "bg-destructive",
           )}
         />
       </button>

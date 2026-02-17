@@ -51,15 +51,11 @@ export class IndexesPage {
   }
 
   async deleteIndex(name: string) {
-    const row = this.page.locator("tr", { hasText: name });
-    await row
-      .getByRole("button")
-      .filter({ has: this.page.locator("svg") })
-      .last()
-      .click();
+    const row = this.page.getByTestId("indexes-table-body").locator("tr", { hasText: name });
+    await row.getByRole("button", { name: /Delete index/i }).click();
   }
 
   getTable(): Locator {
-    return this.page.locator("table").first();
+    return this.page.getByTestId("indexes-table");
   }
 }

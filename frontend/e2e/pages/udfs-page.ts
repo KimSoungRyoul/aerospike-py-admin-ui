@@ -42,17 +42,16 @@ export class UdfsPage {
   }
 
   async viewSource(filename: string) {
-    const row = this.page.locator("tr", { hasText: filename });
-    // Click the view (eye) button
-    await row.getByRole("button").first().click();
+    const row = this.page.getByTestId("udfs-table-body").locator("tr", { hasText: filename });
+    await row.getByRole("button", { name: /View source/i }).click();
   }
 
   async deleteUdf(filename: string) {
-    const row = this.page.locator("tr", { hasText: filename });
-    await row.getByRole("button").last().click();
+    const row = this.page.getByTestId("udfs-table-body").locator("tr", { hasText: filename });
+    await row.getByRole("button", { name: /Delete UDF/i }).click();
   }
 
   getTable(): Locator {
-    return this.page.locator("table").first();
+    return this.page.getByTestId("udfs-table");
   }
 }

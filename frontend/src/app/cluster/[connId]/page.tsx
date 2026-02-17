@@ -592,7 +592,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                             </div>
                             <Progress
                               value={memPct}
-                              className={cn("h-2", memPct > 80 && "[&>div]:bg-red-500")}
+                              className={cn("h-2", memPct > 80 && "[&>div]:bg-destructive")}
                             />
                           </div>
                           <div className="space-y-1">
@@ -605,7 +605,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                             </div>
                             <Progress
                               value={devPct}
-                              className={cn("h-2", devPct > 80 && "[&>div]:bg-red-500")}
+                              className={cn("h-2", devPct > 80 && "[&>div]:bg-destructive")}
                             />
                           </div>
                           <Separator />

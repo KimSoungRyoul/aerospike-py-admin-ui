@@ -243,7 +243,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                     </div>
                     <Progress
                       value={memPercent}
-                      className={cn("h-1.5", memPercent > 80 && "[&>div]:bg-red-500")}
+                      className={cn("h-1.5", memPercent > 80 && "[&>div]:bg-destructive")}
                     />
                   </div>
 
@@ -262,7 +262,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                       </div>
                       <Progress
                         value={devPercent}
-                        className={cn("h-1.5", devPercent > 80 && "[&>div]:bg-red-500")}
+                        className={cn("h-1.5", devPercent > 80 && "[&>div]:bg-destructive")}
                       />
                     </div>
                   )}

@@ -516,8 +516,8 @@ export default function ConnectionsPage() {
                 className={cn(
                   "animate-scale-in flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm",
                   testResult.success
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300"
-                    : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300",
+                    ? "border-success/20 bg-success/5 text-success"
+                    : "border-destructive/20 bg-destructive/5 text-destructive",
                 )}
               >
                 {testResult.success ? (

@@ -83,8 +83,8 @@ export function Header() {
           <DropdownMenuContent align="end" className="min-w-[140px]">
             {(["light", "dark", "system"] as Theme[]).map((t) => (
               <DropdownMenuItem key={t} onClick={() => setTheme(t)} className="gap-2 capitalize">
-                {t === "light" && <Sun className="h-4 w-4 text-amber-500" />}
-                {t === "dark" && <Moon className="h-4 w-4 text-indigo-400" />}
+                {t === "light" && <Sun className="text-warning h-4 w-4" />}
+                {t === "dark" && <Moon className="text-info h-4 w-4" />}
                 {t === "system" && <Monitor className="text-muted-foreground h-4 w-4" />}
                 {t}
               </DropdownMenuItem>

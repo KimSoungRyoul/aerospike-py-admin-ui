@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback, useMemo } from "react";
 import { Plus, Trash2, Key, Shield, ShieldAlert, Users, RefreshCw } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/page-header";
 import { InlineAlert } from "@/components/common/inline-alert";
@@ -19,11 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { DataTable } from "@/components/common/data-table";
 import { EmptyState } from "@/components/common/empty-state";
 import { useAdminStore } from "@/stores/admin-store";
-import type { Privilege } from "@/lib/api/types";
+import type { AerospikeUser, AerospikeRole, Privilege } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -193,6 +194,133 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
     fetchRoles(connId);
   }, [connId, fetchUsers, fetchRoles]);
 
+  const userColumns = useMemo<ColumnDef<AerospikeUser>[]>(
+    () => [
+      {
+        accessorKey: "username",
+        header: "Username",
+        cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span>,
+      },
+      {
+        accessorKey: "roles",
+        header: "Roles",
+        cell: ({ getValue }) => {
+          const userRoles = getValue() as string[];
+          return (
+            <div className="flex flex-wrap gap-1">
+              {userRoles.map((role) => (
+                <Badge key={role} variant="secondary" className="text-xs">
+                  {role}
+                </Badge>
+              ))}
+              {userRoles.length === 0 && (
+                <span className="text-muted-foreground text-sm italic">No roles</span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 120,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => {
+                setChangePassUser(row.original.username);
+                setNewPass("");
+                setChangePassOpen(true);
+              }}
+            >
+              <Key className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive h-8 w-8 p-0"
+              onClick={() => setDeleteUserTarget(row.original.username)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const roleColumns = useMemo<ColumnDef<AerospikeRole>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Role Name",
+        cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span>,
+      },
+      {
+        accessorKey: "privileges",
+        header: "Privileges",
+        cell: ({ getValue }) => {
+          const privs = getValue() as Privilege[];
+          return (
+            <div className="flex flex-wrap gap-1">
+              {privs.map((priv, i) => (
+                <Badge key={i} variant="outline" className="text-xs">
+                  {priv.code}
+                  {priv.namespace && `.${priv.namespace}`}
+                  {priv.set && `.${priv.set}`}
+                </Badge>
+              ))}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "whitelist",
+        header: "Whitelist",
+        cell: ({ getValue }) => {
+          const wl = getValue() as string[];
+          return wl.length > 0 ? (
+            <span className="font-mono text-xs">{wl.join(", ")}</span>
+          ) : (
+            <span className="text-muted-foreground text-xs italic">any</span>
+          );
+        },
+        meta: { className: "hidden md:table-cell" },
+      },
+      {
+        id: "quotas",
+        header: "Quotas",
+        cell: ({ row }) => (
+          <div className="space-y-0.5 text-xs">
+            <div>R: {row.original.readQuota}</div>
+            <div>W: {row.original.writeQuota}</div>
+          </div>
+        ),
+        meta: { className: "hidden md:table-cell" },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 80,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive h-8 w-8 p-0"
+            onClick={() => setDeleteRoleTarget(row.original.name)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
@@ -209,8 +337,8 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
       <InlineAlert message={error} />
 
       {isEnterpriseRequired ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/5 p-12 text-center">
-          <ShieldAlert className="mb-4 h-12 w-12 text-amber-500" />
+        <div className="border-warning/30 bg-warning/5 flex flex-col items-center justify-center rounded-lg border p-12 text-center">
+          <ShieldAlert className="text-warning mb-4 h-12 w-12" />
           <h3 className="text-lg font-semibold">Enterprise Edition Required</h3>
           <p className="text-muted-foreground mt-2 max-w-md">
             User and role management requires Aerospike Enterprise Edition. The connected Aerospike
@@ -238,80 +366,26 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                 Create User
               </Button>
             </div>
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : users.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="No users"
-                description="Create a user to manage access control."
-                action={
-                  <Button onClick={() => setCreateUserOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create User
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Username</th>
-                      <th>Roles</th>
-                      <th className="w-[120px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user) => (
-                      <tr key={user.username}>
-                        <td className="font-medium">{user.username}</td>
-                        <td>
-                          <div className="flex flex-wrap gap-1">
-                            {user.roles.map((role) => (
-                              <Badge key={role} variant="secondary" className="text-xs">
-                                {role}
-                              </Badge>
-                            ))}
-                            {user.roles.length === 0 && (
-                              <span className="text-muted-foreground text-sm italic">No roles</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => {
-                                setChangePassUser(user.username);
-                                setNewPass("");
-                                setChangePassOpen(true);
-                              }}
-                            >
-                              <Key className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive h-8 w-8 p-0"
-                              onClick={() => setDeleteUserTarget(user.username)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable
+              data={users}
+              columns={userColumns}
+              loading={loading}
+              emptyState={
+                <EmptyState
+                  icon={Users}
+                  title="No users"
+                  description="Create a user to manage access control."
+                  action={
+                    <Button onClick={() => setCreateUserOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create User
+                    </Button>
+                  }
+                />
+              }
+              className="rounded-md border"
+              testId="admin-users-table"
+            />
           </TabsContent>
 
           {/* Roles Tab */}
@@ -322,80 +396,26 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                 Create Role
               </Button>
             </div>
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : roles.length === 0 ? (
-              <EmptyState
-                icon={Shield}
-                title="No roles"
-                description="Create a role to define access privileges."
-                action={
-                  <Button onClick={() => setCreateRoleOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Role
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Role Name</th>
-                      <th>Privileges</th>
-                      <th className="hidden md:table-cell">Whitelist</th>
-                      <th className="hidden md:table-cell">Quotas</th>
-                      <th className="w-[80px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roles.map((role) => (
-                      <tr key={role.name}>
-                        <td className="font-medium">{role.name}</td>
-                        <td>
-                          <div className="flex flex-wrap gap-1">
-                            {role.privileges.map((priv, i) => (
-                              <Badge key={i} variant="outline" className="text-xs">
-                                {priv.code}
-                                {priv.namespace && `.${priv.namespace}`}
-                                {priv.set && `.${priv.set}`}
-                              </Badge>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="hidden md:table-cell">
-                          {role.whitelist.length > 0 ? (
-                            <span className="font-mono text-xs">{role.whitelist.join(", ")}</span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs italic">any</span>
-                          )}
-                        </td>
-                        <td className="hidden md:table-cell">
-                          <div className="space-y-0.5 text-xs">
-                            <div>R: {role.readQuota}</div>
-                            <div>W: {role.writeQuota}</div>
-                          </div>
-                        </td>
-                        <td>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive h-8 w-8 p-0"
-                            onClick={() => setDeleteRoleTarget(role.name)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable
+              data={roles}
+              columns={roleColumns}
+              loading={loading}
+              emptyState={
+                <EmptyState
+                  icon={Shield}
+                  title="No roles"
+                  description="Create a role to define access privileges."
+                  action={
+                    <Button onClick={() => setCreateRoleOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Role
+                    </Button>
+                  }
+                />
+              }
+              className="rounded-md border"
+              testId="admin-roles-table"
+            />
           </TabsContent>
         </Tabs>
       )}

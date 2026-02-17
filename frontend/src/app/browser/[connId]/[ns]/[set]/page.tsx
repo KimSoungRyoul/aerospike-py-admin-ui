@@ -2,172 +2,38 @@
 
 import { use, useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  Copy,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Loader2,
-  Database,
-  Code,
-  Check,
-  Minus,
-  X,
-} from "lucide-react";
+import { Plus, Eye, Pencil, Trash2, Copy, Database, Code, Check, Minus, X } from "lucide-react";
+import type { ColumnDef, ColumnPinningState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { EmptyState } from "@/components/common/empty-state";
+import { DataTable } from "@/components/common/data-table";
 import { InlineAlert } from "@/components/common/inline-alert";
-import { JsonViewer } from "@/components/common/json-viewer";
-import { CodeEditor } from "@/components/common/code-editor";
+import { TablePagination } from "@/components/common/table-pagination";
+import { renderCellValue } from "@/components/browser/record-cell-renderer";
+import { RecordViewDialog } from "@/components/browser/record-view-dialog";
+import {
+  RecordEditorDialog,
+  type BinEntry,
+  parseBinValue,
+  detectBinType,
+  serializeBinValue,
+} from "@/components/browser/record-editor-dialog";
+import { BatchReadDialog } from "@/components/browser/batch-read-dialog";
 import { useBrowserStore } from "@/stores/browser-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { usePagination } from "@/hooks/use-pagination";
 import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/types";
-import { PAGE_SIZE_OPTIONS, BIN_TYPES, type BinType } from "@/lib/constants";
+import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { truncateMiddle, formatNumber } from "@/lib/formatters";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { toast } from "sonner";
 
-/* ─── Types & Helpers ────────────────────────────────── */
-
-interface BinEntry {
-  id: string;
-  name: string;
-  value: string;
-  type: BinType;
-}
-
-function parseBinValue(value: string, type: BinType): BinValue {
-  switch (type) {
-    case "integer":
-      return parseInt(value, 10) || 0;
-    case "float":
-      return parseFloat(value) || 0;
-    case "bool":
-      return value.toLowerCase() === "true";
-    case "list":
-    case "map":
-    case "geojson":
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    case "bytes":
-      return value;
-    default:
-      return value;
-  }
-}
-
-function detectBinType(value: BinValue): BinType {
-  if (value === null || value === undefined) return "string";
-  if (typeof value === "boolean") return "bool";
-  if (typeof value === "number") return Number.isInteger(value) ? "integer" : "float";
-  if (Array.isArray(value)) return "list";
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    if ("type" in obj && "coordinates" in obj) return "geojson";
-    return "map";
-  }
-  return "string";
-}
-
-function serializeBinValue(value: BinValue): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
-  return String(value);
-}
-
-function renderCellValue(value: BinValue): React.ReactNode {
-  if (value === null || value === undefined)
-    return <span className="cell-val-null font-mono text-xs">—</span>;
-
-  if (typeof value === "boolean")
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 font-mono text-xs",
-          value ? "text-emerald-500" : "text-red-400/60",
-        )}
-      >
-        <span
-          className={cn(
-            "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-            value ? "bg-emerald-500" : "bg-red-400/60",
-          )}
-        />
-        {value.toString()}
-      </span>
-    );
-
-  if (typeof value === "number")
-    return <span className="cell-val-number font-mono text-[13px]">{value.toLocaleString()}</span>;
-
-  if (Array.isArray(value))
-    return (
-      <span className="cell-val-complex font-mono">
-        <span className="opacity-40">[</span>
-        {value.length} items
-        <span className="opacity-40">]</span>
-      </span>
-    );
-
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    if ("type" in obj && "coordinates" in obj) {
-      return <span className="cell-val-geo font-mono">◉ geo</span>;
-    }
-    const keyCount = Object.keys(obj).length;
-    return (
-      <span className="cell-val-complex font-mono">
-        <span className="opacity-40">{"{"}</span>
-        {keyCount} keys
-        <span className="opacity-40">{"}"}</span>
-      </span>
-    );
-  }
-
-  return (
-    <span className="text-foreground/85 font-mono text-[13px]">
-      {truncateMiddle(String(value), 50)}
-    </span>
-  );
-}
-
-function getVisiblePages(current: number, total: number): (number | "ellipsis")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  if (current <= 3) return [1, 2, 3, 4, 5, "ellipsis", total];
-  if (current >= total - 2)
-    return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total];
-  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
-}
+const COLUMN_PINNING: ColumnPinningState = {
+  left: ["select", "rowNumber"],
+  right: ["actions"],
+};
 
 /* ─── Page Component ─────────────────────────────────── */
 
@@ -337,10 +203,9 @@ export default function BrowserPage({
   );
 
   const handlePageSizeChange = useCallback(
-    (newSize: string) => {
-      const size = parseInt(newSize, 10);
-      setPageSize(size);
-      fetchRecords(connId, decodedNs, decodedSet, 1, size);
+    (newSize: number) => {
+      setPageSize(newSize);
+      fetchRecords(connId, decodedNs, decodedSet, 1, newSize);
     },
     [connId, decodedNs, decodedSet, setPageSize, fetchRecords],
   );
@@ -385,6 +250,213 @@ for result in batch_results:
 
   const padLength = String(pagination.end).length;
   const { isDesktop } = useBreakpoint();
+
+  /* ─── DataTable column definitions ─────────────────── */
+
+  const tableMinWidth = useMemo(
+    () => 40 + 56 + 180 + 70 + 80 + binColumns.length * 160 + 130,
+    [binColumns.length],
+  );
+
+  const tableColumns = useMemo<ColumnDef<AerospikeRecord, unknown>[]>(
+    () => [
+      // Checkbox (pinned left)
+      {
+        id: "select",
+        size: 40,
+        header: () => (
+          <button
+            onClick={toggleAllPKs}
+            className={cn(
+              "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+              selectedPKs.size === records.length && records.length > 0
+                ? "border-accent bg-accent text-accent-foreground"
+                : selectedPKs.size > 0
+                  ? "border-accent/60 bg-accent/20"
+                  : "border-muted-foreground/30 hover:border-muted-foreground/50",
+            )}
+          >
+            {selectedPKs.size === records.length && records.length > 0 ? (
+              <Check className="h-3 w-3" />
+            ) : selectedPKs.size > 0 ? (
+              <Minus className="h-3 w-3" />
+            ) : null}
+          </button>
+        ),
+        cell: ({ row }) => (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePK(String(row.original.key.pk));
+            }}
+            className={cn(
+              "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+              selectedPKs.has(String(row.original.key.pk))
+                ? "border-accent bg-accent text-accent-foreground"
+                : "border-muted-foreground/30 hover:border-muted-foreground/50",
+            )}
+          >
+            {selectedPKs.has(String(row.original.key.pk)) && <Check className="h-3 w-3" />}
+          </button>
+        ),
+        meta: { className: "px-2 text-center" },
+      },
+      // Row number (pinned left)
+      {
+        id: "rowNumber",
+        size: 56,
+        header: () => <span className="grid-row-num font-mono">#</span>,
+        cell: ({ row }) => (
+          <span className="grid-row-num font-mono">
+            {String(pagination.start + row.index).padStart(padLength, "0")}
+          </span>
+        ),
+        meta: { className: "px-4 text-right" },
+      },
+      // PK
+      {
+        id: "pk",
+        size: 180,
+        header: () => (
+          <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
+            PK
+          </span>
+        ),
+        cell: ({ row }) => (
+          <span className="text-foreground truncate font-mono text-[13px] font-medium">
+            {truncateMiddle(String(row.original.key.pk), 28)}
+          </span>
+        ),
+        meta: { className: "overflow-hidden" },
+      },
+      // Generation
+      {
+        id: "gen",
+        size: 70,
+        header: () => (
+          <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
+            Gen
+          </span>
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground font-mono text-xs tabular-nums">
+            {row.original.meta.generation}
+          </span>
+        ),
+      },
+      // TTL
+      {
+        id: "ttl",
+        size: 80,
+        header: () => (
+          <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
+            TTL
+          </span>
+        ),
+        cell: ({ row }) => {
+          const ttl = row.original.meta.ttl;
+          return (
+            <span className="text-muted-foreground/60 font-mono text-xs">
+              {ttl === -1 ? "∞" : ttl === 0 ? "—" : `${ttl}s`}
+            </span>
+          );
+        },
+      },
+      // Dynamic bin columns
+      ...binColumns.map(
+        (col): ColumnDef<AerospikeRecord, unknown> => ({
+          id: `bin_${col}`,
+          size: 160,
+          header: () => (
+            <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em]">
+              {col}
+            </span>
+          ),
+          cell: ({ row }) => renderCellValue(row.original.bins[col]),
+          meta: { className: "overflow-hidden" },
+        }),
+      ),
+      // Actions (pinned right)
+      {
+        id: "actions",
+        size: 130,
+        header: () => null,
+        cell: ({ row }) => (
+          <div className="row-actions-group flex items-center justify-end gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewRecord(row.original);
+                  }}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <span className="font-mono text-[10px]">View</span>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditor("edit", row.original);
+                  }}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <span className="font-mono text-[10px]">Edit</span>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditor("duplicate", row.original);
+                  }}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <span className="font-mono text-[10px]">Duplicate</span>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(row.original);
+                  }}
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <span className="font-mono text-[10px]">Delete</span>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [binColumns, selectedPKs, records.length, toggleAllPKs, togglePK, pagination.start, padLength],
+  );
 
   /* ─── Render ───────────────────────────────────────── */
 
@@ -445,218 +517,28 @@ for result in batch_results:
 
       {/* ── Data Grid ────────────────────────────────── */}
       <div className="relative flex-1 overflow-auto">
-        {/* Loading indicator (page navigation) */}
-        {loading && records.length > 0 && (
-          <div className="bg-accent/10 sticky top-0 right-0 left-0 z-20 h-[2px] overflow-hidden">
-            <div className="loading-bar bg-accent h-full w-1/4 rounded-full" />
-          </div>
-        )}
-
-        {loading && records.length === 0 ? (
-          /* Skeleton loading state */
-          <div>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="grid-skeleton-row border-border/20 flex items-center gap-4 border-b px-4 py-3"
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                <div className="flex w-10 justify-end">
-                  <Skeleton className="h-3 w-6" />
-                </div>
-                <Skeleton className="h-3.5 w-28" />
-                <Skeleton className="h-3 w-8" />
-                <Skeleton className="h-3 w-10" />
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-3 w-20 flex-1" />
-                <Skeleton className="h-3 w-16" />
+        {!isDesktop && records.length > 0 ? (
+          <>
+            {/* Loading indicator (page navigation) */}
+            {loading && (
+              <div className="bg-accent/10 sticky top-0 right-0 left-0 z-20 h-[2px] overflow-hidden">
+                <div className="loading-bar bg-accent h-full w-1/4 rounded-full" />
               </div>
-            ))}
-          </div>
-        ) : records.length === 0 ? (
-          /* Empty state */
-          <EmptyState
-            icon={Database}
-            title="No records"
-            description={`${decodedNs}.${decodedSet} is empty`}
-            action={
-              <Button
-                onClick={() => openEditor("create")}
-                size="sm"
-                variant="outline"
-                className="border-accent/30 text-accent hover:bg-accent/10 gap-1.5 font-mono text-xs"
-              >
-                <Plus className="h-3 w-3" />
-                new record
-              </Button>
-            }
-          />
-        ) : !isDesktop ? (
-          /* Mobile card view */
-          <div className="space-y-2 p-3">
-            {records.map((record, idx) => (
-              <div
-                key={record.key.pk + idx}
-                className="border-border/40 bg-card/60 animate-fade-in rounded-lg border p-3"
-                style={{ animationDelay: `${idx * 25}ms` }}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => togglePK(String(record.key.pk))}
-                      className={cn(
-                        "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                        selectedPKs.has(String(record.key.pk))
-                          ? "border-accent bg-accent text-accent-foreground"
-                          : "border-muted-foreground/30 hover:border-muted-foreground/50",
-                      )}
-                    >
-                      {selectedPKs.has(String(record.key.pk)) && <Check className="h-3 w-3" />}
-                    </button>
-                    <span className="text-accent font-mono text-sm font-medium">
-                      {truncateMiddle(String(record.key.pk), 24)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setViewRecord(record)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => openEditor("edit", record)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(record)}
-                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex gap-3 text-xs">
-                  <span className="text-muted-foreground">
-                    Gen: <span className="text-foreground font-mono">{record.meta.generation}</span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    TTL:{" "}
-                    <span className="text-foreground font-mono">
-                      {record.meta.ttl === -1
-                        ? "∞"
-                        : record.meta.ttl === 0
-                          ? "—"
-                          : `${record.meta.ttl}s`}
-                    </span>
-                  </span>
-                </div>
-                {binColumns.length > 0 && (
-                  <div className="border-border/30 mt-2 space-y-1 border-t pt-2">
-                    {binColumns.slice(0, 3).map((col) => (
-                      <div key={col} className="flex items-center gap-2 text-xs">
-                        <span className="text-muted-foreground/60 w-20 shrink-0 truncate font-mono">
-                          {col}
-                        </span>
-                        <span className="min-w-0 truncate">
-                          {renderCellValue(record.bins[col])}
-                        </span>
-                      </div>
-                    ))}
-                    {binColumns.length > 3 && (
-                      <span className="text-muted-foreground/50 text-[10px]">
-                        +{binColumns.length - 3} more bins
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Desktop data table */
-          <TooltipProvider delayDuration={300}>
-            <table
-              className="table-pin-rows table table-fixed"
-              style={{
-                minWidth: 40 + 56 + 180 + 70 + 80 + binColumns.length * 160 + 130,
-              }}
-            >
-              <colgroup>
-                <col style={{ width: 40 }} />
-                <col style={{ width: 56 }} />
-                <col style={{ width: 180 }} />
-                <col style={{ width: 70 }} />
-                <col style={{ width: 80 }} />
-                {binColumns.map((col) => (
-                  <col key={col} style={{ width: 160 }} />
-                ))}
-                <col style={{ width: 130 }} />
-              </colgroup>
-              <thead className="grid-header">
-                <tr>
-                  <th className="bg-base-100 sticky left-0 z-30 px-2 py-2.5 text-center">
-                    <button
-                      onClick={toggleAllPKs}
-                      className={cn(
-                        "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
-                        selectedPKs.size === records.length && records.length > 0
-                          ? "border-accent bg-accent text-accent-foreground"
-                          : selectedPKs.size > 0
-                            ? "border-accent/60 bg-accent/20"
-                            : "border-muted-foreground/30 hover:border-muted-foreground/50",
-                      )}
-                    >
-                      {selectedPKs.size === records.length && records.length > 0 ? (
-                        <Check className="h-3 w-3" />
-                      ) : selectedPKs.size > 0 ? (
-                        <Minus className="h-3 w-3" />
-                      ) : null}
-                    </button>
-                  </th>
-                  <th className="bg-base-100 sticky left-10 z-30 px-4 py-2.5 text-right">
-                    <span className="grid-row-num font-mono">#</span>
-                  </th>
-                  <th className="px-4 py-2.5 text-left">
-                    <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
-                      PK
-                    </span>
-                  </th>
-                  <th className="px-4 py-2.5 text-left">
-                    <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
-                      Gen
-                    </span>
-                  </th>
-                  <th className="px-4 py-2.5 text-left">
-                    <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
-                      TTL
-                    </span>
-                  </th>
-                  {binColumns.map((col) => (
-                    <th key={col} className="px-4 py-2.5 text-left">
-                      <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em]">
-                        {col}
-                      </span>
-                    </th>
-                  ))}
-                  <th className="bg-base-100 sticky right-0 z-30 px-4 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record, idx) => (
-                  <tr
-                    key={record.key.pk + idx}
-                    className="record-grid-row border-border/30 group border-b hover:bg-transparent"
-                    style={{ animationDelay: `${idx * 25}ms` }}
-                  >
-                    {/* Checkbox (pinned left) */}
-                    <td className="bg-base-100 sticky left-0 z-10 px-2 py-2.5 text-center">
+            )}
+            {/* Mobile card view */}
+            <div className="space-y-2 p-3">
+              {records.map((record, idx) => (
+                <div
+                  key={record.key.pk + idx}
+                  className="border-border/40 bg-card/60 animate-fade-in rounded-lg border p-3"
+                  style={{ animationDelay: `${idx * 25}ms` }}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => togglePK(String(record.key.pk))}
                         className={cn(
-                          "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                          "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
                           selectedPKs.has(String(record.key.pk))
                             ? "border-accent bg-accent text-accent-foreground"
                             : "border-muted-foreground/30 hover:border-muted-foreground/50",
@@ -664,111 +546,100 @@ for result in batch_results:
                       >
                         {selectedPKs.has(String(record.key.pk)) && <Check className="h-3 w-3" />}
                       </button>
-                    </td>
-
-                    {/* Row Number (pinned left) */}
-                    <td className="bg-base-100 sticky left-10 z-10 px-4 py-2.5 text-right">
-                      <span className="grid-row-num font-mono">
-                        {String(pagination.start + idx).padStart(padLength, "0")}
+                      <span className="text-accent font-mono text-sm font-medium">
+                        {truncateMiddle(String(record.key.pk), 24)}
                       </span>
-                    </td>
-
-                    {/* PK */}
-                    <td className="overflow-hidden px-4 py-2.5">
-                      <span className="text-foreground truncate font-mono text-[13px] font-medium">
-                        {truncateMiddle(String(record.key.pk), 28)}
-                      </span>
-                    </td>
-
-                    {/* Generation */}
-                    <td className="px-4 py-2.5">
-                      <span className="text-muted-foreground font-mono text-xs tabular-nums">
-                        {record.meta.generation}
-                      </span>
-                    </td>
-
-                    {/* TTL */}
-                    <td className="px-4 py-2.5">
-                      <span className="text-muted-foreground/60 font-mono text-xs">
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setViewRecord(record)}
+                        className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => openEditor("edit", record)}
+                        className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(record)}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-muted-foreground">
+                      Gen:{" "}
+                      <span className="text-foreground font-mono">{record.meta.generation}</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      TTL:{" "}
+                      <span className="text-foreground font-mono">
                         {record.meta.ttl === -1
                           ? "∞"
                           : record.meta.ttl === 0
                             ? "—"
                             : `${record.meta.ttl}s`}
                       </span>
-                    </td>
-
-                    {/* Bin Values */}
-                    {binColumns.map((col) => (
-                      <td key={col} className="overflow-hidden px-4 py-2.5">
-                        {renderCellValue(record.bins[col])}
-                      </td>
-                    ))}
-
-                    {/* Row Actions (pinned right) */}
-                    <td className="bg-base-100 sticky right-0 z-10 px-4 py-2.5">
-                      <div className="row-actions-group flex items-center justify-end gap-0.5">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => setViewRecord(record)}
-                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <span className="font-mono text-[10px]">View</span>
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => openEditor("edit", record)}
-                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <span className="font-mono text-[10px]">Edit</span>
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => openEditor("duplicate", record)}
-                              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <span className="font-mono text-[10px]">Duplicate</span>
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => setDeleteTarget(record)}
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <span className="font-mono text-[10px]">Delete</span>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </span>
+                  </div>
+                  {binColumns.length > 0 && (
+                    <div className="border-border/30 mt-2 space-y-1 border-t pt-2">
+                      {binColumns.slice(0, 3).map((col) => (
+                        <div key={col} className="flex items-center gap-2 text-xs">
+                          <span className="text-muted-foreground/60 w-20 shrink-0 truncate font-mono">
+                            {col}
+                          </span>
+                          <span className="min-w-0 truncate">
+                            {renderCellValue(record.bins[col])}
+                          </span>
+                        </div>
+                      ))}
+                      {binColumns.length > 3 && (
+                        <span className="text-muted-foreground/50 text-[10px]">
+                          +{binColumns.length - 3} more bins
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <TooltipProvider delayDuration={300}>
+            <DataTable
+              data={records}
+              columns={tableColumns}
+              loading={loading}
+              emptyState={
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <Database className="text-muted-foreground/30 mb-4 h-16 w-16" />
+                  <h3 className="text-base-content/70 mb-2 text-lg font-semibold">
+                    No Records Found
+                  </h3>
+                  <p className="text-base-content/50 mb-6 max-w-md text-sm">
+                    This set appears to be empty. Create a new record to get started.
+                  </p>
+                  <button
+                    className="btn btn-primary btn-sm gap-2"
+                    onClick={() => openEditor("create")}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Record
+                  </button>
+                </div>
+              }
+              enableColumnPinning
+              columnPinning={COLUMN_PINNING}
+              onRowClick={(row) => setViewRecord(row.original)}
+              tableMinWidth={tableMinWidth}
+              testId="records-table"
+            />
           </TooltipProvider>
         )}
       </div>
@@ -804,427 +675,44 @@ for result in batch_results:
       )}
 
       {/* ── Status Bar ───────────────────────────────── */}
-      {total > 0 && (
-        <div className="border-border/50 bg-card/80 flex flex-col gap-2 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          {/* Range & page size */}
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-              {pagination.start}–{pagination.end}
-              <span className="text-muted-foreground/40 mx-1.5">of</span>
-              {formatNumber(total)}
-            </span>
-            <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-              <SelectTrigger
-                className="border-border/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px] [&>svg]:h-3 [&>svg]:w-3"
-                data-compact
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <SelectItem key={size} value={String(size)} className="font-mono text-xs">
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-muted-foreground/40 hidden text-[10px] tracking-wider uppercase sm:inline">
-              per page
-            </span>
-          </div>
+      <TablePagination
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+        loading={loading}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+      />
 
-          {/* Page navigation */}
-          <div className="flex items-center justify-center gap-0.5">
-            {/* First/Last page: hidden on mobile */}
-            <button
-              className="page-num-btn hidden sm:inline-flex"
-              disabled={!pagination.hasPrev || loading}
-              onClick={() => handlePageChange(1)}
-            >
-              <ChevronsLeft className="h-3 w-3" />
-            </button>
-            <button
-              className="page-num-btn"
-              disabled={!pagination.hasPrev || loading}
-              onClick={() => handlePageChange(page - 1)}
-            >
-              <ChevronLeft className="h-3 w-3" />
-            </button>
+      <RecordViewDialog record={viewRecord} onClose={() => setViewRecord(null)} />
 
-            {/* Page numbers: show on sm+, on mobile show current/total */}
-            <span className="text-muted-foreground px-2 font-mono text-[11px] sm:hidden">
-              {page} / {pagination.totalPages}
-            </span>
-            <span className="hidden sm:contents">
-              {getVisiblePages(page, pagination.totalPages).map((p, i) =>
-                p === "ellipsis" ? (
-                  <span
-                    key={`dots-${i}`}
-                    className="text-muted-foreground/30 px-1 font-mono text-[11px] select-none"
-                  >
-                    ···
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    className={cn("page-num-btn", p === page && "current")}
-                    onClick={() => handlePageChange(p as number)}
-                    disabled={loading}
-                  >
-                    {p}
-                  </button>
-                ),
-              )}
-            </span>
+      <RecordEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        mode={editorMode}
+        namespace={decodedNs}
+        set={decodedSet}
+        pk={editorPK}
+        onPKChange={setEditorPK}
+        ttl={editorTTL}
+        onTTLChange={setEditorTTL}
+        bins={editorBins}
+        onAddBin={addBin}
+        onRemoveBin={removeBin}
+        onUpdateBin={updateBin}
+        useCodeEditor={useCodeEditor}
+        onToggleCodeEditor={(id) => setUseCodeEditor((prev) => ({ ...prev, [id]: !prev[id] }))}
+        saving={saving}
+        onSave={handleSaveRecord}
+      />
 
-            <button
-              className="page-num-btn"
-              disabled={!pagination.hasNext || loading}
-              onClick={() => handlePageChange(page + 1)}
-            >
-              <ChevronRight className="h-3 w-3" />
-            </button>
-            <button
-              className="page-num-btn hidden sm:inline-flex"
-              disabled={!pagination.hasNext || loading}
-              onClick={() => handlePageChange(pagination.totalPages)}
-            >
-              <ChevronsRight className="h-3 w-3" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── View Record Dialog ───────────────────────── */}
-      <Dialog open={!!viewRecord} onOpenChange={(open) => !open && setViewRecord(null)}>
-        <DialogContent className="border-border/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
-          <DialogHeader className="border-border/40 space-y-0 border-b px-5 pt-5 pb-3">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="font-mono text-sm font-medium">Record Detail</DialogTitle>
-              <span className="text-accent ml-4 max-w-[250px] truncate font-mono text-[11px]">
-                {viewRecord?.key.pk}
-              </span>
-            </div>
-            <DialogDescription className="sr-only">
-              Record details for {viewRecord?.key.pk}
-            </DialogDescription>
-          </DialogHeader>
-
-          {viewRecord && (
-            <ScrollArea className="max-h-[calc(80vh-60px)]">
-              <div className="space-y-5 p-5">
-                {/* Key Section */}
-                <section>
-                  <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-                    Key
-                    <span className="bg-border/30 h-px flex-1" />
-                  </h4>
-                  <div className="grid gap-1.5 font-mono text-[13px]">
-                    {(
-                      [
-                        ["namespace", viewRecord.key.namespace],
-                        ["set", viewRecord.key.set],
-                        ["pk", viewRecord.key.pk],
-                        ...(viewRecord.key.digest ? [["digest", viewRecord.key.digest]] : []),
-                      ] as [string, string][]
-                    ).map(([label, val]) => (
-                      <div key={label} className="flex items-baseline gap-3">
-                        <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
-                          {label}
-                        </span>
-                        <span
-                          className={cn(
-                            label === "pk" && "text-accent",
-                            label === "digest" && "text-xs break-all",
-                          )}
-                        >
-                          {val}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Metadata Section */}
-                <section>
-                  <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-                    Metadata
-                    <span className="bg-border/30 h-px flex-1" />
-                  </h4>
-                  <div className="grid gap-1.5 font-mono text-[13px]">
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
-                        generation
-                      </span>
-                      <span>{viewRecord.meta.generation}</span>
-                    </div>
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
-                        ttl
-                      </span>
-                      <span>
-                        {viewRecord.meta.ttl === -1
-                          ? "never expires"
-                          : viewRecord.meta.ttl === 0
-                            ? "default namespace TTL"
-                            : `${viewRecord.meta.ttl}s`}
-                      </span>
-                    </div>
-                    {viewRecord.meta.lastUpdateMs && (
-                      <div className="flex items-baseline gap-3">
-                        <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">
-                          updated
-                        </span>
-                        <span className="text-[12px]">
-                          {new Date(viewRecord.meta.lastUpdateMs).toISOString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                {/* Bins Section */}
-                <section>
-                  <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-                    Bins
-                    <span className="text-muted-foreground/30">
-                      ({Object.keys(viewRecord.bins).length})
-                    </span>
-                    <span className="bg-border/30 h-px flex-1" />
-                  </h4>
-                  <div className="border-border/40 bg-background/50 max-h-[300px] overflow-auto rounded-md border p-3">
-                    <JsonViewer data={viewRecord.bins} />
-                  </div>
-                </section>
-              </div>
-            </ScrollArea>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Record Editor Dialog ─────────────────────── */}
-      <Dialog open={editorOpen} onOpenChange={setEditorOpen} preventClose>
-        <DialogContent className="border-border/50 flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]">
-          <DialogHeader className="border-border/40 space-y-0.5 border-b px-5 pt-5 pb-3">
-            <DialogTitle className="font-mono text-sm font-medium">
-              {editorMode === "create"
-                ? "New Record"
-                : editorMode === "duplicate"
-                  ? "Duplicate Record"
-                  : "Edit Record"}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground/60 font-mono text-xs">
-              {decodedNs}
-              <span className="text-muted-foreground/30 mx-1">.</span>
-              {decodedSet}
-            </DialogDescription>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1">
-            <div className="space-y-5 p-5">
-              {/* Key & TTL */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
-                    Primary Key
-                  </Label>
-                  <Input
-                    placeholder="Record key"
-                    value={editorPK}
-                    onChange={(e) => setEditorPK(e.target.value)}
-                    disabled={editorMode === "edit"}
-                    className="border-border/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
-                    TTL (seconds)
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="0 = default"
-                    value={editorTTL}
-                    onChange={(e) => setEditorTTL(e.target.value)}
-                    className="border-border/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Bins */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
-                    Bins
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addBin}
-                    className="border-border/40 text-muted-foreground hover:text-accent hover:border-accent/30 h-6 gap-1 font-mono text-[11px]"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add
-                  </Button>
-                </div>
-
-                {editorBins.map((bin) => {
-                  const isComplex = ["list", "map", "geojson"].includes(bin.type);
-                  const showCode = useCodeEditor[bin.id];
-                  const typeAccent: Record<string, string> = {
-                    string: "border-l-foreground/15",
-                    integer: "border-l-accent/60",
-                    float: "border-l-accent/60",
-                    bool: "border-l-emerald-500/60",
-                    list: "border-l-chart-2/60",
-                    map: "border-l-chart-4/60",
-                    bytes: "border-l-muted-foreground/30",
-                    geojson: "border-l-chart-4/60",
-                  };
-                  return (
-                    <div
-                      key={bin.id}
-                      className={cn(
-                        "border-border/40 hover:border-border/60 space-y-2.5 rounded-md border border-l-2 p-3 transition-colors",
-                        typeAccent[bin.type] || "border-l-border",
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Bin name"
-                          value={bin.name}
-                          onChange={(e) => updateBin(bin.id, "name", e.target.value)}
-                          className="border-border/40 h-8 flex-1 font-mono text-sm"
-                        />
-                        <Select
-                          value={bin.type}
-                          onValueChange={(v) => updateBin(bin.id, "type", v)}
-                        >
-                          <SelectTrigger className="border-border/40 h-8 w-[110px] font-mono text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BIN_TYPES.map((t) => (
-                              <SelectItem key={t} value={t} className="font-mono text-xs">
-                                {t}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {editorBins.length > 1 && (
-                          <button
-                            type="button"
-                            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors"
-                            onClick={() => removeBin(bin.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-
-                      {isComplex && (
-                        <button
-                          type="button"
-                          className="text-muted-foreground/60 hover:text-accent font-mono text-[11px] transition-colors"
-                          onClick={() =>
-                            setUseCodeEditor((prev) => ({
-                              ...prev,
-                              [bin.id]: !prev[bin.id],
-                            }))
-                          }
-                        >
-                          {showCode ? "↩ simple input" : "⌨ code editor"}
-                        </button>
-                      )}
-
-                      {isComplex && showCode ? (
-                        <div className="border-border/40 h-[200px] overflow-hidden rounded-md border">
-                          <CodeEditor
-                            value={bin.value}
-                            onChange={(v) => updateBin(bin.id, "value", v)}
-                            language="json"
-                            height="200px"
-                          />
-                        </div>
-                      ) : (
-                        <Input
-                          placeholder={
-                            bin.type === "bool"
-                              ? "true / false"
-                              : bin.type === "integer" || bin.type === "float"
-                                ? "0"
-                                : "Value"
-                          }
-                          value={bin.value}
-                          onChange={(e) => updateBin(bin.id, "value", e.target.value)}
-                          className="border-border/40 h-8 font-mono text-sm"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </ScrollArea>
-
-          <div className="border-border/40 flex items-center justify-end gap-2 border-t px-5 py-3">
-            <Button
-              variant="ghost"
-              onClick={() => setEditorOpen(false)}
-              disabled={saving}
-              className="h-8 font-mono text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveRecord}
-              disabled={saving}
-              className="h-8 gap-1.5 font-mono text-xs"
-            >
-              {saving && <Loader2 className="h-3 w-3 animate-spin" />}
-              {editorMode === "edit" ? "Update" : "Create"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Batch Read Code Dialog ────────────────────── */}
-      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
-        <DialogContent className="border-border/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
-          <DialogHeader className="border-border/40 space-y-0 border-b px-5 pt-5 pb-3">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="font-mono text-sm font-medium">batch_read Code</DialogTitle>
-              <span className="text-accent ml-4 font-mono text-[11px]">
-                {selectedPKs.size} keys
-              </span>
-            </div>
-            <DialogDescription className="text-muted-foreground/60 font-mono text-xs">
-              Python aerospike client batch_read snippet
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[calc(80vh-100px)]">
-            <div className="p-5">
-              <div className="border-border/40 bg-background/50 relative overflow-hidden rounded-md border">
-                <div className="border-border/30 flex items-center justify-end border-b px-3 py-1.5">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generateBatchReadCode());
-                      toast.success("Copied to clipboard");
-                    }}
-                    className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] transition-colors"
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy
-                  </button>
-                </div>
-                <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed">
-                  <code>{generateBatchReadCode()}</code>
-                </pre>
-              </div>
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      <BatchReadDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
+        selectedCount={selectedPKs.size}
+        generateCode={generateBatchReadCode}
+      />
 
       {/* ── Delete Confirmation ──────────────────────── */}
       <ConfirmDialog

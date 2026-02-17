@@ -8,7 +8,7 @@ export class RecordsPage {
   constructor(page: Page) {
     this.page = page;
     this.newRecordBtn = page.getByRole("button", { name: /new record/i });
-    this.table = page.locator("table").first();
+    this.table = page.getByTestId("records-table");
   }
 
   async goto(connId: string, ns: string, set: string) {
@@ -42,7 +42,6 @@ export class RecordsPage {
 
       // Select type if not string (default)
       if (bin.type !== "string") {
-        const typeSelects = this.page.locator("select, [role=combobox]");
         // Find the type selector for this bin row
         const binRow = binNameInputs.nth(i).locator("..").locator("..");
         const typeSelect = binRow.locator("select").first();
@@ -70,39 +69,37 @@ export class RecordsPage {
   }
 
   async clickViewRecord(rowIndex = 0) {
-    const rows = this.table.locator("tbody tr");
-    await rows.nth(rowIndex).hover();
-    await rows.nth(rowIndex).getByRole("button", { name: /View/i }).first().click();
+    const row = this.page.getByTestId(`records-table-row-${rowIndex}`);
+    await row.hover();
+    await row.getByRole("button", { name: /View/i }).first().click();
   }
 
   async clickEditRecord(rowIndex = 0) {
-    const rows = this.table.locator("tbody tr");
-    await rows.nth(rowIndex).hover();
-    await rows.nth(rowIndex).getByRole("button", { name: /Edit/i }).first().click();
+    const row = this.page.getByTestId(`records-table-row-${rowIndex}`);
+    await row.hover();
+    await row.getByRole("button", { name: /Edit/i }).first().click();
   }
 
   async clickDuplicateRecord(rowIndex = 0) {
-    const rows = this.table.locator("tbody tr");
-    await rows.nth(rowIndex).hover();
-    await rows
-      .nth(rowIndex)
+    const row = this.page.getByTestId(`records-table-row-${rowIndex}`);
+    await row.hover();
+    await row
       .getByRole("button", { name: /Duplicate/i })
       .first()
       .click();
   }
 
   async clickDeleteRecord(rowIndex = 0) {
-    const rows = this.table.locator("tbody tr");
-    await rows.nth(rowIndex).hover();
-    await rows
-      .nth(rowIndex)
+    const row = this.page.getByTestId(`records-table-row-${rowIndex}`);
+    await row.hover();
+    await row
       .getByRole("button", { name: /Delete/i })
       .first()
       .click();
   }
 
   getPageSizeSelect(): Locator {
-    return this.page.locator("select").last();
+    return this.page.getByRole("combobox");
   }
 
   getPaginationButtons(): Locator {

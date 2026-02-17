@@ -22,7 +22,7 @@ export function CELimitBanner({ type, className }: CELimitBannerProps) {
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 dark:border-yellow-900/50 dark:bg-yellow-900/20 dark:text-yellow-200",
+        "border-warning/20 bg-warning/5 text-warning flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
         className,
       )}
     >

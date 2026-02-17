@@ -31,8 +31,8 @@ export const StatCard = React.memo(function StatCard({
           <div
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg sm:h-10 sm:w-10",
-              trend === "up" && "bg-green-500/10 text-green-500",
-              trend === "down" && "bg-red-500/10 text-red-500",
+              trend === "up" && "bg-success/10 text-success",
+              trend === "down" && "bg-destructive/10 text-destructive",
               (!trend || trend === "neutral") && "bg-accent/10 text-accent",
             )}
           >
