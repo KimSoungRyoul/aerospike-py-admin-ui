@@ -5,9 +5,8 @@ import random
 import time
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
 from aerospike_py_admin_ui_api.constants import (
     INFO_BUILD,
     INFO_EDITION,
@@ -19,16 +18,21 @@ from aerospike_py_admin_ui_api.constants import (
     info_sets,
     info_sindex,
 )
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
-from aerospike_py_admin_ui_api.info_parser import parse_kv_pairs, parse_list, parse_records
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient
+from aerospike_py_admin_ui_api.info_parser import (
+    aggregate_set_records,
+    parse_kv_pairs,
+    parse_list,
+    parse_records,
+    safe_int,
+)
 from aerospike_py_admin_ui_api.models.terminal import TerminalCommand, TerminalRequest
 
 router = APIRouter(prefix="/api/terminal", tags=["terminal"])
 
 
-def _execute_sync(conn_id: str, command: str) -> tuple[str, bool]:
+def _execute_sync(c, command: str) -> tuple[str, bool]:
     """Execute a terminal command against Aerospike. Returns (output, success)."""
-    c = client_manager._get_client_sync(conn_id)
     lower = command.lower()
 
     if lower == "show namespaces":
@@ -44,28 +48,39 @@ def _execute_sync(conn_id: str, command: str) -> tuple[str, bool]:
         ns_list = parse_list(ns_raw)
         set_lines: list[str] = []
         for ns in ns_list:
-            sets_raw = c.info_random_node(info_sets(ns))
-            for rec in parse_records(sets_raw):
-                set_name = rec.get("set", rec.get("set_name", ""))
-                objects = rec.get("objects", "0")
-                tombstones = rec.get("tombstones", "0")
-                set_lines.append(f"  {ns}.{set_name}  objects={objects}  tombstones={tombstones}")
+            # Get replication factor for this namespace
+            ns_info_raw = c.info_random_node(f"namespace/{ns}")
+            ns_kv = parse_kv_pairs(ns_info_raw)
+            rf = safe_int(ns_kv.get("replication-factor"), 1)
+
+            # Aggregate sets from all nodes
+            sets_all = c.info_all(info_sets(ns))
+            agg_sets = aggregate_set_records(sets_all, rf)
+            for s in agg_sets:
+                set_lines.append(
+                    f"  {ns}.{s['name']}  objects={s['objects']}  tombstones={s['tombstones']}"
+                    f"  (nodes={s['node_count']})"
+                )
         return "Sets:\n" + "\n".join(set_lines) if set_lines else "(no sets)", True
 
     if lower == "show bins":
         ns_raw = c.info_random_node(INFO_NAMESPACES)
         ns_list = parse_list(ns_raw)
-        all_bins: list[str] = []
+        all_bins: set[str] = set()
         for ns in ns_list:
-            bins_raw = c.info_random_node(info_bins(ns))
-            bins_info = parse_kv_pairs(bins_raw, sep=",")
-            for k in bins_info:
-                if k.startswith("bin_names"):
-                    all_bins.extend(bins_info[k].split(","))
-                elif k not in ("num", "quota"):
-                    all_bins.append(k)
+            # Collect bins from all nodes (union)
+            bins_all = c.info_all(info_bins(ns))
+            for _name, err, bins_raw in bins_all:
+                if err is not None:
+                    continue
+                bins_info = parse_kv_pairs(bins_raw, sep=",")
+                for k in bins_info:
+                    if k.startswith("bin_names"):
+                        all_bins.update(b.strip() for b in bins_info[k].split(",") if b.strip())
+                    elif k not in ("num", "quota"):
+                        all_bins.add(k)
         if all_bins:
-            return "Bins:\n" + "\n".join(f"  {b}" for b in sorted(set(all_bins))), True
+            return "Bins:\n" + "\n".join(f"  {b}" for b in sorted(all_bins)), True
         return "(no bins)", True
 
     if lower == "show indexes" or lower == "show sindex":
@@ -96,10 +111,16 @@ def _execute_sync(conn_id: str, command: str) -> tuple[str, bool]:
         return resp.strip(), True
 
     if lower == "statistics":
-        raw = c.info_random_node(INFO_STATISTICS)
-        stats = parse_kv_pairs(raw)
-        lines = [f"  {k}={v}" for k, v in sorted(stats.items())]
-        return "Statistics:\n" + "\n".join(lines), True
+        stats_all = c.info_all(INFO_STATISTICS)
+        output_parts: list[str] = []
+        for node_name, err, raw in stats_all:
+            if err is not None:
+                output_parts.append(f"--- {node_name} (error) ---")
+                continue
+            stats = parse_kv_pairs(raw)
+            lines = [f"  {k}={v}" for k, v in sorted(stats.items())]
+            output_parts.append(f"--- {node_name} ---\n" + "\n".join(lines))
+        return "Statistics:\n" + "\n\n".join(output_parts), True
 
     # Fallback: try as raw info command
     try:
@@ -110,12 +131,12 @@ def _execute_sync(conn_id: str, command: str) -> tuple[str, bool]:
 
 
 @router.post("/{conn_id}")
-async def execute_command(body: TerminalRequest, conn_id: str = Depends(_get_verified_connection)) -> TerminalCommand:
+async def execute_command(body: TerminalRequest, client: AerospikeClient) -> TerminalCommand:
     command = body.command.strip()
     if not command:
         raise HTTPException(status_code=400, detail="Missing required field: command")
 
-    output, success = await asyncio.to_thread(_execute_sync, conn_id, command)
+    output, success = await asyncio.to_thread(_execute_sync, client, command)
 
     return TerminalCommand(
         id=f"cmd-{int(time.time() * 1000)}-{random.getrandbits(24):06x}",

@@ -22,6 +22,8 @@ class SetInfo(BaseModel):
     tombstones: int
     memoryDataBytes: int
     stopWritesCount: int
+    nodeCount: int = 0
+    totalNodes: int = 0
 
 
 class NamespaceInfo(BaseModel):

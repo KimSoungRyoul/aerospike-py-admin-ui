@@ -5,12 +5,11 @@ import logging
 import random
 import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
 from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, INFO_STATISTICS, info_namespace
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
-from aerospike_py_admin_ui_api.info_parser import parse_kv_pairs, parse_list, safe_int
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient, VerifiedConnId
+from aerospike_py_admin_ui_api.info_parser import aggregate_node_kv, parse_list, safe_int
 from aerospike_py_admin_ui_api.models.metrics import (
     ClusterMetrics,
     MetricPoint,
@@ -43,18 +42,38 @@ def _generate_time_series(points: int, base_val: float, jitter_pct: float = 0.05
     return series
 
 
-def _fetch_metrics_sync(conn_id: str) -> dict:
-    c = client_manager._get_client_sync(conn_id)
+_STATS_SUM_KEYS = frozenset({"client_connections"})
+_STATS_MIN_KEYS = frozenset({"uptime"})
 
-    # Cluster-level statistics
-    stats_raw = c.info_random_node(INFO_STATISTICS)
-    stats = parse_kv_pairs(stats_raw)
+_NS_SUM_KEYS = frozenset(
+    {
+        "objects",
+        "tombstones",
+        "memory_used_bytes",
+        "memory-size",
+        "device_used_bytes",
+        "device-total-bytes",
+        "client_read_success",
+        "client_read_error",
+        "client_write_success",
+        "client_write_error",
+    }
+)
+
+
+def _fetch_metrics_sync(c, conn_id: str) -> dict:
+    # Cluster-level statistics (aggregated across all nodes)
+    stats_all = c.info_all(INFO_STATISTICS)
+    stats = aggregate_node_kv(stats_all, keys_to_sum=_STATS_SUM_KEYS, keys_to_min=_STATS_MIN_KEYS)
     uptime = safe_int(stats.get("uptime"))
     client_connections = safe_int(stats.get("client_connections"))
 
     # Namespace list
     ns_raw = c.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
+
+    # Count total nodes for RF calculation
+    total_nodes = len(stats_all)
 
     ts_points = 60
     ns_metrics: list[NamespaceMetrics] = []
@@ -66,10 +85,15 @@ def _fetch_metrics_sync(conn_id: str) -> dict:
     total_write_success = 0
 
     for i, ns_name in enumerate(ns_names):
-        ns_info_raw = c.info_random_node(info_namespace(ns_name))
-        ns_stats = parse_kv_pairs(ns_info_raw)
+        # Aggregate namespace stats from all nodes
+        ns_all = c.info_all(info_namespace(ns_name))
+        ns_stats = aggregate_node_kv(ns_all, keys_to_sum=_NS_SUM_KEYS)
 
-        objects = safe_int(ns_stats.get("objects"))
+        replication_factor = safe_int(ns_stats.get("replication-factor"), 1)
+        effective_rf = min(replication_factor, total_nodes) if total_nodes > 0 else 1
+
+        raw_objects = safe_int(ns_stats.get("objects"))
+        objects = raw_objects // effective_rf if effective_rf > 0 else raw_objects
         memory_used = safe_int(ns_stats.get("memory_used_bytes"))
         memory_total = safe_int(ns_stats.get("memory-size"))
         device_used = safe_int(ns_stats.get("device_used_bytes"))
@@ -145,9 +169,9 @@ def _fetch_metrics_sync(conn_id: str) -> dict:
 
 
 @router.get("/{conn_id}")
-async def get_metrics(conn_id: str = Depends(_get_verified_connection)) -> ClusterMetrics:
+async def get_metrics(client: AerospikeClient, conn_id: VerifiedConnId) -> ClusterMetrics:
     try:
-        data = await asyncio.to_thread(_fetch_metrics_sync, conn_id)
+        data = await asyncio.to_thread(_fetch_metrics_sync, client, conn_id)
         return ClusterMetrics(**data)
     except Exception:
         logger.exception("Failed to fetch metrics for connection '%s'", conn_id)

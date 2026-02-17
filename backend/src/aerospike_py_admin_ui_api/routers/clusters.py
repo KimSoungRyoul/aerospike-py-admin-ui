@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from aerospike_py_admin_ui_api.client_manager import client_manager
 from aerospike_py_admin_ui_api.constants import (
     INFO_BUILD,
     INFO_EDITION,
@@ -14,8 +13,15 @@ from aerospike_py_admin_ui_api.constants import (
     info_namespace,
     info_sets,
 )
-from aerospike_py_admin_ui_api.dependencies import _get_verified_connection
-from aerospike_py_admin_ui_api.info_parser import parse_kv_pairs, parse_list, parse_records, safe_bool, safe_int
+from aerospike_py_admin_ui_api.dependencies import AerospikeClient, VerifiedConnId
+from aerospike_py_admin_ui_api.info_parser import (
+    aggregate_node_kv,
+    aggregate_set_records,
+    parse_kv_pairs,
+    parse_list,
+    safe_bool,
+    safe_int,
+)
 from aerospike_py_admin_ui_api.models.cluster import (
     ClusterInfo,
     ClusterNode,
@@ -27,9 +33,7 @@ from aerospike_py_admin_ui_api.models.cluster import (
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
 
 
-def _fetch_cluster_sync(conn_id: str) -> ClusterInfo:
-    c = client_manager._get_client_sync(conn_id)
-
+def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
     # --- Nodes ---
     node_names = c.get_node_names()
     info_all_stats = c.info_all(INFO_STATISTICS)
@@ -72,10 +76,35 @@ def _fetch_cluster_sync(conn_id: str) -> ClusterInfo:
     ns_raw = c.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
 
+    # Keys that must be summed across nodes for namespace stats
+    _NS_SUM_KEYS = frozenset(
+        {
+            "objects",
+            "tombstones",
+            "memory_used_bytes",
+            "memory-size",
+            "device_used_bytes",
+            "device-total-bytes",
+            "client_read_success",
+            "client_read_error",
+            "client_write_success",
+            "client_write_error",
+        }
+    )
+
+    total_nodes = len(node_names)
+
     namespaces: list[NamespaceInfo] = []
     for ns_name in ns_names:
-        ns_info_raw = c.info_random_node(info_namespace(ns_name))
-        ns_stats = parse_kv_pairs(ns_info_raw)
+        # Aggregate namespace stats from all nodes
+        ns_all = c.info_all(info_namespace(ns_name))
+        ns_stats = aggregate_node_kv(ns_all, keys_to_sum=_NS_SUM_KEYS)
+
+        replication_factor = safe_int(ns_stats.get("replication-factor"), 1)
+        effective_rf = min(replication_factor, total_nodes) if total_nodes > 0 else 1
+
+        raw_objects = safe_int(ns_stats.get("objects"))
+        unique_objects = raw_objects // effective_rf if effective_rf > 0 else raw_objects
 
         memory_used = safe_int(ns_stats.get("memory_used_bytes"))
         memory_total = safe_int(ns_stats.get("memory-size"))
@@ -86,32 +115,33 @@ def _fetch_cluster_sync(conn_id: str) -> ClusterInfo:
         if memory_total > 0:
             memory_free_pct = int((1 - memory_used / memory_total) * 100)
 
-        # --- Sets for this namespace ---
-        sets_raw = c.info_random_node(info_sets(ns_name))
-        set_records = parse_records(sets_raw)
-        sets: list[SetInfo] = []
-        for sr in set_records:
-            sets.append(
-                SetInfo(
-                    name=sr.get("set", sr.get("set_name", "")),
-                    namespace=ns_name,
-                    objects=safe_int(sr.get("objects")),
-                    tombstones=safe_int(sr.get("tombstones")),
-                    memoryDataBytes=safe_int(sr.get("memory_data_bytes")),
-                    stopWritesCount=safe_int(sr.get("stop-writes-count", sr.get("stop_writes_count"))),
-                )
+        # --- Sets for this namespace (query all nodes and merge) ---
+        sets_all = c.info_all(info_sets(ns_name))
+        agg_sets = aggregate_set_records(sets_all, replication_factor)
+        sets = [
+            SetInfo(
+                name=s["name"],
+                namespace=ns_name,
+                objects=s["objects"],
+                tombstones=s["tombstones"],
+                memoryDataBytes=s["memory_data_bytes"],
+                stopWritesCount=s["stop_writes_count"],
+                nodeCount=s["node_count"],
+                totalNodes=total_nodes,
             )
+            for s in agg_sets
+        ]
 
         namespaces.append(
             NamespaceInfo(
                 name=ns_name,
-                objects=safe_int(ns_stats.get("objects")),
+                objects=unique_objects,
                 memoryUsed=memory_used,
                 memoryTotal=memory_total,
                 memoryFreePct=memory_free_pct,
                 deviceUsed=device_used,
                 deviceTotal=device_total,
-                replicationFactor=safe_int(ns_stats.get("replication-factor"), 1),
+                replicationFactor=replication_factor,
                 stopWrites=safe_bool(ns_stats.get("stop_writes")),
                 hwmBreached=safe_bool(ns_stats.get("hwm_breached")),
                 highWaterMemoryPct=safe_int(ns_stats.get("high-water-memory-pct")),
@@ -124,19 +154,17 @@ def _fetch_cluster_sync(conn_id: str) -> ClusterInfo:
 
 
 @router.get("/{conn_id}")
-async def get_cluster(conn_id: str = Depends(_get_verified_connection)) -> ClusterInfo:
-    return await asyncio.to_thread(_fetch_cluster_sync, conn_id)
+async def get_cluster(client: AerospikeClient, conn_id: VerifiedConnId) -> ClusterInfo:
+    return await asyncio.to_thread(_fetch_cluster_sync, client, conn_id)
 
 
-def _configure_namespace_sync(conn_id: str, body: CreateNamespaceRequest) -> str:
+def _configure_namespace_sync(c, body: CreateNamespaceRequest) -> str:
     """Update runtime config of an existing namespace.
 
     NOTE: Aerospike does NOT support creating namespaces dynamically.
     Namespaces must be defined in aerospike.conf and require a server restart.
     This endpoint only modifies runtime-tunable parameters of *existing* namespaces.
     """
-    c = client_manager._get_client_sync(conn_id)
-
     # Verify the namespace actually exists before attempting config change
     ns_raw = c.info_random_node(INFO_NAMESPACES)
     existing = parse_list(ns_raw)
@@ -162,12 +190,9 @@ def _configure_namespace_sync(conn_id: str, body: CreateNamespaceRequest) -> str
 
 
 @router.post("/{conn_id}/namespaces", status_code=200)
-async def configure_namespace(
-    body: CreateNamespaceRequest,
-    conn_id: str = Depends(_get_verified_connection),
-) -> dict:
+async def configure_namespace(body: CreateNamespaceRequest, client: AerospikeClient) -> dict:
     try:
-        await asyncio.to_thread(_configure_namespace_sync, conn_id, body)
+        await asyncio.to_thread(_configure_namespace_sync, client, body)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
     return {"message": f"Namespace '{body.name}' configured successfully"}
