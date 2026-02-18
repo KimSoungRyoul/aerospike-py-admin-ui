@@ -110,14 +110,16 @@ const ConnectionItem = React.memo(function ConnectionItem({
 });
 
 function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
-  const { connections, fetchConnections } = useConnectionStore();
+  const { connections, fetchConnections, fetchAllHealth } = useConnectionStore();
   const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
   const [search, setSearch] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
+    fetchConnections().then(() => {
+      fetchAllHealth();
+    });
+  }, [fetchConnections, fetchAllHealth]);
 
   const filteredConnections = connections.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),

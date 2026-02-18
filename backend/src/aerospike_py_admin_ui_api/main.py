@@ -83,6 +83,7 @@ try:
         RecordExistsError,
         RecordGenerationError,
         RecordNotFound,
+        ServerError,
     )
 
     @app.exception_handler(RecordNotFound)
@@ -111,6 +112,19 @@ try:
             status_code=403,
             content={"detail": "User/role management requires Aerospike Enterprise Edition"},
         )
+
+    @app.exception_handler(ServerError)
+    async def _server_error(_req: Request, exc: ServerError) -> JSONResponse:
+        msg = str(exc)
+        if "FailForbidden" in msg:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "Operation forbidden by server. "
+                    "If setting TTL, ensure the namespace has 'nsup-period' configured."
+                },
+            )
+        return JSONResponse(status_code=500, content={"detail": f"Aerospike server error: {exc}"})
 
     @app.exception_handler(AerospikeTimeoutError)
     async def _timeout_error(_req: Request, exc: AerospikeTimeoutError) -> JSONResponse:

@@ -50,6 +50,9 @@ export interface NamespaceInfo {
   hwmBreached: boolean;
   highWaterMemoryPct: number;
   highWaterDiskPct: number;
+  nsupPeriod: number;
+  defaultTtl: number;
+  allowTtlWithoutNsup: boolean;
   sets: SetInfo[];
 }
 
@@ -139,7 +142,7 @@ export interface QueryPredicate {
   value2?: BinValue; // for 'between'
 }
 
-export type QueryType = "scan" | "query";
+export type QueryType = "scan" | "query" | "pk";
 
 export interface QueryRequest {
   namespace: string;
@@ -149,6 +152,7 @@ export interface QueryRequest {
   selectBins?: string[];
   expression?: string; // raw JSON expression
   maxRecords?: number;
+  primaryKey?: string;
 }
 
 export interface QueryResponse {

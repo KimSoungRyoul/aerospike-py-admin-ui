@@ -29,12 +29,16 @@ describe("useQueryStore", () => {
     expect(useQueryStore.getState().namespace).toBe("test-ns");
   });
 
-  it("setQueryType updates type and clears predicate", () => {
-    useQueryStore.setState({ predicate: { bin: "b", operator: "equals", value: 1 } });
+  it("setQueryType updates type and clears predicate and primaryKey", () => {
+    useQueryStore.setState({
+      predicate: { bin: "b", operator: "equals", value: 1 },
+      primaryKey: "some-key",
+    });
     useQueryStore.getState().setQueryType("query");
     const state = useQueryStore.getState();
     expect(state.queryType).toBe("query");
     expect(state.predicate).toBeNull();
+    expect(state.primaryKey).toBe("");
   });
 
   it("executeQuery calls API and updates results", async () => {
@@ -69,6 +73,7 @@ describe("useQueryStore", () => {
   it("reset clears all query state", () => {
     useQueryStore.setState({
       namespace: "ns",
+      primaryKey: "pk-123",
       results: [{ key: {} } as any],
       hasExecuted: true,
       error: "err",
@@ -76,6 +81,7 @@ describe("useQueryStore", () => {
     useQueryStore.getState().reset();
     const state = useQueryStore.getState();
     expect(state.namespace).toBe("");
+    expect(state.primaryKey).toBe("");
     expect(state.results).toEqual([]);
     expect(state.hasExecuted).toBe(false);
     expect(state.error).toBeNull();

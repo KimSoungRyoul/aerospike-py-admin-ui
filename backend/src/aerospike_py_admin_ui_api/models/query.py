@@ -17,11 +17,12 @@ class QueryPredicate(BaseModel):
 class QueryRequest(BaseModel):
     namespace: str
     set: str | None = None
-    type: Literal["scan", "query"]
+    type: Literal["scan", "query", "pk"]
     predicate: QueryPredicate | None = None
     selectBins: list[str] | None = None
     expression: str | None = None
     maxRecords: int | None = None
+    primaryKey: str | None = None
 
 
 class QueryResponse(BaseModel):

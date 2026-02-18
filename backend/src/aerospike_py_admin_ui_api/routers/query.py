@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 
 from aerospike_py import INDEX_TYPE_LIST, predicates
+from aerospike_py.exception import RecordNotFound
 from fastapi import APIRouter
 
-from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_SCAN
+from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_SCAN
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
@@ -34,6 +36,32 @@ def _build_predicate(pred):
 
 def _execute_query_sync(c, body: QueryRequest) -> dict:
     start_time = time.monotonic()
+
+    if body.type == "pk":
+        if not body.set:
+            raise ValueError("Set is required for PK Query")
+        if not body.primaryKey:
+            raise ValueError("Primary key is required for PK Query")
+
+        # Aerospike treats string "123" and int 123 as different keys
+        pk: str | int = body.primaryKey
+        with contextlib.suppress(ValueError):
+            pk = int(body.primaryKey)
+
+        try:
+            raw_result = c.get((body.namespace, body.set, pk), policy=POLICY_READ)
+            raw_results = [raw_result]
+        except RecordNotFound:
+            raw_results = []
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        records = [raw_to_record(r) for r in raw_results]
+        return {
+            "records": records,
+            "executionTimeMs": elapsed_ms,
+            "scannedRecords": len(records),
+            "returnedRecords": len(records),
+        }
 
     if body.type == "query" and body.predicate:
         q = c.query(body.namespace, body.set or "")

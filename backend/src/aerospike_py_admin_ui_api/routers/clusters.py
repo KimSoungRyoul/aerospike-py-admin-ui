@@ -146,6 +146,9 @@ def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
                 hwmBreached=safe_bool(ns_stats.get("hwm_breached")),
                 highWaterMemoryPct=safe_int(ns_stats.get("high-water-memory-pct")),
                 highWaterDiskPct=safe_int(ns_stats.get("high-water-disk-pct")),
+                nsupPeriod=safe_int(ns_stats.get("nsup-period")),
+                defaultTtl=safe_int(ns_stats.get("default-ttl")),
+                allowTtlWithoutNsup=safe_bool(ns_stats.get("allow-ttl-without-nsup")),
                 sets=sets,
             )
         )

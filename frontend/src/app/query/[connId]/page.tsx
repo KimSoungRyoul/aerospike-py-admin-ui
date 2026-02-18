@@ -34,7 +34,7 @@ import { useQueryStore } from "@/stores/query-store";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { api } from "@/lib/api/client";
 import type { AerospikeRecord, BinValue, ClusterInfo, PredicateOperator } from "@/lib/api/types";
-import { formatDuration, formatNumber, truncateMiddle } from "@/lib/formatters";
+import { formatDuration, formatNumber, formatTTLAsExpiry, truncateMiddle } from "@/lib/formatters";
 import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -126,9 +126,19 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
       toast.error("Select a namespace");
       return;
     }
-    if (store.queryType === "query") {
+    if (store.queryType === "pk") {
+      if (!store.set || !store.set.trim()) {
+        toast.error("Set is required for PK Query");
+        return;
+      }
+      if (!store.primaryKey.trim()) {
+        toast.error("Primary key is required for PK Query");
+        return;
+      }
+      store.setPredicate(null);
+    } else if (store.queryType === "query") {
       if (!predBin.trim()) {
-        toast.error("Predicate bin is required for SI Query");
+        toast.error("Predicate bin is required for Index Query");
         return;
       }
       store.setPredicate({
@@ -175,12 +185,12 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
       {
         accessorFn: (row) => row.meta.ttl,
         id: "ttl",
-        header: "TTL",
+        header: "Expiry",
         cell: ({ getValue }) => {
           const val = getValue() as number;
-          return val === -1 ? "never" : val === 0 ? "default" : `${val}s`;
+          return <span title={`TTL: ${val}s`}>{formatTTLAsExpiry(val)}</span>;
         },
-        size: 70,
+        size: 170,
       },
     ];
 
@@ -300,13 +310,13 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
 
       {/* Set */}
       <div className="grid gap-2">
-        <Label>Set (optional)</Label>
+        <Label>{store.queryType === "pk" ? "Set (required)" : "Set (optional)"}</Label>
         <Select value={store.set} onValueChange={(v) => store.setSet(v)}>
           <SelectTrigger>
             <SelectValue placeholder="All sets" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value=" ">All sets</SelectItem>
+            {store.queryType !== "pk" && <SelectItem value=" ">All sets</SelectItem>}
             {sets.map((s) => (
               <SelectItem key={s.name} value={s.name}>
                 {s.name} ({formatNumber(s.objects)})
@@ -336,12 +346,39 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
             className="flex-1"
             onClick={() => store.setQueryType("query")}
           >
-            SI Query
+            Index Query
+          </Button>
+          <Button
+            variant={store.queryType === "pk" ? "default" : "outline"}
+            size="sm"
+            className="flex-1"
+            onClick={() => store.setQueryType("pk")}
+          >
+            PK Query
           </Button>
         </div>
       </div>
 
-      {/* Predicate Builder (SI Query) */}
+      {/* PK Query Input */}
+      {store.queryType === "pk" && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Primary Key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Input
+              placeholder="Enter primary key"
+              value={store.primaryKey}
+              onChange={(e) => store.setPrimaryKey(e.target.value)}
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Integer keys are auto-detected (e.g. &quot;123&quot; → int 123)
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Predicate Builder (Index Query) */}
       {store.queryType === "query" && (
         <Card>
           <CardHeader className="pb-2">
@@ -414,33 +451,37 @@ export default function QueryPage({ params }: { params: Promise<{ connId: string
         </div>
       )}
 
-      {/* Expression Filter */}
-      <Accordion type="single" collapsible>
-        <AccordionItem value="expression" className="border-0">
-          <AccordionTrigger className="py-2 text-sm">Expression Filter</AccordionTrigger>
-          <AccordionContent>
-            <div className="h-[150px] overflow-hidden rounded-md border">
-              <CodeEditor
-                value={store.expression}
-                onChange={(v) => store.setExpression(v)}
-                language="json"
-                height="150px"
-              />
-            </div>
-            <p className="text-muted-foreground mt-1 text-xs">Raw JSON filter expression</p>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      {/* Expression Filter (hidden for PK Query) */}
+      {store.queryType !== "pk" && (
+        <Accordion type="single" collapsible>
+          <AccordionItem value="expression" className="border-0">
+            <AccordionTrigger className="py-2 text-sm">Expression Filter</AccordionTrigger>
+            <AccordionContent>
+              <div className="h-[150px] overflow-hidden rounded-md border">
+                <CodeEditor
+                  value={store.expression}
+                  onChange={(v) => store.setExpression(v)}
+                  language="json"
+                  height="150px"
+                />
+              </div>
+              <p className="text-muted-foreground mt-1 text-xs">Raw JSON filter expression</p>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
 
-      {/* Max Records */}
-      <div className="grid gap-2">
-        <Label>Max Records</Label>
-        <Input
-          type="number"
-          value={store.maxRecords}
-          onChange={(e) => store.setMaxRecords(parseInt(e.target.value, 10) || 100)}
-        />
-      </div>
+      {/* Max Records (hidden for PK Query) */}
+      {store.queryType !== "pk" && (
+        <div className="grid gap-2">
+          <Label>Max Records</Label>
+          <Input
+            type="number"
+            value={store.maxRecords}
+            onChange={(e) => store.setMaxRecords(parseInt(e.target.value, 10) || 100)}
+          />
+        </div>
+      )}
 
       {/* Execute */}
       <LoadingButton
