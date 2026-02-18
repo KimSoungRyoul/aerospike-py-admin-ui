@@ -11,14 +11,16 @@ arguments:
     required: false
 ---
 
-# E2E Test — Full-Stack End-to-End Testing
+# E2E Test — Full-Stack End-to-End Testing (Container Mode)
 
-Full-stack E2E 테스트 워크플로우. podman compose로 전체 인프라(Aerospike 3-node cluster + Backend + Frontend)를 기동하고, Playwright로 `localhost:3100`에 접근하여 테스트합니다.
+전체 스택을 컨테이너로 띄워서 E2E 테스트하는 워크플로우. `compose.yaml`로 Aerospike + Backend + Frontend를 모두 컨테이너로 기동하고, Playwright로 `localhost:3100`에 접근하여 테스트합니다.
+
+> **로컬 개발 환경에서의 E2E 테스트는 `/e2e-dev`를 사용하세요.** e2e-dev는 Aerospike만 컨테이너로 띄우고 Backend/Frontend는 로컬에서 실행하여 hot-reload가 가능합니다.
 
 ## Architecture
 
 ```
-podman compose up
+compose.yaml (전체 컨테이너)
   ├── aerospike-node-1,2,3  (port 3000, 3010, 3020)
   ├── aerospike-exporter-1,2,3 (Prometheus)
   ├── backend               (port 8000, FastAPI)
@@ -35,7 +37,7 @@ start → test → stop을 순서대로 실행합니다.
 
 1. 기존 컨테이너 정리 및 전체 스택 빌드/기동:
 ```bash
-podman compose down && podman compose up -d --build
+podman compose -f compose.yaml down && podman compose -f compose.yaml up -d --build
 ```
 
 2. 서비스 준비 상태 확인 (health check):
@@ -49,7 +51,7 @@ until curl -sf http://localhost:3100 > /dev/null 2>&1; do sleep 3; done
 
 3. 전체 컨테이너 상태 확인:
 ```bash
-podman compose ps
+podman compose -f compose.yaml ps
 ```
 
 **중요**: Backend는 Aerospike 3노드 모두 healthy 상태가 된 후에야 기동됩니다. Frontend는 Backend가 healthy 상태가 된 후에 기동됩니다. 전체 기동에 1~2분 소요될 수 있습니다.
@@ -126,12 +128,12 @@ playwright-cli close
 ### `stop` — 인프라 정지
 
 ```bash
-podman compose down
+podman compose -f compose.yaml down
 ```
 
 볼륨 데이터도 삭제하려면:
 ```bash
-podman compose down -v
+podman compose -f compose.yaml down -v
 ```
 
 ## Global Setup/Teardown
@@ -157,8 +159,8 @@ Playwright는 자체 global setup/teardown을 가지고 있습니다:
 
 ## Troubleshooting
 
-- **컨테이너가 기동되지 않는 경우**: `podman compose logs -f` 로 로그 확인
-- **Backend health check 실패**: Aerospike 노드가 모두 healthy인지 확인 — `podman compose ps`
+- **컨테이너가 기동되지 않는 경우**: `podman compose -f compose.yaml logs -f` 로 로그 확인
+- **Backend health check 실패**: Aerospike 노드가 모두 healthy인지 확인 — `podman compose -f compose.yaml ps`
 - **Frontend 접근 불가**: Backend가 먼저 healthy 상태여야 함 — `curl http://localhost:8000/api/health`
 - **테스트 실패 후 디버깅**: `cd frontend && npx playwright test --debug e2e/specs/{spec}` 로 Playwright Inspector 사용
 - **포트 충돌**: `.env.example` 참고하여 `BACKEND_PORT`, `FRONTEND_PORT` 변경

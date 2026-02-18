@@ -56,7 +56,7 @@ Browse, create, edit, duplicate and delete records with full pagination support.
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f compose.yaml up --build
 ```
 
 - Frontend: http://localhost:3100
@@ -115,7 +115,8 @@ aerospike-py-admin-ui/
 │   │   └── lib/            # API client, utils, types
 │   ├── Dockerfile
 │   └── package.json
-├── docker-compose.yml
+├── compose.yaml            # Full stack (all containers)
+├── compose.dev.yaml        # Aerospike only (for local dev)
 └── .env.example
 ```
 

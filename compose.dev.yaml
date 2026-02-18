@@ -1,0 +1,89 @@
+services:
+  # ── Aerospike 3-Node Mesh Cluster ──────────────────────────────────
+  aerospike-node-1:
+    container_name: aerospike-node-1
+    image: aerospike:ce-8.1.0.3_1
+    command: ["--config-file", "/opt/aerospike/etc/aerospike.conf"]
+    volumes:
+      - ./aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf:ro
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "asinfo", "-v", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  aerospike-node-2:
+    container_name: aerospike-node-2
+    image: aerospike:ce-8.1.0.3_1
+    command: ["--config-file", "/opt/aerospike/etc/aerospike.conf"]
+    volumes:
+      - ./aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf:ro
+    ports:
+      - "3010:3000"
+    healthcheck:
+      test: ["CMD", "asinfo", "-v", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  aerospike-node-3:
+    container_name: aerospike-node-3
+    image: aerospike:ce-8.1.0.3_1
+    command: ["--config-file", "/opt/aerospike/etc/aerospike.conf"]
+    volumes:
+      - ./aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf:ro
+    ports:
+      - "3020:3000"
+    healthcheck:
+      test: ["CMD", "asinfo", "-v", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Prometheus Exporters (per node) ────────────────────────────────
+  aerospike-exporter-1:
+    container_name: aerospike-exporter-1
+    image: aerospike/aerospike-prometheus-exporter:latest
+    environment:
+      - AS_HOST=aerospike-node-1
+      - AS_PORT=3000
+    ports:
+      - "9145:9145"
+    depends_on:
+      aerospike-node-1:
+        condition: service_healthy
+    restart: unless-stopped
+
+  aerospike-exporter-2:
+    container_name: aerospike-exporter-2
+    image: aerospike/aerospike-prometheus-exporter:latest
+    environment:
+      - AS_HOST=aerospike-node-2
+      - AS_PORT=3000
+    ports:
+      - "9146:9145"
+    depends_on:
+      aerospike-node-2:
+        condition: service_healthy
+    restart: unless-stopped
+
+  aerospike-exporter-3:
+    container_name: aerospike-exporter-3
+    image: aerospike/aerospike-prometheus-exporter:latest
+    environment:
+      - AS_HOST=aerospike-node-3
+      - AS_PORT=3000
+    ports:
+      - "9147:9145"
+    depends_on:
+      aerospike-node-3:
+        condition: service_healthy
+    restart: unless-stopped

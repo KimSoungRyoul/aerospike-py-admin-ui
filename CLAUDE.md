@@ -10,8 +10,10 @@ Aerospike Py Admin UI — A full-stack GUI management tool for Aerospike Communi
 
 ### Full Stack (podman)
 ```bash
-podman compose up --build          # Run full stack (Aerospike + Backend + Frontend)
-podman compose down                # Stop full stack
+podman compose -f compose.yaml up --build          # Run full stack (Aerospike + Backend + Frontend)
+podman compose -f compose.yaml down                # Stop full stack
+podman compose -f compose.dev.yaml up -d           # Aerospike only (for local dev)
+podman compose -f compose.dev.yaml down            # Stop Aerospike
 ```
 
 ### Backend (Python 3.13 / FastAPI)
@@ -71,7 +73,8 @@ aerospike-py-admin-ui/
 │           ├── constants.ts  # CE limits, brand colors, page sizes
 │           ├── formatters.ts # Number/byte/uptime formatters
 │           └── utils.ts      # cn() (clsx + tailwind-merge)
-└── podman-compose.yml  # Aerospike + Backend + Frontend
+├── compose.yaml       # Full stack (Aerospike + Backend + Frontend)
+└── compose.dev.yaml   # Aerospike only (for local dev)
 ```
 
 ### Key Architectural Decisions
