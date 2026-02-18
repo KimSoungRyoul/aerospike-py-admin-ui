@@ -84,7 +84,7 @@ def aggregate_node_kv(
     min_accum: dict[str, int] = {}
 
     for _name, err, resp in info_all_results:
-        if err is not None:
+        if err:
             continue
         kv = parse_kv_pairs(resp)
         if not merged:
@@ -121,7 +121,7 @@ def aggregate_set_records(
     responding_nodes = 0
 
     for _name, err, resp in info_all_results:
-        if err is not None:
+        if err:
             continue
         responding_nodes += 1
         for rec in parse_records(resp):

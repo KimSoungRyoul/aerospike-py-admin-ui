@@ -29,7 +29,7 @@ export class QueryPage {
       .click();
   }
 
-  async selectQueryType(type: "Scan" | "SI Query") {
+  async selectQueryType(type: "Scan" | "Index Query" | "PK Query") {
     await this.page.getByRole("button", { name: type }).click();
   }
 

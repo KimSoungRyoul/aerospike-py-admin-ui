@@ -287,6 +287,30 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                       </span>
                       <p className="metric-value font-medium">{ns.highWaterDiskPct}%</p>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                        NSUP Period
+                      </span>
+                      <p className="metric-value font-medium">
+                        {ns.nsupPeriod > 0 ? `${ns.nsupPeriod}s` : "Off"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                        Default TTL
+                      </span>
+                      <p className="metric-value font-medium">
+                        {ns.defaultTtl === 0 ? "None" : `${ns.defaultTtl}s`}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                        TTL w/o NSUP
+                      </span>
+                      <p className="metric-value font-medium">
+                        {ns.allowTtlWithoutNsup ? "Allowed" : "Denied"}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Sets */}

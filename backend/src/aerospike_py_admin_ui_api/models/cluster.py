@@ -39,6 +39,9 @@ class NamespaceInfo(BaseModel):
     hwmBreached: bool
     highWaterMemoryPct: int
     highWaterDiskPct: int
+    nsupPeriod: int = 0
+    defaultTtl: int = 0
+    allowTtlWithoutNsup: bool = False
     sets: list[SetInfo]
 
 

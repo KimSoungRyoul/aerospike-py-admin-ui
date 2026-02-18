@@ -89,11 +89,11 @@ test.describe("05 - Query Builder", () => {
     await screenshot(page, "05-04-scan-all");
   });
 
-  test("5. SI Query mode shows predicate builder", async ({ page }) => {
+  test("5. Index Query mode shows predicate builder", async ({ page }) => {
     await queryPage.goto(connId);
 
-    // Switch to SI Query mode
-    await page.getByRole("button", { name: "SI Query" }).click();
+    // Switch to Index Query mode
+    await page.getByRole("button", { name: "Index Query" }).click();
 
     // Predicate section should appear
     await expect(page.getByText(/Predicate/i).first()).toBeVisible({

@@ -26,7 +26,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/types";
 import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
 import { cn, getErrorMessage } from "@/lib/utils";
-import { truncateMiddle, formatNumber } from "@/lib/formatters";
+import { truncateMiddle, formatNumber, formatTTLAsExpiry } from "@/lib/formatters";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { toast } from "sonner";
 
@@ -344,20 +344,20 @@ for result in batch_results:
           </span>
         ),
       },
-      // TTL
+      // TTL → Expiry
       {
         id: "ttl",
-        size: 80,
+        size: 170,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
-            TTL
+            Expiry
           </span>
         ),
         cell: ({ row }) => {
           const ttl = row.original.meta.ttl;
           return (
-            <span className="text-muted-foreground/60 font-mono text-xs">
-              {ttl === -1 ? "∞" : ttl === 0 ? "—" : `${ttl}s`}
+            <span className="text-muted-foreground/60 font-mono text-xs" title={`TTL: ${ttl}s`}>
+              {formatTTLAsExpiry(ttl)}
             </span>
           );
         },
@@ -576,14 +576,10 @@ for result in batch_results:
                       Gen:{" "}
                       <span className="text-foreground font-mono">{record.meta.generation}</span>
                     </span>
-                    <span className="text-muted-foreground">
-                      TTL:{" "}
+                    <span className="text-muted-foreground" title={`TTL: ${record.meta.ttl}s`}>
+                      Expiry:{" "}
                       <span className="text-foreground font-mono">
-                        {record.meta.ttl === -1
-                          ? "∞"
-                          : record.meta.ttl === 0
-                            ? "—"
-                            : `${record.meta.ttl}s`}
+                        {formatTTLAsExpiry(record.meta.ttl)}
                       </span>
                     </span>
                   </div>

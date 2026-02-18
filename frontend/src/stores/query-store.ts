@@ -11,6 +11,7 @@ interface QueryState {
   selectBins: string[];
   expression: string;
   maxRecords: number;
+  primaryKey: string;
 
   results: AerospikeRecord[];
   executionTimeMs: number;
@@ -27,6 +28,7 @@ interface QueryState {
   setSelectBins: (bins: string[]) => void;
   setExpression: (expr: string) => void;
   setMaxRecords: (max: number) => void;
+  setPrimaryKey: (pk: string) => void;
   executeQuery: (connId: string) => Promise<void>;
   reset: () => void;
 }
@@ -39,6 +41,7 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
   selectBins: [],
   expression: "",
   maxRecords: 100,
+  primaryKey: "",
 
   results: [],
   executionTimeMs: 0,
@@ -50,11 +53,12 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
 
   setNamespace: (ns) => set({ namespace: ns }),
   setSet: (s) => set({ set: s }),
-  setQueryType: (type) => set({ queryType: type, predicate: null }),
+  setQueryType: (type) => set({ queryType: type, predicate: null, primaryKey: "" }),
   setPredicate: (pred) => set({ predicate: pred }),
   setSelectBins: (bins) => set({ selectBins: bins }),
   setExpression: (expr) => set({ expression: expr }),
   setMaxRecords: (max) => set({ maxRecords: max }),
+  setPrimaryKey: (pk) => set({ primaryKey: pk }),
 
   executeQuery: async (connId) => {
     const state = get();
@@ -68,6 +72,7 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
         selectBins: state.selectBins.length > 0 ? state.selectBins : undefined,
         expression: state.expression || undefined,
         maxRecords: state.maxRecords,
+        primaryKey: state.primaryKey || undefined,
       });
       set({
         results: result.records,
@@ -90,6 +95,7 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
       predicate: null,
       selectBins: [],
       expression: "",
+      primaryKey: "",
       results: [],
       executionTimeMs: 0,
       scannedRecords: 0,

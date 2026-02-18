@@ -32,6 +32,26 @@ export function formatPercent(value: number, total: number): number {
   return Math.round((value / total) * 100);
 }
 
+const NEVER_EXPIRE_TTL = 4294967295; // 0xFFFFFFFF — Aerospike "never expires" sentinel
+
+/**
+ * Convert TTL (seconds remaining) to an expiration datetime string (yyyy-mm-dd hh:mm:ss).
+ * Used in table views to show when a record expires.
+ */
+export function formatTTLAsExpiry(ttl: number): string {
+  if (ttl === -1 || ttl === NEVER_EXPIRE_TTL) return "Never";
+  if (ttl === 0) return "Default";
+
+  const expiry = new Date(Date.now() + ttl * 1000);
+  const y = expiry.getFullYear();
+  const mo = String(expiry.getMonth() + 1).padStart(2, "0");
+  const d = String(expiry.getDate()).padStart(2, "0");
+  const h = String(expiry.getHours()).padStart(2, "0");
+  const mi = String(expiry.getMinutes()).padStart(2, "0");
+  const s = String(expiry.getSeconds()).padStart(2, "0");
+  return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
+}
+
 export function truncateMiddle(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   const half = Math.floor((maxLen - 3) / 2);

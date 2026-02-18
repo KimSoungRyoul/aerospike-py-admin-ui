@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   formatBytes,
   formatNumber,
   formatUptime,
   formatDuration,
   formatPercent,
+  formatTTLAsExpiry,
   truncateMiddle,
 } from "../formatters";
 
@@ -92,6 +93,32 @@ describe("formatPercent", () => {
   it("calculates percentage correctly", () => {
     expect(formatPercent(50, 100)).toBe(50);
     expect(formatPercent(1, 3)).toBe(33);
+  });
+});
+
+describe("formatTTLAsExpiry", () => {
+  it("returns 'Never' for -1", () => {
+    expect(formatTTLAsExpiry(-1)).toBe("Never");
+  });
+
+  it("returns 'Never' for 4294967295 (UINT32_MAX)", () => {
+    expect(formatTTLAsExpiry(4294967295)).toBe("Never");
+  });
+
+  it("returns 'Default' for 0", () => {
+    expect(formatTTLAsExpiry(0)).toBe("Default");
+  });
+
+  it("returns yyyy-mm-dd hh:mm:ss format for positive TTL", () => {
+    const result = formatTTLAsExpiry(3600);
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
+  it("calculates correct expiry date", () => {
+    const now = Date.now();
+    vi.setSystemTime(new Date("2026-03-01T12:00:00"));
+    expect(formatTTLAsExpiry(86400)).toBe("2026-03-02 12:00:00");
+    vi.useRealTimers();
   });
 });
 

@@ -98,7 +98,7 @@ export function DataTable<TData, TValue>({
                     <th
                       key={header.id}
                       className={cn(
-                        "bg-base-100 px-4 py-2.5 text-left",
+                        "bg-base-100 overflow-hidden px-4 py-2.5 text-left text-ellipsis whitespace-nowrap",
                         (header.column.columnDef.meta as Record<string, unknown>)?.className as
                           | string
                           | undefined,
@@ -151,7 +151,7 @@ export function DataTable<TData, TValue>({
                     <td
                       key={cell.id}
                       className={cn(
-                        "px-4 py-2.5",
+                        "overflow-hidden px-4 py-2.5 text-ellipsis whitespace-nowrap",
                         pinned && "bg-base-100",
                         (cell.column.columnDef.meta as Record<string, unknown>)?.className as
                           | string
