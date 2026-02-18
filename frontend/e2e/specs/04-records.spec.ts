@@ -30,18 +30,13 @@ test.describe("04 - Records CRUD", () => {
     // Fill PK
     await page.getByPlaceholder("Record key").fill("e2e-record-1");
 
-    // First bin (already present)
+    // First bin (already present) — fill bin name and value
     const binNames = page.getByPlaceholder("Bin name");
     await binNames.first().fill("name");
-    // Fill value — look for the value input in the bin row
-    const valueInputs = page.locator('input[type="text"]').filter({ hasNotText: "" });
-    // Find the value input area (after bin name and type)
-    await page
-      .locator("input")
-      .filter({ hasText: "" })
-      .and(page.locator('[placeholder*="alue"], [placeholder*="Enter"]'))
-      .first()
-      .fill("Alice");
+
+    // Fill the value input (placeholder "Value" for string type)
+    const valueInput = page.getByRole("dialog").locator('input[placeholder="Value"]').first();
+    await valueInput.fill("Alice");
 
     await recordsPage.submitCreate();
     await expectToast(page, /Record created/i);
@@ -74,13 +69,19 @@ test.describe("04 - Records CRUD", () => {
     await recordsPage.goto(connId, TEST_NAMESPACE, TEST_SET);
     await page.waitForTimeout(2_000);
 
-    // Find and click view on a record row
+    // Find the record row and click the View button (Eye icon)
     const row = page.locator("tr", { hasText: "e2e-view-record" }).first();
     await row.hover();
-    await row.locator("button").first().click();
+    // Action buttons: View(Eye), Edit(Pencil), Duplicate(Copy), Delete(Trash)
+    // Use tooltip text to find the right button
+    await row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .first()
+      .click();
 
     // View dialog should show record detail
-    await expect(page.getByText("Record Detail").first()).toBeVisible({
+    await expect(page.getByRole("dialog").getByText("Record Detail").first()).toBeVisible({
       timeout: 5_000,
     });
     await expect(page.getByText("e2e-view-record").first()).toBeVisible();
@@ -101,12 +102,12 @@ test.describe("04 - Records CRUD", () => {
 
     const row = page.locator("tr", { hasText: "e2e-edit-record" }).first();
     await row.hover();
-    // Click edit button (second action button)
-    const buttons = row.locator("button");
-    await buttons.nth(1).click();
+    // Click edit button (second action button with svg)
+    const actionButtons = row.locator("button").filter({ has: page.locator("svg") });
+    await actionButtons.nth(1).click();
 
     // Edit dialog
-    await expect(page.getByText("Edit Record").first()).toBeVisible({
+    await expect(page.getByRole("dialog").getByText("Edit Record").first()).toBeVisible({
       timeout: 5_000,
     });
 
@@ -117,7 +118,7 @@ test.describe("04 - Records CRUD", () => {
     await screenshot(page, "04-04-edit-record");
 
     // Submit update
-    await page.getByRole("button", { name: "Update" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Update" }).click();
     await expectToast(page, /Record updated/i);
   });
 
@@ -132,19 +133,26 @@ test.describe("04 - Records CRUD", () => {
 
     const row = page.locator("tr", { hasText: "e2e-dup-source" }).first();
     await row.hover();
-    // Click duplicate button (third action button)
-    const buttons = row.locator("button");
-    await buttons.nth(2).click();
+    // Click duplicate button (third action button with svg)
+    const actionButtons = row.locator("button").filter({ has: page.locator("svg") });
+    await actionButtons.nth(2).click();
 
     // Duplicate dialog — PK should be empty
-    await expect(page.getByText(/Duplicate Record/i).first()).toBeVisible({ timeout: 5_000 });
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByText(/Duplicate Record/i)
+        .first(),
+    ).toBeVisible({
+      timeout: 5_000,
+    });
 
     const pkInput = page.getByPlaceholder("Record key");
     await expect(pkInput).toBeEnabled();
 
     // Fill new PK
     await pkInput.fill("e2e-dup-copy");
-    await page.getByRole("button", { name: "Create" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Create" }).click();
     await expectToast(page, /Record (created|duplicated)/i);
     await screenshot(page, "04-05-duplicate-record");
   });
@@ -177,8 +185,8 @@ test.describe("04 - Records CRUD", () => {
     const row = page.locator("tr", { hasText: "e2e-delete-me" }).first();
     await row.hover();
     // Click delete button (last action button)
-    const buttons = row.locator("button");
-    await buttons.last().click();
+    const actionButtons = row.locator("button").filter({ has: page.locator("svg") });
+    await actionButtons.last().click();
 
     // Confirm dialog
     await confirmDialog(page, "Delete");
@@ -187,42 +195,35 @@ test.describe("04 - Records CRUD", () => {
   });
 
   test("8. Pagination with 30+ records", async ({ page }) => {
-    // Create 30 records via API
-    const promises = [];
+    // Create 30 records sequentially (concurrent requests can overwhelm the backend)
     for (let i = 0; i < 30; i++) {
-      promises.push(
-        createTestRecord(page, connId, `e2e-page-${i.toString().padStart(2, "0")}`, {
-          idx: i,
-        }),
-      );
+      await createTestRecord(page, connId, `e2e-page-${i.toString().padStart(2, "0")}`, {
+        idx: i,
+      });
     }
-    await Promise.all(promises);
 
     await recordsPage.goto(connId, TEST_NAMESPACE, TEST_SET);
     await page.waitForTimeout(3_000);
 
-    // Pagination should appear (default page size is 25)
-    const paginationArea = page.locator("text=/of \\d+/i").first();
-    await expect(paginationArea).toBeVisible({ timeout: 10_000 });
+    // Table should show records
+    await expect(page.getByTestId("records-table")).toBeVisible({ timeout: 10_000 });
 
-    // Next page button should be clickable
-    const nextBtn = page.locator('button:has(svg[class*="chevron-right"])').first();
-    if ((await nextBtn.count()) > 0) {
-      await expect(nextBtn).toBeEnabled();
-    }
+    // Pagination should be visible (page size select has data-compact attribute)
+    await expect(page.locator("[data-compact]").first()).toBeVisible({ timeout: 10_000 });
     await screenshot(page, "04-08-pagination");
   });
 
   test("9. Page size change", async ({ page }) => {
     await recordsPage.goto(connId, TEST_NAMESPACE, TEST_SET);
-    await page.waitForTimeout(2_000);
 
-    // Find page size selector
-    const pageSizeSelect = page.locator("select").last();
-    if ((await pageSizeSelect.count()) > 0) {
-      await pageSizeSelect.selectOption("50");
-      await page.waitForTimeout(2_000);
-    }
+    // Wait for pagination to be visible (requires enough records from test 8)
+    const pageSizeTrigger = page.locator("[data-compact]").first();
+    await expect(pageSizeTrigger).toBeVisible({ timeout: 15_000 });
+
+    // Click the page size selector and choose 50
+    await pageSizeTrigger.click();
+    await page.getByRole("option", { name: "50" }).click();
+    await page.waitForTimeout(2_000);
     await screenshot(page, "04-09-page-size");
   });
 
@@ -231,7 +232,7 @@ test.describe("04 - Records CRUD", () => {
     await recordsPage.goto(connId, TEST_NAMESPACE, "empty_set_e2e");
     await page.waitForTimeout(3_000);
 
-    await expect(page.getByText(/No records/i).first()).toBeVisible({
+    await expect(page.getByText(/No Records/i).first()).toBeVisible({
       timeout: 10_000,
     });
     await screenshot(page, "04-10-empty-state");

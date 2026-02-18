@@ -7,18 +7,21 @@ export class RecordsPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.newRecordBtn = page.getByRole("button", { name: /new record/i });
+    this.newRecordBtn = page.getByRole("main").getByRole("button", { name: /new record/i });
     this.table = page.getByTestId("records-table");
   }
 
   async goto(connId: string, ns: string, set: string) {
     await this.page.goto(`/browser/${connId}/${ns}/${set}`);
     await this.page.waitForLoadState("domcontentloaded");
+    await this.page.waitForTimeout(1_000);
   }
 
   async openCreateDialog() {
     await this.newRecordBtn.click();
-    await expect(this.page.getByText("New Record")).toBeVisible({ timeout: 5_000 });
+    await expect(this.page.getByRole("dialog").getByText("New Record")).toBeVisible({
+      timeout: 5_000,
+    });
   }
 
   async fillRecordForm(pk: string, bins: { name: string; type: string; value: string }[]) {
@@ -61,11 +64,11 @@ export class RecordsPage {
   }
 
   async submitCreate() {
-    await this.page.getByRole("button", { name: "Create" }).click();
+    await this.page.getByRole("dialog").getByRole("button", { name: "Create" }).click();
   }
 
   async submitUpdate() {
-    await this.page.getByRole("button", { name: "Update" }).click();
+    await this.page.getByRole("dialog").getByRole("button", { name: "Update" }).click();
   }
 
   async clickViewRecord(rowIndex = 0) {

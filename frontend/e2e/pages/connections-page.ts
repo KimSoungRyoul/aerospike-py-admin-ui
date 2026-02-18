@@ -10,7 +10,7 @@ export class ConnectionsPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByText("Clusters").first();
-    this.newClusterBtn = page.getByRole("button", { name: "New Cluster" });
+    this.newClusterBtn = page.getByRole("main").getByRole("button", { name: "New Cluster" });
     this.importBtn = page.getByRole("button", { name: "Import" });
     this.exportBtn = page.getByRole("button", { name: "Export" });
   }
@@ -22,7 +22,7 @@ export class ConnectionsPage {
 
   async openCreateDialog() {
     await this.newClusterBtn.click();
-    await expect(this.page.getByText("New Cluster").nth(1)).toBeVisible();
+    await expect(this.page.getByRole("dialog").getByText("New Cluster")).toBeVisible();
   }
 
   async fillConnectionForm(name: string, hosts: string, port: string) {
@@ -57,7 +57,7 @@ export class ConnectionsPage {
   }
 
   async testCluster() {
-    await this.page.getByRole("button", { name: "Test Cluster" }).click();
+    await this.page.getByRole("button", { name: "Test Cluster", exact: true }).click();
   }
 
   async clickCard(name: string) {

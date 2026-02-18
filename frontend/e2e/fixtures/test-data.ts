@@ -4,7 +4,7 @@ const BASE_URL = "http://localhost:3100";
 
 export const TEST_CONNECTION = {
   name: "E2E Test Cluster",
-  hosts: "aerospike",
+  hosts: "aerospike-node-1",
   port: "3000",
 };
 

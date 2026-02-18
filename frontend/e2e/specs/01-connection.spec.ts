@@ -99,6 +99,7 @@ test.describe("01 - Connection CRUD", () => {
     await expect(card).toBeVisible({ timeout: 10_000 });
 
     // Click the card body (avoid buttons)
+    // Connected → /browser/, Disconnected → /cluster/
     await card.click({ position: { x: 50, y: 50 } });
     await page.waitForURL("**/browser/**", { timeout: 10_000 });
     await expect(page).toHaveURL(/\/browser\//);
@@ -114,12 +115,9 @@ test.describe("01 - Connection CRUD", () => {
     await page.locator("#conn-port").fill("3000");
 
     const createBtn = page.getByRole("button", { name: "Create" });
-    // Name is required — button should be disabled or form should show validation
+    // Name is required — button should be disabled when name is empty
     await page.locator("#conn-name").fill("");
-    await createBtn.click();
-
-    // Should stay on dialog (not close) or show validation error
-    await expect(page.getByText(/New Cluster|required/i).first()).toBeVisible();
+    await expect(createBtn).toBeDisabled();
 
     // Close dialog
     await page.getByRole("button", { name: "Cancel" }).click();
