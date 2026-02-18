@@ -115,7 +115,6 @@ describe("formatTTLAsExpiry", () => {
   });
 
   it("calculates correct expiry date", () => {
-    const now = Date.now();
     vi.setSystemTime(new Date("2026-03-01T12:00:00"));
     expect(formatTTLAsExpiry(86400)).toBe("2026-03-02 12:00:00");
     vi.useRealTimers();
