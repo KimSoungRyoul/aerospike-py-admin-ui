@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { BrowserPage } from "../pages/browser-page";
-import { screenshot, expectToast } from "../fixtures/base-page";
+import { screenshot } from "../fixtures/base-page";
 import { getTestConnectionId, TEST_NAMESPACE } from "../fixtures/test-data";
 
 test.describe("03 - Browser (Namespace/Set)", () => {
@@ -58,17 +58,22 @@ test.describe("03 - Browser (Namespace/Set)", () => {
     await screenshot(page, "03-03-set-navigate");
   });
 
-  test("4. Create Namespace dialog opens and closes", async ({ page }) => {
+  test("4. Configure Namespace dialog opens and closes", async ({ page }) => {
     await browserPage.goto(connId);
-    await browserPage.openCreateNamespaceDialog();
+
+    // Wait for namespace card
+    await expect(browserPage.getNamespaceCard(TEST_NAMESPACE)).toBeVisible({ timeout: 10_000 });
+
+    await browserPage.openConfigureNamespaceDialog(TEST_NAMESPACE);
 
     // Dialog should be visible
-    await expect(page.getByPlaceholder("my_namespace")).toBeVisible();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
 
     // Close dialog
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByPlaceholder("my_namespace")).not.toBeVisible();
-    await screenshot(page, "03-04-create-ns-dialog");
+    await expect(dialog).not.toBeVisible();
+    await screenshot(page, "03-04-configure-ns-dialog");
   });
 
   test("5. Create Set navigates to record page", async ({ page }) => {

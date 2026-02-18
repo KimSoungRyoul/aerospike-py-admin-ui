@@ -20,21 +20,34 @@ export class UdfsPage {
 
   async openUploadDialog() {
     await this.newUdfBtn.click();
-    await expect(this.page.getByText("Upload UDF Module")).toBeVisible();
+    await expect(this.page.getByRole("dialog").getByText("Upload UDF Module")).toBeVisible();
   }
 
   async fillUploadForm(filename: string, content: string) {
-    await this.page.getByPlaceholder("my_module.lua").fill(filename);
-    // CodeEditor - use Monaco if available, otherwise textarea
-    const editor = this.page.locator(".monaco-editor").first();
-    if ((await editor.count()) > 0) {
-      await editor.click();
-      await this.page.keyboard.press("Meta+a");
-      await this.page.keyboard.type(content);
-    } else {
-      const textarea = this.page.getByRole("dialog").locator("textarea").first();
-      await textarea.fill(content);
-    }
+    const dialog = this.page.getByRole("dialog");
+    await dialog.getByPlaceholder("my_module.lua").fill(filename);
+
+    // Wait for Monaco editor to fully initialize
+    const monacoEditor = dialog.locator(".monaco-editor").first();
+    await expect(monacoEditor).toBeVisible({ timeout: 15_000 });
+
+    // Set Monaco content via its API to avoid auto-bracket/auto-complete issues
+    await this.page.evaluate((text) => {
+      const monaco = (globalThis as unknown as Record<string, unknown>).monaco as
+        | {
+            editor: { getEditors(): { getModel(): { setValue(v: string): void } | null }[] };
+          }
+        | undefined;
+      if (monaco?.editor) {
+        const editors = monaco.editor.getEditors();
+        if (editors.length > 0) {
+          editors[editors.length - 1].getModel()?.setValue(text);
+        }
+      }
+    }, content);
+
+    // Wait for React onChange to propagate
+    await this.page.waitForTimeout(500);
   }
 
   async submitUpload() {

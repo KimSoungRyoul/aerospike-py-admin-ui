@@ -4,15 +4,11 @@ export class BrowserPage {
   readonly page: Page;
   readonly heading: Locator;
   readonly refreshBtn: Locator;
-  readonly createNamespaceBtn: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole("heading", { name: /Namespaces/i }).first();
     this.refreshBtn = page.getByRole("button", { name: "Refresh" });
-    this.createNamespaceBtn = page.getByRole("button", {
-      name: "Create Namespace",
-    });
   }
 
   async goto(connId: string) {
@@ -31,15 +27,16 @@ export class BrowserPage {
       .click();
   }
 
-  async openCreateNamespaceDialog() {
-    await this.createNamespaceBtn.click();
-    await expect(this.page.getByText("Create Namespace")).toBeVisible();
+  async openConfigureNamespaceDialog(ns: string) {
+    const card = this.getNamespaceCard(ns);
+    await card.locator("button[aria-label*='Configure']").click();
+    await expect(this.page.getByRole("dialog").getByText("Configure Namespace")).toBeVisible();
   }
 
   async openCreateSetDialog(ns: string) {
     const card = this.getNamespaceCard(ns);
     await card.getByRole("button", { name: "Create Set" }).click();
-    await expect(this.page.getByText("Create Set")).toBeVisible();
+    await expect(this.page.getByRole("dialog").getByText("Create Set")).toBeVisible();
   }
 
   async fillCreateSetForm(setName: string) {
@@ -47,6 +44,6 @@ export class BrowserPage {
   }
 
   async submitCreate() {
-    await this.page.getByRole("button", { name: "Create" }).click();
+    await this.page.getByRole("dialog").getByRole("button", { name: "Create" }).click();
   }
 }

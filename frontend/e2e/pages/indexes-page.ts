@@ -8,8 +8,9 @@ export class IndexesPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole("heading", { name: /Secondary Indexes/i });
-    this.createBtn = page.getByRole("button", { name: "Create Index" });
+    // Use level=1 to avoid matching "No secondary indexes" (h3)
+    this.heading = page.getByRole("heading", { name: /Secondary Indexes/i, level: 1 });
+    this.createBtn = page.getByRole("main").getByRole("button", { name: "Create Index" }).first();
     this.refreshBtn = page.getByRole("button", { name: "Refresh" });
   }
 
@@ -20,7 +21,7 @@ export class IndexesPage {
 
   async openCreateDialog() {
     await this.createBtn.click();
-    await expect(this.page.getByText("Create Secondary Index")).toBeVisible();
+    await expect(this.page.getByRole("dialog").getByText("Create Secondary Index")).toBeVisible();
   }
 
   async fillIndexForm(opts: {
@@ -30,19 +31,27 @@ export class IndexesPage {
     name: string;
     type?: string;
   }) {
-    // Namespace select
-    const nsSelect = this.page.getByRole("dialog").locator("select").first();
-    await nsSelect.selectOption(opts.namespace);
+    const dialog = this.page.getByRole("dialog");
+
+    // Namespace select (Radix Select / combobox)
+    const nsCombobox = dialog.getByRole("combobox").first();
+    await nsCombobox.click();
+    await this.page.getByRole("option", { name: opts.namespace }).first().click();
 
     if (opts.set) {
-      await this.page.getByPlaceholder("set name").fill(opts.set);
+      await dialog.getByPlaceholder("set name").fill(opts.set);
     }
-    await this.page.getByPlaceholder("bin name").fill(opts.bin);
-    await this.page.getByPlaceholder("idx_my_bin").fill(opts.name);
+    await dialog.getByPlaceholder("bin name").fill(opts.bin);
+    await dialog.getByPlaceholder("idx_my_bin").fill(opts.name);
 
     if (opts.type) {
-      const typeSelect = this.page.getByRole("dialog").locator("select").last();
-      await typeSelect.selectOption(opts.type);
+      // Type select (second combobox in dialog)
+      const typeCombobox = dialog.getByRole("combobox").last();
+      await typeCombobox.click();
+      await this.page
+        .getByRole("option", { name: new RegExp(opts.type, "i") })
+        .first()
+        .click();
     }
   }
 

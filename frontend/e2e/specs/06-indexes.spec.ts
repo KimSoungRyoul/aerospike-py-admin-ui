@@ -67,10 +67,11 @@ test.describe("06 - Secondary Indexes", () => {
     await indexesPage.goto(connId);
     await indexesPage.openCreateDialog();
 
-    // Try to create without filling required fields
-    await indexesPage.submitCreate();
+    // Create button should be disabled when required fields are empty
+    const createBtn = page.getByRole("dialog").getByRole("button", { name: "Create" });
+    await expect(createBtn).toBeDisabled();
 
-    // Should show validation or stay in dialog
+    // Dialog should remain open
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await screenshot(page, "06-04-validation");

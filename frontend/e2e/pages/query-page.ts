@@ -17,12 +17,26 @@ export class QueryPage {
   }
 
   async selectNamespace(ns: string) {
-    await this.page.getByText("Select namespace").first().click();
-    await this.page.getByRole("option", { name: ns }).first().click();
+    // The query page auto-selects the first namespace on load.
+    // Wait for the combobox to appear (replaces Skeleton after cluster loads).
+    const nsTrigger = this.page.getByRole("combobox").first();
+    await expect(nsTrigger).toBeVisible({ timeout: 15_000 });
+
+    // Wait for auto-selection to complete (trigger text changes from placeholder)
+    try {
+      await expect(nsTrigger).toContainText(ns, { timeout: 10_000 });
+      return; // Already auto-selected
+    } catch {
+      // Not auto-selected, try manual selection
+      await nsTrigger.click();
+      await this.page.getByRole("option", { name: ns }).first().click();
+    }
   }
 
   async selectSet(set: string) {
-    await this.page.locator("select, [role=combobox]").nth(1).click();
+    // Second combobox is the set selector
+    const setTrigger = this.page.getByRole("combobox").nth(1);
+    await setTrigger.click();
     await this.page
       .getByRole("option", { name: new RegExp(set) })
       .first()

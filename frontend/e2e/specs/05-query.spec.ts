@@ -41,30 +41,31 @@ test.describe("05 - Query Builder", () => {
   test("2. Namespace dropdown has options", async ({ page }) => {
     await queryPage.goto(connId);
 
-    // Click namespace selector
-    const nsSelect = page.locator("select").first();
-    await expect(nsSelect).toBeVisible();
-    // Should have at least the "test" namespace
-    const options = nsSelect.locator("option");
-    await expect(options).not.toHaveCount(0);
+    // Radix Select: click to open the namespace combobox
+    const nsTrigger = page.getByRole("combobox").first();
+    await expect(nsTrigger).toBeVisible();
+    await nsTrigger.click();
+
+    // Should have at least the "test" namespace option
+    const options = page.getByRole("option");
+    await expect(options.first()).toBeVisible({ timeout: 5_000 });
+
+    // Close dropdown by pressing Escape
+    await page.keyboard.press("Escape");
     await screenshot(page, "05-02-namespace-options");
   });
 
   test("3. Execute Scan query with results", async ({ page }) => {
     await queryPage.goto(connId);
 
-    // Select namespace
-    const nsSelect = page.locator("select").first();
-    await nsSelect.selectOption(TEST_NAMESPACE);
+    // Select namespace using Radix Select
+    await queryPage.selectNamespace(TEST_NAMESPACE);
 
     // Select set if available
-    const setSelect = page.locator("select").nth(1);
-    if ((await setSelect.count()) > 0) {
-      try {
-        await setSelect.selectOption(TEST_SET, { timeout: 3_000 });
-      } catch {
-        // Set might not be in the dropdown yet
-      }
+    try {
+      await queryPage.selectSet(TEST_SET);
+    } catch {
+      // Set might not be in the dropdown yet
     }
 
     // Execute
@@ -79,8 +80,7 @@ test.describe("05 - Query Builder", () => {
   test("4. Scan all (no set filter)", async ({ page }) => {
     await queryPage.goto(connId);
 
-    const nsSelect = page.locator("select").first();
-    await nsSelect.selectOption(TEST_NAMESPACE);
+    await queryPage.selectNamespace(TEST_NAMESPACE);
 
     await queryPage.execute();
 
@@ -106,8 +106,7 @@ test.describe("05 - Query Builder", () => {
   test("6. Execution stats are displayed", async ({ page }) => {
     await queryPage.goto(connId);
 
-    const nsSelect = page.locator("select").first();
-    await nsSelect.selectOption(TEST_NAMESPACE);
+    await queryPage.selectNamespace(TEST_NAMESPACE);
 
     await queryPage.execute();
     await queryPage.waitForResults();
@@ -122,8 +121,7 @@ test.describe("05 - Query Builder", () => {
   test("7. Export buttons appear after query results", async ({ page }) => {
     await queryPage.goto(connId);
 
-    const nsSelect = page.locator("select").first();
-    await nsSelect.selectOption(TEST_NAMESPACE);
+    await queryPage.selectNamespace(TEST_NAMESPACE);
 
     await queryPage.execute();
     await queryPage.waitForResults();
