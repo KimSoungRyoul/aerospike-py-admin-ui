@@ -77,6 +77,21 @@ aerospike-py-admin-ui/
 └── compose.dev.yaml   # Aerospike only (for local dev)
 ```
 
+### Compose Files
+
+| File | Purpose | Aerospike Ports | Backend | Frontend |
+|------|---------|-----------------|---------|----------|
+| `compose.yaml` | CI/deploy — all containers | Internal only (no host mapping) | Container (8000) | Container (3100) |
+| `compose.dev.yaml` | Local dev — Aerospike only | 14790, 14791, 14792 | Local (`uv run`, 8000) | Local (`npm run dev`, 3000) |
+
+Both files include `aerospike-tools` container for aql/asadm access:
+```bash
+podman exec -it aerospike-tools aql -h aerospike-node-1
+podman exec -it aerospike-tools asadm -h aerospike-node-1
+```
+
+Local dev with `compose.dev.yaml` requires setting `AEROSPIKE_HOST=localhost AEROSPIKE_PORT=14790` when starting the backend.
+
 ### Key Architectural Decisions
 
 - **API Proxy**: `/api/*` requests are proxied to the backend via Next.js `rewrites`. Target is configured with `BACKEND_URL` env var (default: `http://localhost:8000`).
