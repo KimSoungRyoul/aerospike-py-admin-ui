@@ -6,8 +6,6 @@ services:
     command: ["--config-file", "/opt/aerospike/etc/aerospike.conf"]
     volumes:
       - ./aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf:ro
-    ports:
-      - "3000:3000"
     healthcheck:
       test: ["CMD", "asinfo", "-v", "status"]
       interval: 10s
@@ -22,8 +20,6 @@ services:
     command: ["--config-file", "/opt/aerospike/etc/aerospike.conf"]
     volumes:
       - ./aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf:ro
-    ports:
-      - "3010:3000"
     healthcheck:
       test: ["CMD", "asinfo", "-v", "status"]
       interval: 10s
@@ -38,14 +34,23 @@ services:
     command: ["--config-file", "/opt/aerospike/etc/aerospike.conf"]
     volumes:
       - ./aerospike/aerospike.conf:/opt/aerospike/etc/aerospike.conf:ro
-    ports:
-      - "3020:3000"
     healthcheck:
       test: ["CMD", "asinfo", "-v", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+
+  # ── Aerospike Tools ──────────────────────────────────────────────────
+  aerospike-tools:
+    container_name: aerospike-tools
+    image: aerospike/aerospike-tools:latest
+    depends_on:
+      aerospike-node-1:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
     restart: unless-stopped
 
   # ── Prometheus Exporters (per node) ────────────────────────────────

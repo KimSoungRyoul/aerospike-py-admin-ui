@@ -19,8 +19,9 @@ arguments:
 
 ```
 compose.dev.yaml (컨테이너)
-  ├── aerospike-node-1,2,3  (port 3000, 3010, 3020)
-  └── aerospike-exporter-1,2,3 (Prometheus)
+  ├── aerospike-node-1,2,3  (host port 14790, 14791, 14792)
+  ├── aerospike-exporter-1,2,3 (Prometheus 9145-9147)
+  └── aerospike-tools
 
 로컬 프로세스
   ├── backend   (port 8000, uv run uvicorn --reload)
@@ -32,6 +33,7 @@ compose.dev.yaml (컨테이너)
 | | e2e-test | e2e-dev |
 |---|---|---|
 | Compose 파일 | `compose.yaml` | `compose.dev.yaml` |
+| Aerospike 포트 | 비공개 (내부 네트워크) | 14790, 14791, 14792 |
 | Backend | 컨테이너 | 로컬 (`uv run uvicorn --reload`) |
 | Frontend | 컨테이너 (port 3100) | 로컬 (`npm run dev`, port 3000) |
 | E2E 대상 URL | `localhost:3100` | `localhost:3000` |
@@ -61,7 +63,7 @@ until podman compose -f compose.dev.yaml ps --format json | grep -q '"Health":"h
 **Step 2: Backend 기동 (별도 터미널/백그라운드)**
 
 ```bash
-cd backend && AEROSPIKE_HOST=localhost AEROSPIKE_PORT=3000 uv run uvicorn aerospike_py_admin_ui_api.main:app --reload --host 0.0.0.0 --port 8000
+cd backend && AEROSPIKE_HOST=localhost AEROSPIKE_PORT=14790 uv run uvicorn aerospike_py_admin_ui_api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Backend health check 대기:
@@ -81,32 +83,34 @@ until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done
 ```
 
 **환경변수 참고**:
-- Backend의 `AEROSPIKE_HOST` 기본값은 `localhost`, `AEROSPIKE_PORT` 기본값은 `3000` (config.py)
+- Backend: `AEROSPIKE_HOST=localhost`, `AEROSPIKE_PORT=14790` (compose.dev.yaml의 host 매핑 포트)
 - Frontend의 `BACKEND_URL` 기본값은 `http://localhost:8000` (next.config.ts rewrites)
-- 기본값 그대로 사용하면 별도 설정 불필요
+
+**Aerospike Tools 사용**:
+```bash
+# aql 접속
+podman exec -it aerospike-tools aql -h aerospike-node-1
+
+# asadm 접속
+podman exec -it aerospike-tools asadm -h aerospike-node-1
+```
 
 ### `test` — Playwright spec 실행
 
-환경이 이미 기동 중이어야 합니다. **주의**: 로컬 dev 서버는 port 3000을 사용하므로 `--config` 또는 `baseURL` override가 필요합니다.
+환경이 이미 기동 중이어야 합니다. **주의**: 로컬 dev 서버는 port 3000을 사용하므로 `baseURL` override가 필요합니다.
 
 ```bash
 # 전체 spec 실행 (baseURL을 localhost:3000으로 override)
-cd frontend && npx playwright test --config=playwright.config.ts
+cd frontend && BASE_URL=http://localhost:3000 npx playwright test
 
 # 특정 spec 실행
-cd frontend && npx playwright test e2e/specs/{spec}
+cd frontend && BASE_URL=http://localhost:3000 npx playwright test e2e/specs/{spec}
 
 # 이름으로 필터
-cd frontend && npx playwright test -g "{test name}"
+cd frontend && BASE_URL=http://localhost:3000 npx playwright test -g "{test name}"
 ```
 
-**참고**: `playwright.config.ts`의 `baseURL`이 `http://localhost:3100`으로 설정되어 있습니다. 로컬 dev 환경에서는 Frontend가 port 3000에서 실행되므로, 환경변수로 override하세요:
-
-```bash
-BASE_URL=http://localhost:3000 npx playwright test
-```
-
-또는 `playwright.config.ts`에서 `process.env.BASE_URL`을 참조하도록 수정하는 것을 권장합니다.
+**참고**: `playwright.config.ts`의 `baseURL`이 `http://localhost:3100`으로 설정되어 있습니다. 로컬 dev 환경에서는 Frontend가 port 3000에서 실행되므로 `BASE_URL` 환경변수로 override합니다.
 
 ### `explore` — playwright-cli로 수동 브라우저 탐색
 
@@ -142,7 +146,7 @@ podman compose -f compose.dev.yaml down -v
 ## Troubleshooting
 
 - **Aerospike 기동 실패**: `podman compose -f compose.dev.yaml logs -f` 로 로그 확인
-- **Backend 연결 실패**: `AEROSPIKE_HOST=localhost`인지 확인. 컨테이너 모드에서는 `aerospike-node-1`이지만 로컬에서는 `localhost`
+- **Backend 연결 실패**: `AEROSPIKE_HOST=localhost AEROSPIKE_PORT=14790`으로 설정했는지 확인
 - **Frontend API 프록시 실패**: Backend가 port 8000에서 실행 중인지 확인 — `curl http://localhost:8000/api/health`
-- **Port 충돌**: Aerospike(3000), Backend(8000), Frontend(3000) 포트가 이미 사용 중인지 확인
+- **Port 충돌**: Aerospike(14790-14792), Backend(8000), Frontend(3000) 포트가 이미 사용 중인지 확인
 - **Frontend port 3000 vs 3100**: 로컬 dev는 3000 (`npm run dev`), 컨테이너 모드는 3100 (`compose.yaml`)

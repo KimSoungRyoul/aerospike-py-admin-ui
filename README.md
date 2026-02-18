@@ -61,7 +61,7 @@ docker compose -f compose.yaml up --build
 
 - Frontend: http://localhost:3100
 - Backend API: http://localhost:8000
-- Aerospike: localhost:3000
+- Aerospike: internal network only (use `docker exec -it aerospike-tools aql -h aerospike-node-1`)
 
 ### Local Development
 

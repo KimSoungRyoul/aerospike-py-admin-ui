@@ -20,11 +20,18 @@ arguments:
 ## Architecture
 
 ```
-compose.yaml (전체 컨테이너)
-  ├── aerospike-node-1,2,3  (port 3000, 3010, 3020)
-  ├── aerospike-exporter-1,2,3 (Prometheus)
+compose.yaml (전체 컨테이너 — Aerospike 포트 비공개, 내부 네트워크만 사용)
+  ├── aerospike-node-1,2,3  (내부 전용, host 포트 없음)
+  ├── aerospike-tools        (aql, asadm 등)
+  ├── aerospike-exporter-1,2,3 (Prometheus 9145-9147)
   ├── backend               (port 8000, FastAPI)
   └── frontend              (port 3100, Next.js) ← Playwright targets here
+```
+
+**Aerospike Tools 사용**:
+```bash
+podman exec -it aerospike-tools aql -h aerospike-node-1
+podman exec -it aerospike-tools asadm -h aerospike-node-1
 ```
 
 ## Actions
