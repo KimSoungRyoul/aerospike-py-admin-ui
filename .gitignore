@@ -27,6 +27,10 @@ backend/*.egg-info/
 backend/src/*.egg-info/
 backend/.env*
 
+# === Claude Code ===
+.claude/settings.json
+.claude/skills/playwright-cli/
+
 # === Common ===
 .DS_Store
 *.pem
