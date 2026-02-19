@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import time
 
@@ -13,6 +12,7 @@ from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY,
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
+from aerospike_py_admin_ui_api.routers.records import _auto_detect_pk
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
@@ -44,9 +44,7 @@ def _execute_query_sync(c, body: QueryRequest) -> dict:
             raise ValueError("Primary key is required for PK Query")
 
         # Aerospike treats string "123" and int 123 as different keys
-        pk: str | int = body.primaryKey
-        with contextlib.suppress(ValueError):
-            pk = int(body.primaryKey)
+        pk = _auto_detect_pk(body.primaryKey)
 
         try:
             raw_result = c.get((body.namespace, body.set, pk), policy=POLICY_READ)

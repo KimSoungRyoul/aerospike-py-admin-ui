@@ -57,10 +57,13 @@ test.describe("11 - Navigation", () => {
     await page.waitForURL(`**/indexes/${connId}`, { timeout: 10_000 });
     await expect(page).toHaveURL(new RegExp(`/indexes/${connId}`));
 
-    // Click Query tab
-    await page.getByRole("button", { name: /Query/i }).last().click();
-    await page.waitForURL(`**/query/${connId}`, { timeout: 10_000 });
-    await expect(page).toHaveURL(new RegExp(`/query/${connId}`));
+    // Click Terminal tab
+    await page
+      .getByRole("button", { name: /Terminal/i })
+      .last()
+      .click();
+    await page.waitForURL(`**/terminal/${connId}`, { timeout: 10_000 });
+    await expect(page).toHaveURL(new RegExp(`/terminal/${connId}`));
 
     await screenshot(page, "11-03-tabbar-navigation");
   });

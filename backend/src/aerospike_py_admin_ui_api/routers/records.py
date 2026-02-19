@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -11,6 +12,15 @@ from aerospike_py_admin_ui_api.models.record import (
     RecordListResponse,
     RecordWriteRequest,
 )
+
+
+def _auto_detect_pk(pk: str) -> str | int:
+    """Convert PK to int if possible, matching Aerospike's key type semantics."""
+    result: str | int = pk
+    with contextlib.suppress(ValueError):
+        result = int(pk)
+    return result
+
 
 router = APIRouter(prefix="/api/records", tags=["records"])
 
@@ -50,7 +60,7 @@ async def get_records(
 
 def _put_record_sync(c, body: RecordWriteRequest):
     k = body.key
-    key_tuple = (k.namespace, k.set, k.pk)
+    key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
 
     meta = None
     if body.ttl is not None:
@@ -71,7 +81,7 @@ async def put_record(body: RecordWriteRequest, client: AerospikeClient):
 
 
 def _delete_record_sync(c, ns: str, set_name: str, pk: str) -> None:
-    c.remove((ns, set_name, pk))
+    c.remove((ns, set_name, _auto_detect_pk(pk)))
 
 
 @router.delete("/{conn_id}")

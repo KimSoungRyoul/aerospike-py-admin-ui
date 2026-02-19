@@ -31,6 +31,11 @@ backend/.env*
 .claude/settings.json
 .claude/skills/playwright-cli/
 
+# === Data / Artifacts ===
+backend/data/
+frontend/e2e/screenshots/
+frontend/e2e/test-results/
+
 # === Common ===
 .DS_Store
 *.pem
