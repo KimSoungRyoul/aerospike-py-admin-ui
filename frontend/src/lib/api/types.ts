@@ -142,12 +142,9 @@ export interface QueryPredicate {
   value2?: BinValue; // for 'between'
 }
 
-export type QueryType = "scan" | "query" | "pk";
-
 export interface QueryRequest {
   namespace: string;
   set?: string;
-  type: QueryType;
   predicate?: QueryPredicate;
   selectBins?: string[];
   expression?: string; // raw JSON expression

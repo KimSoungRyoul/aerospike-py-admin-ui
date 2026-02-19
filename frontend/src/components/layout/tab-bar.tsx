@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Table2, Server, SearchCode, Database, Shield, Code2, Terminal } from "lucide-react";
+import { Table2, Server, Database, Shield, Code2, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const tabs = [
   { label: "Namespaces", icon: Table2, path: "browser" },
   { label: "Overview", icon: Server, path: "cluster" },
-  { label: "Query", icon: SearchCode, path: "query" },
   { label: "Indexes", icon: Database, path: "indexes" },
   { label: "Admin", icon: Shield, path: "admin" },
   { label: "UDFs", icon: Code2, path: "udfs" },

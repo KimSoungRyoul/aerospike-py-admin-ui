@@ -1,12 +1,11 @@
 import { create } from "zustand";
-import type { AerospikeRecord, QueryType, QueryPredicate, QueryResponse } from "@/lib/api/types";
+import type { AerospikeRecord, QueryPredicate, QueryResponse } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 
 interface QueryState {
   namespace: string;
   set: string;
-  queryType: QueryType;
   predicate: QueryPredicate | null;
   selectBins: string[];
   expression: string;
@@ -23,7 +22,6 @@ interface QueryState {
 
   setNamespace: (ns: string) => void;
   setSet: (set: string) => void;
-  setQueryType: (type: QueryType) => void;
   setPredicate: (pred: QueryPredicate | null) => void;
   setSelectBins: (bins: string[]) => void;
   setExpression: (expr: string) => void;
@@ -36,7 +34,6 @@ interface QueryState {
 export const useQueryStore = create<QueryState>()((set, get) => ({
   namespace: "",
   set: "",
-  queryType: "scan",
   predicate: null,
   selectBins: [],
   expression: "",
@@ -53,7 +50,6 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
 
   setNamespace: (ns) => set({ namespace: ns }),
   setSet: (s) => set({ set: s }),
-  setQueryType: (type) => set({ queryType: type, predicate: null, primaryKey: "" }),
   setPredicate: (pred) => set({ predicate: pred }),
   setSelectBins: (bins) => set({ selectBins: bins }),
   setExpression: (expr) => set({ expression: expr }),
@@ -67,7 +63,6 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
       const result: QueryResponse = await api.executeQuery(connId, {
         namespace: state.namespace,
         set: state.set || undefined,
-        type: state.queryType,
         predicate: state.predicate || undefined,
         selectBins: state.selectBins.length > 0 ? state.selectBins : undefined,
         expression: state.expression || undefined,
@@ -91,7 +86,6 @@ export const useQueryStore = create<QueryState>()((set, get) => ({
     set({
       namespace: "",
       set: "",
-      queryType: "scan",
       predicate: null,
       selectBins: [],
       expression: "",

@@ -42,16 +42,39 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── Aerospike Tools ──────────────────────────────────────────────────
+  # ── Aerospike Tools (stays alive for `podman exec -it`) ─────────────
   aerospike-tools:
     container_name: aerospike-tools
     image: aerospike/aerospike-tools:latest
+    entrypoint: []
+    command: ["tail", "-f", "/dev/null"]
     depends_on:
       aerospike-node-1:
         condition: service_healthy
     stdin_open: true
     tty: true
     restart: unless-stopped
+
+  # ── Seed Data (runs once: 1234 records + indexes + UDFs) ───────────
+  aerospike-seed:
+    container_name: aerospike-seed
+    image: aerospike/aerospike-tools:latest
+    entrypoint: []
+    volumes:
+      - ./aerospike/seed-data.sh:/seed-data.sh:ro
+      - ./aerospike/lua:/lua:ro
+    command: ["/usr/bin/bash", "/seed-data.sh"]
+    environment:
+      - AEROSPIKE_HOST=aerospike-node-1
+      - AEROSPIKE_PORT=3000
+    depends_on:
+      aerospike-node-1:
+        condition: service_healthy
+      aerospike-node-2:
+        condition: service_healthy
+      aerospike-node-3:
+        condition: service_healthy
+    restart: "no"
 
   # ── Prometheus Exporters (per node) ────────────────────────────────
   aerospike-exporter-1:

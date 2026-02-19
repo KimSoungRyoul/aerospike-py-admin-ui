@@ -8,7 +8,7 @@ import {
   createTestRecord,
 } from "../fixtures/test-data";
 
-test.describe("05 - Query Builder", () => {
+test.describe("05 - Query (integrated in Set page)", () => {
   let connId: string;
   let queryPage: QueryPage;
 
@@ -30,83 +30,50 @@ test.describe("05 - Query Builder", () => {
     queryPage = new QueryPage(page);
   });
 
-  test("1. Query page loads with builder and execute button", async ({ page }) => {
-    await queryPage.goto(connId);
+  test("1. Set page loads with filter mode select", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
 
-    await expect(page.getByText("Query Builder").first()).toBeVisible();
-    await expect(queryPage.executeBtn).toBeVisible();
+    await expect(page.getByTestId("filter-mode-select")).toBeVisible();
     await screenshot(page, "05-01-query-page-load");
   });
 
-  test("2. Namespace dropdown has options", async ({ page }) => {
-    await queryPage.goto(connId);
+  test("2. Browse mode shows records with pagination", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
 
-    // Radix Select: click to open the namespace combobox
-    const nsTrigger = page.getByRole("combobox").first();
-    await expect(nsTrigger).toBeVisible();
-    await nsTrigger.click();
-
-    // Should have at least the "test" namespace option
-    const options = page.getByRole("option");
-    await expect(options.first()).toBeVisible({ timeout: 5_000 });
-
-    // Close dropdown by pressing Escape
-    await page.keyboard.press("Escape");
+    // Should show records table
+    await expect(page.getByTestId("records-table")).toBeVisible({ timeout: 15_000 });
     await screenshot(page, "05-02-namespace-options");
   });
 
-  test("3. Execute Scan query with results", async ({ page }) => {
-    await queryPage.goto(connId);
+  test("3. Index Query mode shows predicate builder", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
 
-    // Select namespace using Radix Select
-    await queryPage.selectNamespace(TEST_NAMESPACE);
+    await queryPage.switchToIndexQuery();
 
-    // Select set if available
-    try {
-      await queryPage.selectSet(TEST_SET);
-    } catch {
-      // Set might not be in the dropdown yet
-    }
-
-    // Execute
-    await queryPage.execute();
-
-    // Wait for results
-    await expect(page.getByText(/Returned/i).first()).toBeVisible({ timeout: 30_000 });
-
-    await screenshot(page, "05-03-scan-results");
-  });
-
-  test("4. Scan all (no set filter)", async ({ page }) => {
-    await queryPage.goto(connId);
-
-    await queryPage.selectNamespace(TEST_NAMESPACE);
-
-    await queryPage.execute();
-
-    // Either results or "No results" should appear
-    await expect(page.getByText(/Returned|No results/i).first()).toBeVisible({ timeout: 30_000 });
-    await screenshot(page, "05-04-scan-all");
-  });
-
-  test("5. Index Query mode shows predicate builder", async ({ page }) => {
-    await queryPage.goto(connId);
-
-    // Switch to Index Query mode
-    await page.getByRole("button", { name: "Index Query" }).click();
-
-    // Predicate section should appear
-    await expect(page.getByText(/Predicate/i).first()).toBeVisible({
-      timeout: 5_000,
-    });
-    await expect(page.getByPlaceholder("bin_name").first()).toBeVisible();
+    // Predicate fields should appear
+    await expect(page.getByPlaceholder("bin_name").first()).toBeVisible({ timeout: 5_000 });
+    await expect(queryPage.executeBtn).toBeVisible();
     await screenshot(page, "05-05-si-query-mode");
   });
 
-  test("6. Execution stats are displayed", async ({ page }) => {
-    await queryPage.goto(connId);
+  test("4. PK Lookup mode shows primary key input", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
 
-    await queryPage.selectNamespace(TEST_NAMESPACE);
+    await queryPage.switchToPKLookup();
+
+    await expect(page.getByPlaceholder("Primary key...")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: /Search/i })).toBeVisible();
+    await screenshot(page, "05-03-scan-results");
+  });
+
+  test("5. Execute Index Query and see stats", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
+
+    await queryPage.switchToIndexQuery();
+
+    // Fill predicate
+    await page.getByPlaceholder("bin_name").fill("age");
+    await page.getByPlaceholder("value").fill("20");
 
     await queryPage.execute();
     await queryPage.waitForResults();
@@ -118,10 +85,13 @@ test.describe("05 - Query Builder", () => {
     await screenshot(page, "05-06-execution-stats");
   });
 
-  test("7. Export buttons appear after query results", async ({ page }) => {
-    await queryPage.goto(connId);
+  test("6. Export buttons appear after query results", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
 
-    await queryPage.selectNamespace(TEST_NAMESPACE);
+    await queryPage.switchToIndexQuery();
+
+    await page.getByPlaceholder("bin_name").fill("age");
+    await page.getByPlaceholder("value").fill("20");
 
     await queryPage.execute();
     await queryPage.waitForResults();
@@ -130,5 +100,20 @@ test.describe("05 - Query Builder", () => {
     await expect(queryPage.getExportJsonBtn()).toBeVisible();
     await expect(queryPage.getExportCsvBtn()).toBeVisible();
     await screenshot(page, "05-07-export-buttons");
+  });
+
+  test("7. Back to Browse returns to paginated view", async ({ page }) => {
+    await queryPage.goto(connId, TEST_NAMESPACE, TEST_SET);
+
+    // Switch to query mode
+    await queryPage.switchToIndexQuery();
+    await expect(queryPage.executeBtn).toBeVisible();
+
+    // Switch back to browse
+    await queryPage.switchToBrowse();
+
+    // Should show records table with pagination
+    await expect(page.getByTestId("records-table")).toBeVisible({ timeout: 15_000 });
+    await screenshot(page, "05-04-scan-all");
   });
 });

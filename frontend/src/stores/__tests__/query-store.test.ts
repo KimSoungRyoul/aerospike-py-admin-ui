@@ -19,7 +19,6 @@ describe("useQueryStore", () => {
   it("has correct initial state", () => {
     const state = useQueryStore.getState();
     expect(state.namespace).toBe("");
-    expect(state.queryType).toBe("scan");
     expect(state.maxRecords).toBe(100);
     expect(state.hasExecuted).toBe(false);
   });
@@ -29,20 +28,8 @@ describe("useQueryStore", () => {
     expect(useQueryStore.getState().namespace).toBe("test-ns");
   });
 
-  it("setQueryType updates type and clears predicate and primaryKey", () => {
-    useQueryStore.setState({
-      predicate: { bin: "b", operator: "equals", value: 1 },
-      primaryKey: "some-key",
-    });
-    useQueryStore.getState().setQueryType("query");
-    const state = useQueryStore.getState();
-    expect(state.queryType).toBe("query");
-    expect(state.predicate).toBeNull();
-    expect(state.primaryKey).toBe("");
-  });
-
   it("executeQuery calls API and updates results", async () => {
-    useQueryStore.setState({ namespace: "test-ns", queryType: "scan" });
+    useQueryStore.setState({ namespace: "test-ns" });
     const mockResult = {
       records: [{ key: { pk: "1" }, meta: {}, bins: {} }],
       executionTimeMs: 42,

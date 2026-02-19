@@ -41,12 +41,10 @@ def is_per_node_command(cmd: str) -> bool:
     return cmd in PER_NODE_COMMANDS or cmd.startswith(PER_NODE_PREFIXES)
 
 
-# Scan/Query limits
-MAX_SCAN_RECORDS = 10_000
+# Query limits
 MAX_QUERY_RECORDS = 10_000
 
 # Client policies
 POLICY_READ = {"key": aerospike_py.POLICY_KEY_SEND}
 POLICY_WRITE = {"key": aerospike_py.POLICY_KEY_SEND}
-POLICY_SCAN = {"total_timeout": 30000, "key": aerospike_py.POLICY_KEY_SEND}
 POLICY_QUERY = {"total_timeout": 30000, "key": aerospike_py.POLICY_KEY_SEND}

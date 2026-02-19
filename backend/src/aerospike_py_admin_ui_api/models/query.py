@@ -17,7 +17,6 @@ class QueryPredicate(BaseModel):
 class QueryRequest(BaseModel):
     namespace: str
     set: str | None = None
-    type: Literal["scan", "query", "pk"]
     predicate: QueryPredicate | None = None
     selectBins: list[str] | None = None
     expression: str | None = None

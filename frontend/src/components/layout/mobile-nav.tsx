@@ -2,22 +2,12 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Table2,
-  Server,
-  SearchCode,
-  Terminal,
-  MoreHorizontal,
-  Database,
-  Shield,
-  Code2,
-} from "lucide-react";
+import { Table2, Server, Terminal, MoreHorizontal, Database, Shield, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const primaryTabs = [
   { label: "Namespaces", icon: Table2, path: "browser" },
   { label: "Overview", icon: Server, path: "cluster" },
-  { label: "Query", icon: SearchCode, path: "query" },
   { label: "Terminal", icon: Terminal, path: "terminal" },
 ];
 
