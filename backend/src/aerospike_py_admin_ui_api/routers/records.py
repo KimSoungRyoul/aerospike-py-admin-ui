@@ -5,7 +5,7 @@ import contextlib
 
 from fastapi import APIRouter, HTTPException, Query
 
-from aerospike_py_admin_ui_api.constants import MAX_SCAN_RECORDS, POLICY_READ, POLICY_SCAN, POLICY_WRITE
+from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_WRITE
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.record import (
@@ -26,11 +26,11 @@ router = APIRouter(prefix="/api/records", tags=["records"])
 
 
 def _list_records_sync(c, ns: str, set_name: str, page: int, page_size: int) -> dict:
-    scan = c.scan(ns, set_name)
-    raw_results = scan.results(POLICY_SCAN)
+    q = c.query(ns, set_name)
+    raw_results = q.results(POLICY_QUERY)
 
-    if len(raw_results) > MAX_SCAN_RECORDS:
-        raw_results = raw_results[:MAX_SCAN_RECORDS]
+    if len(raw_results) > MAX_QUERY_RECORDS:
+        raw_results = raw_results[:MAX_QUERY_RECORDS]
 
     total = len(raw_results)
     start = (page - 1) * page_size

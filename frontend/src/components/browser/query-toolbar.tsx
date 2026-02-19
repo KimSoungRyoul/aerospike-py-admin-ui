@@ -96,7 +96,6 @@ export function QueryToolbar({
       }
       store.setNamespace(namespace);
       store.setSet(set);
-      store.setQueryType("pk");
       store.setPredicate(null);
     } else if (viewMode === "query") {
       if (!predBin.trim()) {
@@ -105,7 +104,6 @@ export function QueryToolbar({
       }
       store.setNamespace(namespace);
       store.setSet(set);
-      store.setQueryType("query");
       store.setPredicate({
         bin: predBin.trim(),
         operator: predOp,

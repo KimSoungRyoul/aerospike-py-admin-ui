@@ -8,7 +8,7 @@ from aerospike_py import INDEX_TYPE_LIST, predicates
 from aerospike_py.exception import RecordNotFound
 from fastapi import APIRouter
 
-from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_SCAN
+from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
@@ -37,11 +37,9 @@ def _build_predicate(pred):
 def _execute_query_sync(c, body: QueryRequest) -> dict:
     start_time = time.monotonic()
 
-    if body.type == "pk":
+    if body.primaryKey:
         if not body.set:
             raise ValueError("Set is required for PK Query")
-        if not body.primaryKey:
-            raise ValueError("Primary key is required for PK Query")
 
         # Aerospike treats string "123" and int 123 as different keys
         pk = _auto_detect_pk(body.primaryKey)
@@ -61,17 +59,17 @@ def _execute_query_sync(c, body: QueryRequest) -> dict:
             "returnedRecords": len(records),
         }
 
-    if body.type == "query" and body.predicate:
+    if body.predicate:
         q = c.query(body.namespace, body.set or "")
         q.where(_build_predicate(body.predicate))
         if body.selectBins:
             q.select(*body.selectBins)
         raw_results = q.results(POLICY_QUERY)
     else:
-        scan = c.scan(body.namespace, body.set or "")
+        q = c.query(body.namespace, body.set or "")
         if body.selectBins:
-            scan.select(*body.selectBins)
-        raw_results = scan.results(POLICY_SCAN)
+            q.select(*body.selectBins)
+        raw_results = q.results(POLICY_QUERY)
 
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
     scanned = len(raw_results)
