@@ -73,7 +73,16 @@ aerospike-py-admin-ui/
 │           ├── constants.ts  # CE limits, brand colors, page sizes
 │           ├── formatters.ts # Number/byte/uptime formatters
 │           └── utils.ts      # cn() (clsx + tailwind-merge)
-├── compose.yaml       # Full stack (Aerospike + Backend + Frontend)
+├── aerospike/         # Aerospike configuration & seed data
+│   ├── aerospike.conf     # 3-node mesh cluster config (namespace: test)
+│   ├── seed-data.sh       # Seed script: 1234 records + 5 indexes + 5 UDFs
+│   └── lua/               # Lua UDF modules (mounted into seed container)
+│       ├── record_utils.lua   # Record ops (get_full_name, update_score, toggle_bool, ...)
+│       ├── aggregation.lua    # Stream aggregation (sum_int, count_by_category, avg_int, ...)
+│       ├── filter_utils.lua   # Filters (in_range, has_city, filter_above, ...)
+│       ├── string_ops.lua     # String ops (to_upper, str_contains, format_summary, ...)
+│       └── math_ops.lua       # Math ops (calc_percentage, normalize, statistics, ...)
+├── compose.yaml       # Full stack (Aerospike + Backend + Frontend + Seed)
 └── compose.dev.yaml   # Aerospike only (for local dev)
 ```
 
@@ -81,14 +90,22 @@ aerospike-py-admin-ui/
 
 | File | Purpose | Aerospike Ports | Backend | Frontend |
 |------|---------|-----------------|---------|----------|
-| `compose.yaml` | CI/deploy — all containers | Internal only (no host mapping) | Container (8000) | Container (3100) |
+| `compose.yaml` | CI/deploy — all containers + seed data | Internal only (no host mapping) | Container (8000) | Container (3100) |
 | `compose.dev.yaml` | Local dev — Aerospike only | 14790, 14791, 14792 | Local (`uv run`, 8000) | Local (`npm run dev`, 3000) |
 
-Both files include `aerospike-tools` container for aql/asadm access:
+Both files include `aerospike-tools` container (`entrypoint: []` + `tail -f /dev/null`) for persistent aql/asadm access:
 ```bash
 podman exec -it aerospike-tools aql -h aerospike-node-1
 podman exec -it aerospike-tools asadm -h aerospike-node-1
+podman exec -it aerospike-tools bash
 ```
+
+`compose.yaml` includes `aerospike-seed` container that runs once on startup (`restart: "no"`):
+- Inserts **1234 records** into `test.sample_set` with 7 bin types (Integer, String, Double, Boolean/Int, List, Map, GeoJSON)
+- Creates **5 secondary indexes** (idx_bin_int, idx_bin_str, idx_bin_double, idx_bin_bool, idx_bin_geojson) via `asinfo sindex-create`
+- Registers **5 Lua UDF modules** (record_utils, aggregation, filter_utils, string_ops, math_ops) via `aql REGISTER MODULE`
+
+> **Note**: The `aerospike/aerospike-tools` image has a `wrapper` entrypoint that only accepts known commands (aql, asadm, etc.). Both `aerospike-tools` and `aerospike-seed` services use `entrypoint: []` to override it.
 
 Local dev with `compose.dev.yaml` requires setting `AEROSPIKE_HOST=localhost AEROSPIKE_PORT=14790` when starting the backend.
 

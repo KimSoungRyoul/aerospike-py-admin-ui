@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from fastapi import APIRouter, HTTPException, Query
 
-from aerospike_py_admin_ui_api.constants import MAX_SCAN_RECORDS, POLICY_READ, POLICY_SCAN, POLICY_WRITE
+from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_WRITE
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.record import (
@@ -12,15 +13,24 @@ from aerospike_py_admin_ui_api.models.record import (
     RecordWriteRequest,
 )
 
+
+def _auto_detect_pk(pk: str) -> str | int:
+    """Convert PK to int if possible, matching Aerospike's key type semantics."""
+    result: str | int = pk
+    with contextlib.suppress(ValueError):
+        result = int(pk)
+    return result
+
+
 router = APIRouter(prefix="/api/records", tags=["records"])
 
 
 def _list_records_sync(c, ns: str, set_name: str, page: int, page_size: int) -> dict:
-    scan = c.scan(ns, set_name)
-    raw_results = scan.results(POLICY_SCAN)
+    q = c.query(ns, set_name)
+    raw_results = q.results(POLICY_QUERY)
 
-    if len(raw_results) > MAX_SCAN_RECORDS:
-        raw_results = raw_results[:MAX_SCAN_RECORDS]
+    if len(raw_results) > MAX_QUERY_RECORDS:
+        raw_results = raw_results[:MAX_QUERY_RECORDS]
 
     total = len(raw_results)
     start = (page - 1) * page_size
@@ -50,7 +60,7 @@ async def get_records(
 
 def _put_record_sync(c, body: RecordWriteRequest):
     k = body.key
-    key_tuple = (k.namespace, k.set, k.pk)
+    key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
 
     meta = None
     if body.ttl is not None:
@@ -71,7 +81,7 @@ async def put_record(body: RecordWriteRequest, client: AerospikeClient):
 
 
 def _delete_record_sync(c, ns: str, set_name: str, pk: str) -> None:
-    c.remove((ns, set_name, pk))
+    c.remove((ns, set_name, _auto_detect_pk(pk)))
 
 
 @router.delete("/{conn_id}")
