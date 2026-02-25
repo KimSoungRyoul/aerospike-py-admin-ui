@@ -43,8 +43,13 @@ def _query_roles_sync(c) -> list[AerospikeRole]:
     return roles
 
 
-@router.get("/{conn_id}/roles")
+@router.get(
+    "/{conn_id}/roles",
+    summary="List roles",
+    description="Retrieve all Aerospike roles and their privileges. Requires Enterprise Edition.",
+)
 async def get_roles(client: AerospikeClient) -> list[AerospikeRole]:
+    """Retrieve all Aerospike roles and their privileges. Requires Enterprise Edition."""
     try:
         return await asyncio.to_thread(_query_roles_sync, client)
     except AdminError:
@@ -66,8 +71,14 @@ def _create_role_sync(c, body: CreateRoleRequest) -> None:
     )
 
 
-@router.post("/{conn_id}/roles", status_code=201)
+@router.post(
+    "/{conn_id}/roles",
+    status_code=201,
+    summary="Create role",
+    description="Create a new Aerospike role with specified privileges. Requires Enterprise Edition.",
+)
 async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> AerospikeRole:
+    """Create a new Aerospike role with specified privileges. Requires Enterprise Edition."""
     if not body.name or not body.privileges:
         raise HTTPException(status_code=400, detail="Missing required fields: name, privileges")
 
@@ -89,11 +100,16 @@ def _drop_role_sync(c, name: str) -> None:
     c.admin_drop_role(name)
 
 
-@router.delete("/{conn_id}/roles")
+@router.delete(
+    "/{conn_id}/roles",
+    summary="Delete role",
+    description="Delete an Aerospike role by name. Requires Enterprise Edition.",
+)
 async def delete_role(
     client: AerospikeClient,
     name: str = Query(..., min_length=1),
 ) -> dict:
+    """Delete an Aerospike role by name. Requires Enterprise Edition."""
     try:
         await asyncio.to_thread(_drop_role_sync, client, name)
     except AdminError:

@@ -11,13 +11,14 @@ from fastapi import APIRouter
 from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
-from aerospike_py_admin_ui_api.models.query import QueryRequest, QueryResponse
+from aerospike_py_admin_ui_api.models.query import QueryPredicate, QueryRequest, QueryResponse
 from aerospike_py_admin_ui_api.routers.records import _auto_detect_pk
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
 
-def _build_predicate(pred):
+def _build_predicate(pred: QueryPredicate) -> tuple[str, ...]:
+    """Convert a QueryPredicate model into an Aerospike predicate tuple."""
     op = pred.operator
     if op == "equals":
         return predicates.equals(pred.bin, pred.value)
@@ -89,7 +90,12 @@ def _execute_query_sync(c, body: QueryRequest) -> dict:
     }
 
 
-@router.post("/{conn_id}")
+@router.post(
+    "/{conn_id}",
+    summary="Execute query",
+    description="Execute a query against Aerospike using primary key lookup, predicate filter, or full scan.",
+)
 async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryResponse:
+    """Execute a query against Aerospike using primary key lookup, predicate filter, or full scan."""
     result = await asyncio.to_thread(_execute_query_sync, client, body)
     return QueryResponse(**result)

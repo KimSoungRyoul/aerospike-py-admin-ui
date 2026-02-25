@@ -13,6 +13,7 @@ from collections.abc import Callable
 from typing import Any
 
 import aerospike_py
+from aerospike_py.exception import AerospikeError
 
 from aerospike_py_admin_ui_api import db
 
@@ -56,7 +57,7 @@ class ClientManager:
         with self._lock:
             old = self._clients.get(conn_id)
             if old is not None:
-                with contextlib.suppress(Exception):
+                with contextlib.suppress(AerospikeError, OSError):
                     old.close()
             self._clients[conn_id] = client
 
@@ -66,7 +67,7 @@ class ClientManager:
         with self._lock:
             client = self._clients.pop(conn_id, None)
         if client is not None:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(AerospikeError, OSError):
                 client.close()
 
     def _close_all_sync(self) -> None:
@@ -74,7 +75,7 @@ class ClientManager:
             clients = list(self._clients.values())
             self._clients.clear()
         for client in clients:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(AerospikeError, OSError):
                 client.close()
 
     # ------------------------------------------------------------------

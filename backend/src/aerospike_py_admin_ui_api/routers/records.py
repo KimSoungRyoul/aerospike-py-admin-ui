@@ -46,7 +46,11 @@ def _list_records_sync(c, ns: str, set_name: str, page: int, page_size: int) -> 
     }
 
 
-@router.get("/{conn_id}")
+@router.get(
+    "/{conn_id}",
+    summary="List records",
+    description="Retrieve paginated records from a namespace and set.",
+)
 async def get_records(
     client: AerospikeClient,
     ns: str = Query(..., min_length=1),
@@ -54,6 +58,7 @@ async def get_records(
     page: int = Query(1, ge=1),
     pageSize: int = Query(25, ge=1, le=500),
 ) -> RecordListResponse:
+    """Retrieve paginated records from a namespace and set."""
     result = await asyncio.to_thread(_list_records_sync, client, ns, set, page, pageSize)
     return RecordListResponse(**result)
 
@@ -71,8 +76,14 @@ def _put_record_sync(c, body: RecordWriteRequest):
     return raw_to_record(result)
 
 
-@router.post("/{conn_id}", status_code=201)
+@router.post(
+    "/{conn_id}",
+    status_code=201,
+    summary="Create or update record",
+    description="Write a record to Aerospike with the specified key, bins, and optional TTL.",
+)
 async def put_record(body: RecordWriteRequest, client: AerospikeClient):
+    """Write a record to Aerospike with the specified key, bins, and optional TTL."""
     k = body.key
     if not k.namespace or not k.set or not k.pk:
         raise HTTPException(status_code=400, detail="Missing required key fields: namespace, set, pk")
@@ -84,12 +95,17 @@ def _delete_record_sync(c, ns: str, set_name: str, pk: str) -> None:
     c.remove((ns, set_name, _auto_detect_pk(pk)))
 
 
-@router.delete("/{conn_id}")
+@router.delete(
+    "/{conn_id}",
+    summary="Delete record",
+    description="Delete a record identified by namespace, set, and primary key.",
+)
 async def delete_record(
     client: AerospikeClient,
     ns: str = Query(..., min_length=1),
     set: str = Query(..., min_length=1),
     pk: str = Query(..., min_length=1),
 ) -> dict:
+    """Delete a record identified by namespace, set, and primary key."""
     await asyncio.to_thread(_delete_record_sync, client, ns, set, pk)
     return {"message": "Record deleted"}

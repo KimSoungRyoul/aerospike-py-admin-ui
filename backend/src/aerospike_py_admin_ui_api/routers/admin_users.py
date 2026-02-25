@@ -29,8 +29,13 @@ def _query_users_sync(c) -> list[AerospikeUser]:
     return users
 
 
-@router.get("/{conn_id}/users")
+@router.get(
+    "/{conn_id}/users",
+    summary="List users",
+    description="Retrieve all Aerospike users and their roles. Requires Enterprise Edition.",
+)
 async def get_users(client: AerospikeClient) -> list[AerospikeUser]:
+    """Retrieve all Aerospike users and their roles. Requires Enterprise Edition."""
     try:
         return await asyncio.to_thread(_query_users_sync, client)
     except AdminError:
@@ -45,8 +50,14 @@ def _create_user_sync(c, username: str, password: str, roles: list[str]) -> None
     c.admin_create_user(username, password, roles)
 
 
-@router.post("/{conn_id}/users", status_code=201)
+@router.post(
+    "/{conn_id}/users",
+    status_code=201,
+    summary="Create user",
+    description="Create a new Aerospike user with specified roles. Requires Enterprise Edition.",
+)
 async def create_user(body: CreateUserRequest, client: AerospikeClient) -> AerospikeUser:
+    """Create a new Aerospike user with specified roles. Requires Enterprise Edition."""
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
@@ -68,8 +79,13 @@ def _change_password_sync(c, username: str, password: str) -> None:
     c.admin_change_password(username, password)
 
 
-@router.patch("/{conn_id}/users")
+@router.patch(
+    "/{conn_id}/users",
+    summary="Change user password",
+    description="Change the password for an existing Aerospike user. Requires Enterprise Edition.",
+)
 async def change_password(body: ChangePasswordRequest, client: AerospikeClient) -> dict:
+    """Change the password for an existing Aerospike user. Requires Enterprise Edition."""
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
@@ -85,11 +101,16 @@ def _drop_user_sync(c, username: str) -> None:
     c.admin_drop_user(username)
 
 
-@router.delete("/{conn_id}/users")
+@router.delete(
+    "/{conn_id}/users",
+    summary="Delete user",
+    description="Delete an Aerospike user by username. Requires Enterprise Edition.",
+)
 async def delete_user(
     client: AerospikeClient,
     username: str = Query(..., min_length=1),
 ) -> dict:
+    """Delete an Aerospike user by username. Requires Enterprise Edition."""
     try:
         await asyncio.to_thread(_drop_user_sync, client, username)
     except AdminError:

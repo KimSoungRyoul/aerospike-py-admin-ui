@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aerospike Py Admin UI — Frontend
 
-## Getting Started
+Next.js 16 (App Router) + React 19 + TypeScript frontend for Aerospike database management.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **UI**: React 19 + TypeScript
+- **Styling**: Tailwind CSS 4 + DaisyUI 5
+- **State Management**: Zustand 5
+- **Data Tables**: TanStack Table 8
+- **Code Editor**: Monaco Editor
+- **Charts**: Recharts 3
+- **Validation**: Zod 4
+- **Testing**: Vitest + Testing Library + Playwright (E2E)
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # Start dev server on port 3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires the backend running on port 8000. API calls are proxied via Next.js rewrites.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command                 | Description          |
+| ----------------------- | -------------------- |
+| `npm run dev`           | Development server   |
+| `npm run build`         | Production build     |
+| `npm run lint`          | ESLint check         |
+| `npm run lint:fix`      | ESLint autofix       |
+| `npm run format`        | Prettier format      |
+| `npm run type-check`    | TypeScript check     |
+| `npm run test`          | Vitest unit tests    |
+| `npm run test:e2e`      | Playwright E2E tests |
+| `npm run test:coverage` | Coverage report      |
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/            # Page routing (App Router)
+├── components/     # UI components
+│   ├── ui/         # Radix-based primitives (shadcn/ui)
+│   ├── common/     # Reusable components
+│   ├── layout/     # App shell (header, sidebar, tab-bar)
+│   ├── browser/    # Record browser components
+│   ├── connection/ # Connection management
+│   └── admin/      # User/role management
+├── stores/         # Zustand state management
+├── hooks/          # Custom React hooks
+└── lib/
+    ├── api/        # Type-safe API client
+    ├── validations/# Zod schemas
+    ├── constants.ts
+    ├── formatters.ts
+    └── utils.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable      | Default                 | Description               |
+| ------------- | ----------------------- | ------------------------- |
+| `BACKEND_URL` | `http://localhost:8000` | Backend API URL for proxy |

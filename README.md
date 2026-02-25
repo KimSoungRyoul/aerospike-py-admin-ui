@@ -6,7 +6,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Podman](https://img.shields.io/badge/Podman-Compose-892CA0?logo=podman&logoColor=white)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 A web-based GUI management tool for Aerospike Community Edition.
@@ -48,20 +48,20 @@ Browse, create, edit, duplicate and delete records with full pagination support.
 | **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS 4, DaisyUI 5, Zustand, TanStack Table, Recharts, Monaco Editor |
 | **Backend** | Python 3.13, FastAPI, Uvicorn, Pydantic |
 | **Database** | Aerospike Server Enterprise 8.0 |
-| **Infra** | Docker Compose, uv (Python), npm (Node.js) |
+| **Infra** | Podman Compose, uv (Python), npm (Node.js) |
 
 ## Quick Start
 
-### Docker Compose (Recommended)
+### Podman Compose (Recommended)
 
 ```bash
 cp .env.example .env
-docker compose -f compose.yaml up --build
+podman compose -f compose.yaml up --build
 ```
 
 - Frontend: http://localhost:3100
 - Backend API: http://localhost:8000
-- Aerospike: internal network only (use `docker exec -it aerospike-tools aql -h aerospike-node-1`)
+- Aerospike: internal network only (use `podman exec -it aerospike-tools aql -h aerospike-node-1`)
 
 ### Local Development
 

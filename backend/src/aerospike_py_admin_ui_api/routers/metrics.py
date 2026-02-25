@@ -168,8 +168,13 @@ def _fetch_metrics_sync(c, conn_id: str) -> dict:
     }
 
 
-@router.get("/{conn_id}")
+@router.get(
+    "/{conn_id}",
+    summary="Get cluster metrics",
+    description="Retrieve cluster-wide metrics including TPS, memory, device usage, and per-namespace stats.",
+)
 async def get_metrics(client: AerospikeClient, conn_id: VerifiedConnId) -> ClusterMetrics:
+    """Retrieve cluster-wide metrics including TPS, memory, device usage, and per-namespace stats."""
     try:
         data = await asyncio.to_thread(_fetch_metrics_sync, client, conn_id)
         return ClusterMetrics(**data)
