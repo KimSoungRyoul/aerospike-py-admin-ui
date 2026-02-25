@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import aerospike_py
+from aerospike_py.exception import AerospikeError
 from fastapi import APIRouter, Depends, HTTPException
 
 from aerospike_py_admin_ui_api import db
@@ -119,7 +120,7 @@ def _test_connect_sync(body: TestConnectionRequest) -> dict:
             return {"success": False, "message": "Failed to connect"}
         return {"success": True, "message": "Connected successfully"}
     finally:
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(AerospikeError, OSError):
             client.close()
 
 

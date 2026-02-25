@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api import config, db
 from aerospike_py_admin_ui_api.client_manager import client_manager
@@ -54,7 +56,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def request_logging_middleware(request: Request, call_next):
+async def request_logging_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
     start = time.monotonic()
     response = await call_next(request)
     elapsed_ms = (time.monotonic() - start) * 1000
@@ -158,5 +160,5 @@ app.include_router(metrics.router)
 
 
 @app.get("/api/health")
-def health_check() -> dict:
+def health_check() -> dict[str, str]:
     return {"status": "ok"}
