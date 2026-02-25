@@ -26,13 +26,15 @@ from aerospike_py_admin_ui_api.models.connection import (
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
 
-@router.get("")
+@router.get("", summary="List connections", description="Retrieve all saved Aerospike connection profiles.")
 async def list_connections() -> list[ConnectionProfile]:
+    """Retrieve all saved Aerospike connection profiles."""
     return await db.get_all_connections()
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, summary="Create connection", description="Create a new Aerospike connection profile.")
 async def create_connection(body: CreateConnectionRequest) -> ConnectionProfile:
+    """Create a new Aerospike connection profile."""
     now = datetime.now(UTC).isoformat()
     conn = ConnectionProfile(
         id=f"conn-{int(time.time() * 1000)}",
@@ -50,17 +52,21 @@ async def create_connection(body: CreateConnectionRequest) -> ConnectionProfile:
     return conn
 
 
-@router.get("/{conn_id}")
+@router.get("/{conn_id}", summary="Get connection", description="Retrieve a single connection profile by its ID.")
 async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfile:
+    """Retrieve a single connection profile by its ID."""
     conn = await db.get_connection(conn_id)
     return conn  # type: ignore[return-value]
 
 
-@router.put("/{conn_id}")
+@router.put(
+    "/{conn_id}", summary="Update connection", description="Update an existing connection profile with new settings."
+)
 async def update_connection(
     body: UpdateConnectionRequest,
     conn_id: str = Depends(_get_verified_connection),
 ) -> ConnectionProfile:
+    """Update an existing connection profile with new settings."""
     update_data = body.model_dump(exclude_none=True)
     conn = await db.update_connection(conn_id, update_data)
     if not conn:
@@ -82,8 +88,13 @@ def _health_sync(c) -> dict:
     }
 
 
-@router.get("/{conn_id}/health")
+@router.get(
+    "/{conn_id}/health",
+    summary="Check connection health",
+    description="Check the health status of an Aerospike cluster connection.",
+)
 async def get_connection_health(client: AerospikeClient) -> ConnectionStatus:
+    """Check the health status of an Aerospike cluster connection."""
     try:
         info = await asyncio.to_thread(_health_sync, client)
         return ConnectionStatus(
@@ -124,16 +135,24 @@ def _test_connect_sync(body: TestConnectionRequest) -> dict:
             client.close()
 
 
-@router.post("/test")
+@router.post(
+    "/test",
+    summary="Test connection",
+    description="Test connectivity to an Aerospike cluster without saving the profile.",
+)
 async def test_connection(body: TestConnectionRequest) -> dict:
+    """Test connectivity to an Aerospike cluster without saving the profile."""
     try:
         return await asyncio.to_thread(_test_connect_sync, body)
     except Exception as e:
         return {"success": False, "message": str(e)}
 
 
-@router.delete("/{conn_id}")
+@router.delete(
+    "/{conn_id}", summary="Delete connection", description="Delete a connection profile and close its active client."
+)
 async def delete_connection(conn_id: str = Depends(_get_verified_connection)) -> dict:
+    """Delete a connection profile and close its active client."""
     await db.delete_connection(conn_id)
     await client_manager.close_client(conn_id)
     return {"message": "Connection deleted"}

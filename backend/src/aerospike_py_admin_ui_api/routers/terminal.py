@@ -130,8 +130,13 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
         return f"Error: {e}", False
 
 
-@router.post("/{conn_id}")
+@router.post(
+    "/{conn_id}",
+    summary="Execute terminal command",
+    description="Execute an AQL-style terminal command against the Aerospike cluster.",
+)
 async def execute_command(body: TerminalRequest, client: AerospikeClient) -> TerminalCommand:
+    """Execute an AQL-style terminal command against the Aerospike cluster."""
     command = body.command.strip()
     if not command:
         raise HTTPException(status_code=400, detail="Missing required field: command")

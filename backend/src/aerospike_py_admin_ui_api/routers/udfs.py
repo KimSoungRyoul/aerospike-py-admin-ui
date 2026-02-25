@@ -29,8 +29,13 @@ def _list_udfs_sync(c) -> list[UDFModule]:
     return modules
 
 
-@router.get("/{conn_id}")
+@router.get(
+    "/{conn_id}",
+    summary="List UDF modules",
+    description="Retrieve all registered UDF modules from the Aerospike cluster.",
+)
 async def get_udfs(client: AerospikeClient) -> list[UDFModule]:
+    """Retrieve all registered UDF modules from the Aerospike cluster."""
     return await asyncio.to_thread(_list_udfs_sync, client)
 
 
@@ -47,8 +52,14 @@ def _upload_udf_sync(c, filename: str, content: str) -> None:
             Path(tmp_path).unlink(missing_ok=True)
 
 
-@router.post("/{conn_id}", status_code=201)
+@router.post(
+    "/{conn_id}",
+    status_code=201,
+    summary="Upload UDF module",
+    description="Upload and register a Lua UDF module to the Aerospike cluster.",
+)
 async def upload_udf(body: UploadUDFRequest, client: AerospikeClient) -> UDFModule:
+    """Upload and register a Lua UDF module to the Aerospike cluster."""
     await asyncio.to_thread(_upload_udf_sync, client, body.filename, body.content)
 
     # Re-fetch to get actual hash
@@ -63,10 +74,15 @@ def _delete_udf_sync(c, module_name: str) -> None:
     c.udf_remove(module_name)
 
 
-@router.delete("/{conn_id}")
+@router.delete(
+    "/{conn_id}",
+    summary="Delete UDF module",
+    description="Remove a registered UDF module from the Aerospike cluster by filename.",
+)
 async def delete_udf(
     client: AerospikeClient,
     filename: str = Query(..., min_length=1),
 ) -> dict:
+    """Remove a registered UDF module from the Aerospike cluster by filename."""
     await asyncio.to_thread(_delete_udf_sync, client, filename)
     return {"message": "UDF deleted"}

@@ -41,8 +41,13 @@ def _list_indexes_sync(c) -> list[SecondaryIndex]:
     return indexes
 
 
-@router.get("/{conn_id}")
+@router.get(
+    "/{conn_id}",
+    summary="List secondary indexes",
+    description="Retrieve all secondary indexes across all namespaces in the cluster.",
+)
 async def get_indexes(client: AerospikeClient) -> list[SecondaryIndex]:
+    """Retrieve all secondary indexes across all namespaces in the cluster."""
     return await asyncio.to_thread(_list_indexes_sync, client)
 
 
@@ -57,8 +62,14 @@ def _create_index_sync(c, body: CreateIndexRequest) -> None:
         raise ValueError(f"Unsupported index type: {body.type}")
 
 
-@router.post("/{conn_id}", status_code=201)
+@router.post(
+    "/{conn_id}",
+    status_code=201,
+    summary="Create secondary index",
+    description="Create a new secondary index on a specified namespace, set, and bin.",
+)
 async def create_index(body: CreateIndexRequest, client: AerospikeClient) -> SecondaryIndex:
+    """Create a new secondary index on a specified namespace, set, and bin."""
     await asyncio.to_thread(_create_index_sync, client, body)
     return SecondaryIndex(
         name=body.name,
@@ -74,11 +85,16 @@ def _delete_index_sync(c, ns: str, name: str) -> None:
     c.index_remove(ns, name)
 
 
-@router.delete("/{conn_id}")
+@router.delete(
+    "/{conn_id}",
+    summary="Delete secondary index",
+    description="Remove a secondary index by name from the specified namespace.",
+)
 async def delete_index(
     client: AerospikeClient,
     name: str = Query(..., min_length=1),
     ns: str = Query(..., min_length=1),
 ) -> dict:
+    """Remove a secondary index by name from the specified namespace."""
     await asyncio.to_thread(_delete_index_sync, client, ns, name)
     return {"message": "Index deleted"}

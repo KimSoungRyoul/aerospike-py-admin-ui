@@ -156,8 +156,13 @@ def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
     return ClusterInfo(connectionId=conn_id, nodes=nodes, namespaces=namespaces)
 
 
-@router.get("/{conn_id}")
+@router.get(
+    "/{conn_id}",
+    summary="Get cluster info",
+    description="Retrieve full cluster information including nodes, namespaces, and sets.",
+)
 async def get_cluster(client: AerospikeClient, conn_id: VerifiedConnId) -> ClusterInfo:
+    """Retrieve full cluster information including nodes, namespaces, and sets."""
     return await asyncio.to_thread(_fetch_cluster_sync, client, conn_id)
 
 
@@ -192,8 +197,14 @@ def _configure_namespace_sync(c, body: CreateNamespaceRequest) -> str:
     return resp
 
 
-@router.post("/{conn_id}/namespaces", status_code=200)
+@router.post(
+    "/{conn_id}/namespaces",
+    status_code=200,
+    summary="Configure namespace",
+    description="Update runtime-tunable parameters of an existing Aerospike namespace.",
+)
 async def configure_namespace(body: CreateNamespaceRequest, client: AerospikeClient) -> dict:
+    """Update runtime-tunable parameters of an existing Aerospike namespace."""
     try:
         await asyncio.to_thread(_configure_namespace_sync, client, body)
     except ValueError as e:
