@@ -140,9 +140,18 @@ export function DataTable<TData, TValue>({
                 className={cn(
                   "record-grid-row border-border/30 group border-b hover:bg-transparent",
                   onRowClick && "cursor-pointer",
+                  onRowClick &&
+                    "focus-visible:ring-primary focus:outline-none focus-visible:ring-2",
                 )}
                 style={{ animationDelay: `${idx * 25}ms` }}
                 onClick={() => onRowClick?.(row)}
+                onKeyDown={(e) => {
+                  if (onRowClick && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    onRowClick(row);
+                  }
+                }}
+                tabIndex={onRowClick ? 0 : undefined}
                 data-testid={`${testId}-row-${idx}`}
               >
                 {row.getVisibleCells().map((cell) => {

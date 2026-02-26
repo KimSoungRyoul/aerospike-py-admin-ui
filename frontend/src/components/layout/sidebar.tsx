@@ -121,7 +121,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
       .then(() => {
         fetchAllHealth();
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load sidebar connections:", err));
   }, [fetchConnections, fetchAllHealth]);
 
   const filteredConnections = connections.filter((c) =>

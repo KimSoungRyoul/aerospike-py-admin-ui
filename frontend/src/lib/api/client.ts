@@ -48,6 +48,10 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
         throw apiError;
       }
 
+      if (res.status === 204) {
+        return undefined as T;
+      }
+
       return res.json();
     } catch (err) {
       clearTimeout(timeoutId);

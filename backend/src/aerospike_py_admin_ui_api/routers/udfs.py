@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Query
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api.constants import INFO_UDF_LIST
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
@@ -79,13 +80,14 @@ def _delete_udf_sync(c, module_name: str) -> None:
 
 @router.delete(
     "/{conn_id}",
+    status_code=204,
     summary="Delete UDF module",
     description="Remove a registered UDF module from the Aerospike cluster by filename.",
 )
 async def delete_udf(
     client: AerospikeClient,
     filename: str = Query(..., min_length=1),
-) -> dict:
+) -> Response:
     """Remove a registered UDF module from the Aerospike cluster by filename."""
     await asyncio.to_thread(_delete_udf_sync, client, filename)
-    return {"message": "UDF deleted"}
+    return Response(status_code=204)

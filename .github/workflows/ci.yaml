@@ -14,6 +14,7 @@ jobs:
   pre-commit:
     name: Pre-commit Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -41,6 +42,7 @@ jobs:
   backend:
     name: Backend Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -70,6 +72,7 @@ jobs:
   frontend:
     name: Frontend Test & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend

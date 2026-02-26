@@ -5,10 +5,12 @@ import logging
 
 from aerospike_py.exception import AdminError, AerospikeError
 from fastapi import APIRouter, HTTPException, Query
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api.constants import EE_MSG
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
+from aerospike_py_admin_ui_api.models.common import MessageResponse
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +85,11 @@ def _change_password_sync(c, username: str, password: str) -> None:
 
 @router.patch(
     "/{conn_id}/users",
+    response_model=MessageResponse,
     summary="Change user password",
     description="Change the password for an existing Aerospike user. Requires Enterprise Edition.",
 )
-async def change_password(body: ChangePasswordRequest, client: AerospikeClient) -> dict:
+async def change_password(body: ChangePasswordRequest, client: AerospikeClient) -> MessageResponse:
     """Change the password for an existing Aerospike user. Requires Enterprise Edition."""
     if not body.username or not body.password:
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
@@ -96,7 +99,7 @@ async def change_password(body: ChangePasswordRequest, client: AerospikeClient) 
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 
-    return {"message": "Password updated"}
+    return MessageResponse(message="Password updated")
 
 
 def _drop_user_sync(c, username: str) -> None:
@@ -105,17 +108,18 @@ def _drop_user_sync(c, username: str) -> None:
 
 @router.delete(
     "/{conn_id}/users",
+    status_code=204,
     summary="Delete user",
     description="Delete an Aerospike user by username. Requires Enterprise Edition.",
 )
 async def delete_user(
     client: AerospikeClient,
     username: str = Query(..., min_length=1),
-) -> dict:
+) -> Response:
     """Delete an Aerospike user by username. Requires Enterprise Edition."""
     try:
         await asyncio.to_thread(_drop_user_sync, client, username)
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 
-    return {"message": "User deleted"}
+    return Response(status_code=204)

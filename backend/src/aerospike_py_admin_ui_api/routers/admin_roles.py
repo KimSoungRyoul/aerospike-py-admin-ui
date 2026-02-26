@@ -5,6 +5,7 @@ import logging
 
 from aerospike_py.exception import AdminError, AerospikeError
 from fastapi import APIRouter, HTTPException, Query
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api.constants import EE_MSG
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
@@ -104,17 +105,18 @@ def _drop_role_sync(c, name: str) -> None:
 
 @router.delete(
     "/{conn_id}/roles",
+    status_code=204,
     summary="Delete role",
     description="Delete an Aerospike role by name. Requires Enterprise Edition.",
 )
 async def delete_role(
     client: AerospikeClient,
     name: str = Query(..., min_length=1),
-) -> dict:
+) -> Response:
     """Delete an Aerospike role by name. Requires Enterprise Edition."""
     try:
         await asyncio.to_thread(_drop_role_sync, client, name)
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 
-    return {"message": "Role deleted"}
+    return Response(status_code=204)

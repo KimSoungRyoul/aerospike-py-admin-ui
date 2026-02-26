@@ -31,6 +31,7 @@ from aerospike_py_admin_ui_api.models.cluster import (
     NamespaceInfo,
     SetInfo,
 )
+from aerospike_py_admin_ui_api.models.common import MessageResponse
 
 logger = logging.getLogger(__name__)
 
@@ -188,13 +189,14 @@ def _configure_namespace_sync(c, body: CreateNamespaceRequest) -> str:
 @router.post(
     "/{conn_id}/namespaces",
     status_code=200,
+    response_model=MessageResponse,
     summary="Configure namespace",
     description="Update runtime-tunable parameters of an existing Aerospike namespace.",
 )
-async def configure_namespace(body: CreateNamespaceRequest, client: AerospikeClient) -> dict:
+async def configure_namespace(body: CreateNamespaceRequest, client: AerospikeClient) -> MessageResponse:
     """Update runtime-tunable parameters of an existing Aerospike namespace."""
     try:
         await asyncio.to_thread(_configure_namespace_sync, client, body)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
-    return {"message": f"Namespace '{body.name}' configured successfully"}
+    return MessageResponse(message=f"Namespace '{body.name}' configured successfully")

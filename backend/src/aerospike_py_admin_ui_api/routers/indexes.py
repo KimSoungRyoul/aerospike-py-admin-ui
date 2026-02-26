@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, Query
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, info_sindex
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
@@ -90,6 +91,7 @@ def _delete_index_sync(c, ns: str, name: str) -> None:
 
 @router.delete(
     "/{conn_id}",
+    status_code=204,
     summary="Delete secondary index",
     description="Remove a secondary index by name from the specified namespace.",
 )
@@ -97,7 +99,7 @@ async def delete_index(
     client: AerospikeClient,
     name: str = Query(..., min_length=1),
     ns: str = Query(..., min_length=1),
-) -> dict:
+) -> Response:
     """Remove a secondary index by name from the specified namespace."""
     await asyncio.to_thread(_delete_index_sync, client, ns, name)
-    return {"message": "Index deleted"}
+    return Response(status_code=204)
