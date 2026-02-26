@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Annotated
 
 import aerospike_py
@@ -10,6 +11,8 @@ from fastapi import Depends, HTTPException, Path
 
 from aerospike_py_admin_ui_api import db
 from aerospike_py_admin_ui_api.client_manager import client_manager
+
+logger = logging.getLogger(__name__)
 
 
 async def _get_verified_connection(conn_id: str = Path()) -> str:
@@ -22,7 +25,14 @@ async def _get_verified_connection(conn_id: str = Path()) -> str:
 
 async def _get_client(conn_id: str = Depends(_get_verified_connection)) -> aerospike_py.Client:
     """Resolve *conn_id* and return a cached Aerospike client."""
-    return await asyncio.to_thread(client_manager._get_client_sync, conn_id)
+    try:
+        return await asyncio.to_thread(client_manager._get_client_sync, conn_id)
+    except Exception as e:
+        logger.warning("Failed to connect to Aerospike for connection '%s': %s", conn_id, e)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Unable to connect to Aerospike cluster for connection '{conn_id}'",
+        ) from e
 
 
 VerifiedConnId = Annotated[str, Depends(_get_verified_connection)]

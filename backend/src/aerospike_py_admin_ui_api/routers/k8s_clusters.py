@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel
 
 from aerospike_py_admin_ui_api import config, db
+from aerospike_py_admin_ui_api.client_manager import client_manager
 from aerospike_py_admin_ui_api.k8s_client import K8sApiError, k8s_client
 from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
 from aerospike_py_admin_ui_api.models.k8s_cluster import (
@@ -328,6 +329,20 @@ async def delete_k8s_cluster(
 ) -> DeleteResponse:
     _require_k8s()
     await k8s_client.delete_cluster(namespace, name)
+
+    # Clean up auto-connected connection profiles for this cluster
+    try:
+        all_conns = await db.get_all_connections()
+        k8s_prefix = f"[K8s] {name}"
+        service_host = f"{name}.{namespace}.svc.cluster.local"
+        for conn in all_conns:
+            if conn.name == k8s_prefix or service_host in conn.hosts:
+                await db.delete_connection(conn.id)
+                await client_manager.close_client(conn.id)
+                logger.info("Cleaned up auto-connect profile %s for deleted cluster %s/%s", conn.id, namespace, name)
+    except Exception:
+        logger.warning("Failed to clean up connection profiles for %s/%s", namespace, name, exc_info=True)
+
     return DeleteResponse(message=f"Cluster {namespace}/{name} deletion initiated")
 
 
