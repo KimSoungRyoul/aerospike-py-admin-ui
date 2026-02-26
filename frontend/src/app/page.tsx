@@ -140,10 +140,10 @@ export default function ConnectionsPage() {
       };
       if (editingId) {
         await updateConnection(editingId, data);
-        toast.success("Cluster updated");
+        toast.success("Connection updated");
       } else {
         await createConnection(data);
-        toast.success("Cluster created");
+        toast.success("Connection created");
       }
       setDialogOpen(false);
       // Refresh health after create/update
@@ -180,7 +180,7 @@ export default function ConnectionsPage() {
     setDeleting(true);
     try {
       await deleteConnection(deleteTarget.id);
-      toast.success("Cluster deleted");
+      toast.success("Connection deleted");
       setDeleteTarget(null);
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -190,7 +190,7 @@ export default function ConnectionsPage() {
   };
 
   const handleExport = useCallback(() => {
-    if (!window.confirm("Export clusters? Passwords will NOT be included for security.")) return;
+    if (!window.confirm("Export connections? Passwords will NOT be included for security.")) return;
     const data = connections.map(({ name, hosts, port, color, username }) => ({
       name,
       hosts,
@@ -204,10 +204,10 @@ export default function ConnectionsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "aerospike-clusters.json";
+    a.download = "aerospike-connections.json";
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Clusters exported (passwords excluded)");
+    toast.success("Connections exported (passwords excluded)");
   }, [connections]);
 
   const handleImport = useCallback(() => {
@@ -234,10 +234,10 @@ export default function ConnectionsPage() {
           await createConnection(result.data);
           importedCount++;
         }
-        toast.success(`Imported ${importedCount} cluster(s)`);
+        toast.success(`Imported ${importedCount} connection(s)`);
         fetchAllHealth();
       } catch {
-        toast.error("Failed to import clusters");
+        toast.error("Failed to import connections");
       }
     };
     input.click();
@@ -274,8 +274,8 @@ export default function ConnectionsPage() {
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
-        title="Clusters"
-        description="Manage your Aerospike clusters"
+        title="Connections"
+        description="Manage your Aerospike connections"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={handleImport} className="hidden sm:flex">
@@ -294,7 +294,7 @@ export default function ConnectionsPage() {
             </Button>
             <Button onClick={openCreateDialog}>
               <Plus className="mr-2 h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">New Cluster</span>
+              <span className="hidden sm:inline">New Connection</span>
             </Button>
           </>
         }
@@ -305,12 +305,12 @@ export default function ConnectionsPage() {
       {connections.length === 0 ? (
         <EmptyState
           icon={Server}
-          title="No clusters yet"
-          description="Create your first cluster to start managing Aerospike."
+          title="No connections yet"
+          description="Create your first connection to start managing Aerospike."
           action={
             <Button onClick={openCreateDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              New Cluster
+              New Connection
             </Button>
           }
         />
@@ -440,11 +440,9 @@ export default function ConnectionsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Cluster" : "New Cluster"}</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Connection" : "New Connection"}</DialogTitle>
             <DialogDescription>
-              {editingId
-                ? "Update the cluster connection settings."
-                : "Create a new Aerospike cluster connection."}
+              {editingId ? "Update the connection settings." : "Create a new Aerospike connection."}
             </DialogDescription>
           </DialogHeader>
 
@@ -453,7 +451,7 @@ export default function ConnectionsPage() {
               <Label htmlFor="conn-name">Name</Label>
               <Input
                 id="conn-name"
-                placeholder="My Cluster"
+                placeholder="My Connection"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
@@ -561,7 +559,7 @@ export default function ConnectionsPage() {
               ) : (
                 <Wifi className="mr-2 h-4 w-4" />
               )}
-              Test Cluster
+              Test Connection
             </Button>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
@@ -581,7 +579,7 @@ export default function ConnectionsPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete Cluster"
+        title="Delete Connection"
         description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
         variant="destructive"

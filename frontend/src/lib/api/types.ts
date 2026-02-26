@@ -295,3 +295,89 @@ export interface PrometheusMetric {
   labels: Record<string, string>;
   category: string;
 }
+
+// === K8s Cluster Management ===
+export type K8sClusterPhase = "InProgress" | "Completed" | "Error" | "Unknown";
+
+export interface K8sPodStatus {
+  name: string;
+  podIP: string | null;
+  hostIP: string | null;
+  isReady: boolean;
+  phase: string;
+  image: string | null;
+}
+
+export interface K8sClusterSummary {
+  name: string;
+  namespace: string;
+  size: number;
+  image: string;
+  phase: K8sClusterPhase;
+  age: string | null;
+  connectionId: string | null;
+  autoConnectWarning: string | null;
+}
+
+export interface K8sClusterDetail {
+  name: string;
+  namespace: string;
+  size: number;
+  image: string;
+  phase: K8sClusterPhase;
+  age: string | null;
+  spec: Record<string, unknown>;
+  status: Record<string, unknown>;
+  pods: K8sPodStatus[];
+  connectionId: string | null;
+}
+
+export interface AerospikeNamespaceStorage {
+  type: "memory" | "device";
+  dataSize?: number;
+  file?: string;
+  filesize?: number;
+}
+
+export interface AerospikeNamespaceConfig {
+  name: string;
+  replicationFactor: number;
+  storageEngine: AerospikeNamespaceStorage;
+}
+
+export interface StorageVolumeConfig {
+  storageClass: string;
+  size: string;
+  mountPath: string;
+}
+
+export interface ResourceSpec {
+  cpu: string;
+  memory: string;
+}
+
+export interface ResourceConfig {
+  requests: ResourceSpec;
+  limits: ResourceSpec;
+}
+
+export interface CreateK8sClusterRequest {
+  name: string;
+  namespace: string;
+  size: number;
+  image: string;
+  namespaces: AerospikeNamespaceConfig[];
+  storage?: StorageVolumeConfig;
+  resources?: ResourceConfig;
+  autoConnect: boolean;
+}
+
+export interface UpdateK8sClusterRequest {
+  size?: number;
+  image?: string;
+  resources?: ResourceConfig;
+}
+
+export interface ScaleK8sClusterRequest {
+  size: number;
+}
