@@ -12,7 +12,8 @@ import { getErrorMessage } from "@/lib/utils";
 interface AdminState {
   users: AerospikeUser[];
   roles: AerospikeRole[];
-  loading: boolean;
+  usersLoading: boolean;
+  rolesLoading: boolean;
   error: string | null;
   isEnterpriseRequired: boolean;
 
@@ -28,34 +29,35 @@ interface AdminState {
 export const useAdminStore = create<AdminState>()((set, get) => ({
   users: [],
   roles: [],
-  loading: false,
+  usersLoading: false,
+  rolesLoading: false,
   error: null,
   isEnterpriseRequired: false,
 
   fetchUsers: async (connId) => {
-    set({ loading: true, error: null });
+    set({ usersLoading: true, error: null });
     try {
       const users = await api.getUsers(connId);
-      set({ users, loading: false, isEnterpriseRequired: false });
+      set({ users, usersLoading: false, isEnterpriseRequired: false });
     } catch (error) {
       if (isApiError(error) && error.status === 403) {
-        set({ isEnterpriseRequired: true, loading: false, error: null });
+        set({ isEnterpriseRequired: true, usersLoading: false, error: null });
       } else {
-        set({ error: getErrorMessage(error), loading: false });
+        set({ error: getErrorMessage(error), usersLoading: false });
       }
     }
   },
 
   fetchRoles: async (connId) => {
-    set({ loading: true, error: null });
+    set({ rolesLoading: true, error: null });
     try {
       const roles = await api.getRoles(connId);
-      set({ roles, loading: false, isEnterpriseRequired: false });
+      set({ roles, rolesLoading: false, isEnterpriseRequired: false });
     } catch (error) {
       if (isApiError(error) && error.status === 403) {
-        set({ isEnterpriseRequired: true, loading: false, error: null });
+        set({ isEnterpriseRequired: true, rolesLoading: false, error: null });
       } else {
-        set({ error: getErrorMessage(error), loading: false });
+        set({ error: getErrorMessage(error), rolesLoading: false });
       }
     }
   },

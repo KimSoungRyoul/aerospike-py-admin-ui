@@ -36,6 +36,7 @@ export function TabBar({ connId }: TabBarProps) {
               <button
                 key={tab.path}
                 onClick={() => handleClick(tab.path)}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative mx-0.5 flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                   isActive

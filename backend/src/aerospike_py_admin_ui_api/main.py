@@ -139,7 +139,8 @@ try:
                     "If setting TTL, ensure the namespace has 'nsup-period' configured."
                 },
             )
-        return JSONResponse(status_code=500, content={"detail": f"Aerospike server error: {exc}"})
+        logger.exception("Aerospike server error")
+        return JSONResponse(status_code=500, content={"detail": "An internal server error occurred"})
 
     @app.exception_handler(AerospikeTimeoutError)
     async def _timeout_error(_req: Request, exc: AerospikeTimeoutError) -> JSONResponse:
@@ -147,11 +148,13 @@ try:
 
     @app.exception_handler(ClusterError)
     async def _cluster_error(_req: Request, exc: ClusterError) -> JSONResponse:
-        return JSONResponse(status_code=503, content={"detail": f"Connection error: {exc}"})
+        logger.exception("Aerospike cluster error")
+        return JSONResponse(status_code=503, content={"detail": "Connection error: unable to reach Aerospike cluster"})
 
     @app.exception_handler(AerospikeError)
     async def _aerospike_error(_req: Request, exc: AerospikeError) -> JSONResponse:
-        return JSONResponse(status_code=500, content={"detail": f"Aerospike error: {exc}"})
+        logger.exception("Aerospike error")
+        return JSONResponse(status_code=500, content={"detail": "An internal server error occurred"})
 
 except ImportError:
     pass

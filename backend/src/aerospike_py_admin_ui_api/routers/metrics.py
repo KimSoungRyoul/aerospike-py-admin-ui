@@ -7,7 +7,7 @@ import time
 
 from fastapi import APIRouter
 
-from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, INFO_STATISTICS, info_namespace
+from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, INFO_STATISTICS, NS_SUM_KEYS, info_namespace
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient, VerifiedConnId
 from aerospike_py_admin_ui_api.info_parser import aggregate_node_kv, parse_list, safe_int
 from aerospike_py_admin_ui_api.models.metrics import (
@@ -45,21 +45,6 @@ def _generate_time_series(points: int, base_val: float, jitter_pct: float = 0.05
 _STATS_SUM_KEYS = frozenset({"client_connections"})
 _STATS_MIN_KEYS = frozenset({"uptime"})
 
-_NS_SUM_KEYS = frozenset(
-    {
-        "objects",
-        "tombstones",
-        "memory_used_bytes",
-        "memory-size",
-        "device_used_bytes",
-        "device-total-bytes",
-        "client_read_success",
-        "client_read_error",
-        "client_write_success",
-        "client_write_error",
-    }
-)
-
 
 def _fetch_metrics_sync(c, conn_id: str) -> dict:
     # Cluster-level statistics (aggregated across all nodes)
@@ -87,7 +72,7 @@ def _fetch_metrics_sync(c, conn_id: str) -> dict:
     for i, ns_name in enumerate(ns_names):
         # Aggregate namespace stats from all nodes
         ns_all = c.info_all(info_namespace(ns_name))
-        ns_stats = aggregate_node_kv(ns_all, keys_to_sum=_NS_SUM_KEYS)
+        ns_stats = aggregate_node_kv(ns_all, keys_to_sum=NS_SUM_KEYS)
 
         replication_factor = safe_int(ns_stats.get("replication-factor"), 1)
         effective_rf = min(replication_factor, total_nodes) if total_nodes > 0 else 1

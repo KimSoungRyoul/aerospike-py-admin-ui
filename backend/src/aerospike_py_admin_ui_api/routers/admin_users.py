@@ -6,14 +6,13 @@ import logging
 from aerospike_py.exception import AdminError, AerospikeError
 from fastapi import APIRouter, HTTPException, Query
 
+from aerospike_py_admin_ui_api.constants import EE_MSG
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
-
-_EE_MSG = "User/role management requires Aerospike Enterprise Edition"
 
 
 def _query_users_sync(c) -> list[AerospikeUser]:
@@ -42,10 +41,10 @@ async def get_users(client: AerospikeClient) -> list[AerospikeUser]:
     try:
         return await asyncio.to_thread(_query_users_sync, client)
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
     except AerospikeError as e:
         if "security" in str(e).lower() or "not enabled" in str(e).lower() or "not supported" in str(e).lower():
-            raise HTTPException(status_code=403, detail=_EE_MSG) from None
+            raise HTTPException(status_code=403, detail=EE_MSG) from None
         raise
 
 
@@ -67,7 +66,7 @@ async def create_user(body: CreateUserRequest, client: AerospikeClient) -> Aeros
     try:
         await asyncio.to_thread(_create_user_sync, client, body.username, body.password, body.roles or [])
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
 
     return AerospikeUser(
         username=body.username,
@@ -95,7 +94,7 @@ async def change_password(body: ChangePasswordRequest, client: AerospikeClient) 
     try:
         await asyncio.to_thread(_change_password_sync, client, body.username, body.password)
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
 
     return {"message": "Password updated"}
 
@@ -117,6 +116,6 @@ async def delete_user(
     try:
         await asyncio.to_thread(_drop_user_sync, client, username)
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
 
     return {"message": "User deleted"}

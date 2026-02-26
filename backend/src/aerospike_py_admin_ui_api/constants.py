@@ -41,6 +41,25 @@ def is_per_node_command(cmd: str) -> bool:
     return cmd in PER_NODE_COMMANDS or cmd.startswith(PER_NODE_PREFIXES)
 
 
+# Shared error messages
+EE_MSG = "User/role management requires Aerospike Enterprise Edition"
+
+# Namespace stat keys that must be summed across nodes
+NS_SUM_KEYS = frozenset(
+    {
+        "objects",
+        "tombstones",
+        "memory_used_bytes",
+        "memory-size",
+        "device_used_bytes",
+        "device-total-bytes",
+        "client_read_success",
+        "client_read_error",
+        "client_write_success",
+        "client_write_error",
+    }
+)
+
 # Query limits
 MAX_QUERY_RECORDS = 10_000
 

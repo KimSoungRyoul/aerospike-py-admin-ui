@@ -26,7 +26,7 @@ import { CodeEditor } from "@/components/common/code-editor";
 import { api } from "@/lib/api/client";
 import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";
-import { sanitizeFilename } from "@/lib/sanitize";
+import { sanitizeFilename, sanitizeInput } from "@/lib/sanitize";
 import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -144,8 +144,11 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
         setApplying(false);
         return;
       }
+      // Sanitize user inputs to prevent AQL injection
+      const safePK = sanitizeInput(applyPK);
+      const safeFunction = sanitizeInput(applyFunction);
       // Use the terminal API to apply the UDF since there's no direct apply endpoint
-      const command = `execute ${applyModule}.${applyFunction}(${JSON.stringify(args)}) on ${applyNs}.${applySet || ""} where PK = '${applyPK}'`;
+      const command = `execute ${applyModule}.${safeFunction}(${JSON.stringify(args)}) on ${applyNs}.${applySet || ""} where PK = '${safePK}'`;
       await api.executeCommand(connId, command);
       toast.success("UDF applied successfully");
       setApplyOpen(false);

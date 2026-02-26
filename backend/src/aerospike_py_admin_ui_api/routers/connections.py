@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import time
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -40,7 +40,7 @@ async def create_connection(body: CreateConnectionRequest) -> ConnectionProfile:
     """Create a new Aerospike connection profile."""
     now = datetime.now(UTC).isoformat()
     conn = ConnectionProfile(
-        id=f"conn-{int(time.time() * 1000)}",
+        id=f"conn-{uuid.uuid4().hex[:12]}",
         name=body.name,
         hosts=body.hosts,
         port=body.port,

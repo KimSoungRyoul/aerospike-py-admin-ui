@@ -11,6 +11,7 @@ from aerospike_py_admin_ui_api.constants import (
     INFO_NAMESPACES,
     INFO_SERVICE,
     INFO_STATISTICS,
+    NS_SUM_KEYS,
     info_namespace,
     info_sets,
 )
@@ -79,29 +80,13 @@ def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
     ns_raw = c.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
 
-    # Keys that must be summed across nodes for namespace stats
-    _NS_SUM_KEYS = frozenset(
-        {
-            "objects",
-            "tombstones",
-            "memory_used_bytes",
-            "memory-size",
-            "device_used_bytes",
-            "device-total-bytes",
-            "client_read_success",
-            "client_read_error",
-            "client_write_success",
-            "client_write_error",
-        }
-    )
-
     total_nodes = len(node_names)
 
     namespaces: list[NamespaceInfo] = []
     for ns_name in ns_names:
         # Aggregate namespace stats from all nodes
         ns_all = c.info_all(info_namespace(ns_name))
-        ns_stats = aggregate_node_kv(ns_all, keys_to_sum=_NS_SUM_KEYS)
+        ns_stats = aggregate_node_kv(ns_all, keys_to_sum=NS_SUM_KEYS)
 
         replication_factor = safe_int(ns_stats.get("replication-factor"), 1)
         effective_rf = min(replication_factor, total_nodes) if total_nodes > 0 else 1

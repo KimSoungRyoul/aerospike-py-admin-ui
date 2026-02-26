@@ -25,6 +25,16 @@ export const connectionFormSchema = z.object({
 
 export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
 
+/** Schema for validating imported connection objects (JSON array entries). */
+export const connectionImportSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  hosts: z.array(z.string().min(1)).min(1, "At least one host is required"),
+  port: z.number().int().min(1).max(65535),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  username: z.string().optional(),
+  password: z.string().optional(),
+});
+
 export function validateConnectionForm(data: ConnectionFormValues) {
   return connectionFormSchema.safeParse(data);
 }
