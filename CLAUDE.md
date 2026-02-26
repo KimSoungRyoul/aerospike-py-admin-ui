@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aerospike Py Admin UI — A full-stack GUI management tool for Aerospike Community Edition. Built with FastAPI backend + Next.js frontend, orchestrated via podman Compose.
+Aerospike Cluster Manager — A full-stack GUI management tool for Aerospike Community Edition. Built with FastAPI backend + Next.js frontend, orchestrated via podman Compose.
 
 ## Commands
 
@@ -19,7 +19,7 @@ podman compose -f compose.dev.yaml down            # Stop Aerospike
 ### Backend (Python 3.13 / FastAPI)
 ```bash
 cd backend
-uv run uvicorn aerospike_py_admin_ui_api.main:app --reload  # Dev server (port 8000)
+uv run uvicorn aerospike_cluster_manager_api.main:app --reload  # Dev server (port 8000)
 uv run ruff check src --fix                         # lint + autofix
 uv run ruff format src                              # format
 ```
@@ -48,9 +48,9 @@ pre-commit run --all-files  # Run pre-commit on all files
 ## Architecture
 
 ```
-aerospike-py-admin-ui/
+aerospike-cluster-manager/
 ├── backend/           # FastAPI REST API (Python 3.13, uv)
-│   └── src/aerospike_py_admin_ui_api/
+│   └── src/aerospike_cluster_manager_api/
 │       ├── main.py        # FastAPI app, CORS, router registration, /api/health
 │       ├── config.py      # Environment variable based configuration
 │       ├── store.py       # in-memory mock data store (for development)

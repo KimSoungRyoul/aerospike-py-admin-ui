@@ -31,7 +31,7 @@ export const useUIStore = create<UIState>()(
       toggleMobileNav: () => set((state) => ({ mobileNavOpen: !state.mobileNavOpen })),
     }),
     {
-      name: "aerospike-py-admin-ui-settings",
+      name: "aerospike-cluster-manager-settings",
       partialize: (state) => ({
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,

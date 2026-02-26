@@ -1,4 +1,4 @@
-"""Tests for aerospike_py_admin_ui_api.db module.
+"""Tests for aerospike_cluster_manager_api.db module.
 
 Uses a testcontainers PostgreSQL database to test async CRUD operations
 on connection profiles.
@@ -11,8 +11,8 @@ from datetime import UTC, datetime
 import asyncpg
 import pytest
 
-from aerospike_py_admin_ui_api import db
-from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
+from aerospike_cluster_manager_api import db
+from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 
 class TestInitDb:

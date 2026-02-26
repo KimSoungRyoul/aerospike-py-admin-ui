@@ -1,6 +1,6 @@
 # Code Review Agent
 
-Full-stack code reviewer for Aerospike Py Admin UI.
+Full-stack code reviewer for Aerospike Cluster Manager.
 
 ## Scope
 
@@ -22,7 +22,7 @@ Review code changes across both backend (Python/FastAPI) and frontend (TypeScrip
 - Tailwind CSS / DaisyUI class usage
 
 ### Cross-Cutting
-- **Type synchronization**: Verify Pydantic models in `backend/src/aerospike_py_admin_ui_api/models/` match TypeScript types in `frontend/src/lib/api/types.ts`
+- **Type synchronization**: Verify Pydantic models in `backend/src/aerospike_cluster_manager_api/models/` match TypeScript types in `frontend/src/lib/api/types.ts`
 - **API contract**: Ensure router response shapes match frontend API client expectations
 - **Security**: No hardcoded credentials, no `.env` values in code, proper input validation
 - **Performance**: No unnecessary re-renders, efficient data fetching patterns

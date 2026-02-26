@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from testcontainers.postgres import PostgresContainer
 
-from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
+from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 
 @pytest.fixture(scope="session")
@@ -45,9 +45,9 @@ async def init_test_db(postgres_url: str):
     Patches config.DATABASE_URL so that init_db() connects to the
     testcontainers PostgreSQL instance.
     """
-    from aerospike_py_admin_ui_api import db
+    from aerospike_cluster_manager_api import db
 
-    with patch("aerospike_py_admin_ui_api.config.DATABASE_URL", postgres_url):
+    with patch("aerospike_cluster_manager_api.config.DATABASE_URL", postgres_url):
         await db.init_db()
         yield postgres_url
         # Clean up: drop all rows so each test starts fresh

@@ -1,0 +1,194 @@
+import logging
+import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
+
+from aerospike_cluster_manager_api import config, db
+from aerospike_cluster_manager_api.client_manager import client_manager
+from aerospike_cluster_manager_api.logging_config import setup_logging
+from aerospike_cluster_manager_api.routers import (
+    admin_roles,
+    admin_users,
+    clusters,
+    connections,
+    indexes,
+    metrics,
+    query,
+    records,
+    terminal,
+    udfs,
+)
+
+if config.K8S_MANAGEMENT_ENABLED:
+    from aerospike_cluster_manager_api.routers import k8s_clusters
+
+setup_logging(config.LOG_LEVEL)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    logger.info("Starting Aerospike Cluster Manager API")
+    await db.init_db()
+    yield
+    await client_manager.close_all()
+    await db.close_db()
+    logger.info("Shutdown complete")
+
+
+app = FastAPI(
+    title="Aerospike Cluster Manager API",
+    version="0.1.0",
+    description="REST API for managing Aerospike Community Edition clusters",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------------------------------------------------------
+# Request logging middleware
+# ---------------------------------------------------------------------------
+
+
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    start = time.monotonic()
+    response = await call_next(request)
+    elapsed_ms = (time.monotonic() - start) * 1000
+    logger.info(
+        "%s %s %d %.1fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Security headers middleware
+# ---------------------------------------------------------------------------
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Global exception handlers for aerospike-py errors
+# ---------------------------------------------------------------------------
+
+try:
+    from aerospike_py.exception import (
+        AdminError,
+        AerospikeError,
+        AerospikeTimeoutError,
+        ClusterError,
+        IndexFoundError,
+        IndexNotFound,
+        RecordExistsError,
+        RecordGenerationError,
+        RecordNotFound,
+        ServerError,
+    )
+
+    @app.exception_handler(RecordNotFound)
+    async def _record_not_found(_req: Request, exc: RecordNotFound) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": "Record not found"})
+
+    @app.exception_handler(RecordExistsError)
+    async def _record_exists(_req: Request, exc: RecordExistsError) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": "Record already exists"})
+
+    @app.exception_handler(RecordGenerationError)
+    async def _record_generation(_req: Request, exc: RecordGenerationError) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": "Generation conflict"})
+
+    @app.exception_handler(IndexNotFound)
+    async def _index_not_found(_req: Request, exc: IndexNotFound) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": "Index not found"})
+
+    @app.exception_handler(IndexFoundError)
+    async def _index_found(_req: Request, exc: IndexFoundError) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": "Index already exists"})
+
+    @app.exception_handler(AdminError)
+    async def _admin_error(_req: Request, exc: AdminError) -> JSONResponse:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "User/role management requires Aerospike Enterprise Edition"},
+        )
+
+    @app.exception_handler(ServerError)
+    async def _server_error(_req: Request, exc: ServerError) -> JSONResponse:
+        msg = str(exc)
+        if "FailForbidden" in msg:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "Operation forbidden by server. "
+                    "If setting TTL, ensure the namespace has 'nsup-period' configured."
+                },
+            )
+        logger.exception("Aerospike server error")
+        return JSONResponse(status_code=500, content={"detail": "An internal server error occurred"})
+
+    @app.exception_handler(AerospikeTimeoutError)
+    async def _timeout_error(_req: Request, exc: AerospikeTimeoutError) -> JSONResponse:
+        return JSONResponse(status_code=504, content={"detail": "Operation timed out"})
+
+    @app.exception_handler(ClusterError)
+    async def _cluster_error(_req: Request, exc: ClusterError) -> JSONResponse:
+        logger.exception("Aerospike cluster error")
+        return JSONResponse(status_code=503, content={"detail": "Connection error: unable to reach Aerospike cluster"})
+
+    @app.exception_handler(AerospikeError)
+    async def _aerospike_error(_req: Request, exc: AerospikeError) -> JSONResponse:
+        logger.exception("Aerospike error")
+        return JSONResponse(status_code=500, content={"detail": "An internal server error occurred"})
+
+except ImportError:
+    pass
+
+# ---------------------------------------------------------------------------
+# Routers
+# ---------------------------------------------------------------------------
+
+app.include_router(connections.router)
+app.include_router(clusters.router)
+app.include_router(records.router)
+app.include_router(query.router)
+app.include_router(indexes.router)
+app.include_router(terminal.router)
+app.include_router(admin_users.router)
+app.include_router(admin_roles.router)
+app.include_router(udfs.router)
+app.include_router(metrics.router)
+
+if config.K8S_MANAGEMENT_ENABLED:
+    app.include_router(k8s_clusters.router)
+
+
+@app.get("/api/health")
+def health_check() -> dict[str, str]:
+    return {"status": "ok"}

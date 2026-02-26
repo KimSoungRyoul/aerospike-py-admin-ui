@@ -1,8 +1,8 @@
-"""Tests for aerospike_py_admin_ui_api.info_parser module."""
+"""Tests for aerospike_cluster_manager_api.info_parser module."""
 
 from __future__ import annotations
 
-from aerospike_py_admin_ui_api.info_parser import (
+from aerospike_cluster_manager_api.info_parser import (
     aggregate_node_kv,
     aggregate_set_records,
     parse_kv_pairs,
