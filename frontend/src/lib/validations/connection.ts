@@ -19,7 +19,8 @@ export const connectionFormSchema = z.object({
   }, "Port must be between 1 and 65535"),
   username: z.string().optional(),
   password: z.string().optional(),
-  color: z.string().min(1),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color must be a valid hex color (e.g., #ff0000)"),
+  clusterName: z.string().max(255).optional().or(z.literal("")),
 });
 
 export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;

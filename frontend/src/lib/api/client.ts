@@ -170,7 +170,7 @@ export const api = {
 
   // UDFs
   getUDFs: (connId: string) => request<import("./types").UDFModule[]>(`/api/udfs/${connId}`),
-  uploadUDF: (connId: string, data: { filename: string; content: string; type: string }) =>
+  uploadUDF: (connId: string, data: { filename: string; content: string }) =>
     request<import("./types").UDFModule>(`/api/udfs/${connId}`, {
       method: "POST",
       body: JSON.stringify(data),

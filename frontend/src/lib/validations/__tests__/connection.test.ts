@@ -152,6 +152,109 @@ describe("connectionFormSchema", () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it("accepts valid 6-digit hex color", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "#ff00aa",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts uppercase hex color", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "#FF00AA",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts mixed case hex color", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "#aB12cD",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects color without hash prefix", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "ff0000",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects 3-digit hex shorthand", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "#f00",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects 8-digit hex (with alpha)", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "#ff0000ff",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects non-hex characters", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "#gghhii",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects named colors", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        color: "red",
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("clusterName validation", () => {
+    it("accepts connection without clusterName", () => {
+      const result = connectionFormSchema.safeParse(validConnection);
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts connection with valid clusterName", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        clusterName: "my-cluster",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts empty string clusterName", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        clusterName: "",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts clusterName at max length (255 characters)", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        clusterName: "a".repeat(255),
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects clusterName exceeding 255 characters", () => {
+      const result = connectionFormSchema.safeParse({
+        ...validConnection,
+        clusterName: "a".repeat(256),
+      });
+      expect(result.success).toBe(false);
+    });
   });
 });
 

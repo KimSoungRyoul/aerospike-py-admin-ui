@@ -85,7 +85,6 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       await api.uploadUDF(connId, {
         filename: uploadFilename.trim(),
         content: uploadContent,
-        type: "LUA",
       });
       toast.success("UDF uploaded");
       setUploadOpen(false);
