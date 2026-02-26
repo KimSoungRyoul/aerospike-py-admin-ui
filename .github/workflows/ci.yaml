@@ -58,6 +58,12 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Lint
+        run: uv run ruff check src/
+
+      - name: Format check
+        run: uv run ruff format --check src/
+
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
 
