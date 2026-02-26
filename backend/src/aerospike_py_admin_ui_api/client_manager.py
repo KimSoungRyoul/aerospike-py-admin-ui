@@ -28,7 +28,7 @@ class ClientManager:
     # Internal sync helpers (blocking Aerospike operations only)
     # ------------------------------------------------------------------
 
-    def _connect_sync(self, conn_id: str, hosts: list[tuple[str, int]], config: dict[str, Any]) -> aerospike_py.Client:
+    def _connect_sync(self, conn_id: str, config: dict[str, Any]) -> aerospike_py.Client:
         """Create and connect an Aerospike client (blocking)."""
         client = aerospike_py.client(config).connect()
 
@@ -76,7 +76,7 @@ class ClientManager:
             as_config["user"] = profile.username
             as_config["password"] = profile.password
 
-        return await asyncio.to_thread(self._connect_sync, conn_id, hosts, as_config)
+        return await asyncio.to_thread(self._connect_sync, conn_id, as_config)
 
     async def close_client(self, conn_id: str) -> None:
         await asyncio.to_thread(self._close_client_sync, conn_id)

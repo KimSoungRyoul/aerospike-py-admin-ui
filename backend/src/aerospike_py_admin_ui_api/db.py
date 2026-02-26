@@ -42,10 +42,12 @@ def _get_pool() -> asyncpg.Pool:
 
 async def init_db() -> None:
     global _pool
+    logger.info("Connecting to PostgreSQL …")
     _pool = await asyncpg.create_pool(config.DATABASE_URL, min_size=2, max_size=10)
     async with _pool.acquire() as conn:
         await conn.execute(CREATE_TABLE_SQL)
     await _seed_if_empty()
+    logger.info("Database initialized")
 
 
 async def close_db() -> None:
