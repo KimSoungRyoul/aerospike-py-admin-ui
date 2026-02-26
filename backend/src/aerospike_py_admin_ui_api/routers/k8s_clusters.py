@@ -241,6 +241,7 @@ async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary
 
         # Auto-connect: create a connection profile pointing to the headless service
         connection_id: str | None = None
+        auto_connect_warning: str | None = None
         if body.auto_connect:
             try:
                 service_host = f"{body.name}.{body.namespace}.svc.cluster.local"
@@ -258,9 +259,12 @@ async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary
                 connection_id = conn.id
                 logger.info("Auto-created connection profile for K8s cluster %s/%s", body.namespace, body.name)
             except Exception:
+                auto_connect_warning = f"Cluster created but auto-connect failed for {body.namespace}/{body.name}"
                 logger.warning("Failed to auto-create connection for %s/%s", body.namespace, body.name, exc_info=True)
 
-        return _extract_summary(result, connection_id=connection_id)
+        summary = _extract_summary(result, connection_id=connection_id)
+        summary.autoConnectWarning = auto_connect_warning
+        return summary
     except HTTPException:
         raise
     except K8sApiError as e:

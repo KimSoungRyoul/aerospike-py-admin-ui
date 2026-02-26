@@ -15,9 +15,9 @@ spec:
     - Egress
   ingress:
     - ports:
-        - port: 3000
+        - port: {{ .Values.service.frontendPort }}
           protocol: TCP
-        - port: 8000
+        - port: {{ .Values.service.backendPort }}
           protocol: TCP
   egress:
     # DNS

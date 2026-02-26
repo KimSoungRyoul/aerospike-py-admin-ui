@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/common/loading-button";
+import { getErrorMessage } from "@/lib/utils";
 
 interface K8sScaleDialogProps {
   open: boolean;
@@ -47,7 +48,7 @@ export function K8sScaleDialog({
       await onScale(size);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to scale cluster");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,11 @@ export function K8sScaleDialog({
               min={1}
               max={8}
               value={size}
-              onChange={(e) => setSize(Math.min(8, Math.max(1, parseInt(e.target.value) || 1)))}
+              onChange={(e) => {
+                setSize(Math.min(8, Math.max(1, parseInt(e.target.value) || 1)));
+                setError(null);
+              }}
+              disabled={loading}
             />
           </div>
           {size < currentSize && (

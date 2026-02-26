@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AerospikeNamespaceStorage(BaseModel):
@@ -26,12 +27,40 @@ class StorageVolumeConfig(BaseModel):
 
 class ResourceSpec(BaseModel):
     cpu: str = Field(default="1", pattern=r"^[0-9]+(\.[0-9]+)?m?$")
-    memory: str = Field(default="2Gi", pattern=r"^[0-9]+(\.[0-9]+)?[KMGTPE]?i?$")
+    memory: str = Field(default="2Gi", pattern=r"^[0-9]+(\.[0-9]+)?[KMGTPE]i$")
+
+
+def _parse_cpu_millis(cpu: str) -> float:
+    """Convert K8s CPU string to millicores for comparison."""
+    if cpu.endswith("m"):
+        return float(cpu[:-1])
+    return float(cpu) * 1000
+
+
+_MEMORY_UNITS: dict[str, int] = {"Ki": 1, "Mi": 2, "Gi": 3, "Ti": 4, "Pi": 5, "Ei": 6}
+
+
+def _parse_memory_bytes(mem: str) -> float:
+    """Convert K8s memory string to bytes for comparison."""
+    m = re.match(r"^([0-9]+(?:\.[0-9]+)?)([KMGTPE]i)$", mem)
+    if not m:
+        return 0
+    value = float(m.group(1))
+    unit = m.group(2)
+    return value * (1024 ** _MEMORY_UNITS.get(unit, 0))
 
 
 class ResourceConfig(BaseModel):
     requests: ResourceSpec = Field(default_factory=lambda: ResourceSpec(cpu="500m", memory="1Gi"))
     limits: ResourceSpec = Field(default_factory=lambda: ResourceSpec(cpu="2", memory="4Gi"))
+
+    @model_validator(mode="after")
+    def limits_gte_requests(self) -> ResourceConfig:
+        if _parse_cpu_millis(self.limits.cpu) < _parse_cpu_millis(self.requests.cpu):
+            raise ValueError(f"CPU limit ({self.limits.cpu}) must be >= request ({self.requests.cpu})")
+        if _parse_memory_bytes(self.limits.memory) < _parse_memory_bytes(self.requests.memory):
+            raise ValueError(f"Memory limit ({self.limits.memory}) must be >= request ({self.requests.memory})")
+        return self
 
 
 class CreateK8sClusterRequest(BaseModel):
@@ -56,6 +85,16 @@ class CreateK8sClusterRequest(BaseModel):
     auto_connect: bool = Field(default=True, alias="autoConnect")
 
     model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def replication_factor_lte_size(self) -> CreateK8sClusterRequest:
+        for ns in self.namespaces:
+            if ns.replication_factor > self.size:
+                raise ValueError(
+                    f"Namespace '{ns.name}' replication-factor ({ns.replication_factor}) "
+                    f"must be <= cluster size ({self.size})"
+                )
+        return self
 
 
 class UpdateK8sClusterRequest(BaseModel):
@@ -90,6 +129,7 @@ class K8sClusterSummary(BaseModel):
     phase: str = "Unknown"
     age: str | None = None
     connectionId: str | None = None
+    autoConnectWarning: str | None = None
 
 
 class K8sClusterDetail(BaseModel):

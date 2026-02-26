@@ -43,3 +43,26 @@ export function validateK8sMemory(value: string): string | null {
   const result = k8sMemorySchema.safeParse(value);
   return result.success ? null : result.error.issues[0].message;
 }
+
+/** Parse K8s CPU string to millicores for comparison. */
+export function parseCpuMillis(cpu: string): number {
+  if (cpu.endsWith("m")) return parseFloat(cpu.slice(0, -1));
+  return parseFloat(cpu) * 1000;
+}
+
+const MEMORY_UNITS: Record<string, number> = {
+  Ki: 1,
+  Mi: 2,
+  Gi: 3,
+  Ti: 4,
+  Pi: 5,
+  Ei: 6,
+};
+
+/** Parse K8s memory string to bytes for comparison. */
+export function parseMemoryBytes(mem: string): number {
+  const m = mem.match(/^([0-9]+(?:\.[0-9]+)?)([KMGTPE]i)$/);
+  if (!m) return 0;
+  const unit = m[2];
+  return parseFloat(m[1]) * Math.pow(1024, MEMORY_UNITS[unit] ?? 0);
+}

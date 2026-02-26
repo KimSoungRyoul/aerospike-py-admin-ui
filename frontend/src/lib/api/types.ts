@@ -316,6 +316,7 @@ export interface K8sClusterSummary {
   phase: K8sClusterPhase;
   age: string | null;
   connectionId: string | null;
+  autoConnectWarning: string | null;
 }
 
 export interface K8sClusterDetail {

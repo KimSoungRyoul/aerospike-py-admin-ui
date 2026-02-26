@@ -19,7 +19,13 @@ import { InlineAlert } from "@/components/common/inline-alert";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
-import { validateK8sName, validateK8sCpu, validateK8sMemory } from "@/lib/validations/k8s";
+import {
+  validateK8sName,
+  validateK8sCpu,
+  validateK8sMemory,
+  parseCpuMillis,
+  parseMemoryBytes,
+} from "@/lib/validations/k8s";
 import { toast } from "sonner";
 import type { CreateK8sClusterRequest } from "@/lib/api/types";
 
@@ -89,13 +95,13 @@ export function K8sClusterWizard() {
     });
   };
 
-  const updateNamespace = (index: number, updates: Record<string, unknown>) => {
+  const updateNamespace = (
+    index: number,
+    updates: Partial<CreateK8sClusterRequest["namespaces"][0]>,
+  ) => {
     setForm((prev) => {
       const namespaces = [...prev.namespaces];
-      namespaces[index] = {
-        ...namespaces[index],
-        ...updates,
-      } as CreateK8sClusterRequest["namespaces"][0];
+      namespaces[index] = { ...namespaces[index], ...updates };
       return { ...prev, namespaces };
     });
   };
@@ -118,6 +124,9 @@ export function K8sClusterWizard() {
       if (validateK8sCpu(res.limits.cpu) !== null) return false;
       if (validateK8sMemory(res.requests.memory) !== null) return false;
       if (validateK8sMemory(res.limits.memory) !== null) return false;
+      // Cross-field: limits must be >= requests
+      if (parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu)) return false;
+      if (parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory)) return false;
       return true;
     }
     return true;
@@ -476,6 +485,29 @@ export function K8sClusterWizard() {
                   )}
                 </div>
               </div>
+
+              {(() => {
+                const res = form.resources ?? DEFAULT_RESOURCES;
+                const cpuValid =
+                  !validateK8sCpu(res.requests.cpu) && !validateK8sCpu(res.limits.cpu);
+                const memValid =
+                  !validateK8sMemory(res.requests.memory) && !validateK8sMemory(res.limits.memory);
+                return (
+                  <>
+                    {cpuValid &&
+                      parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu) && (
+                        <p className="text-destructive text-xs">CPU limit must be &gt;= request</p>
+                      )}
+                    {memValid &&
+                      parseMemoryBytes(res.limits.memory) <
+                        parseMemoryBytes(res.requests.memory) && (
+                        <p className="text-destructive text-xs">
+                          Memory limit must be &gt;= request
+                        </p>
+                      )}
+                  </>
+                );
+              })()}
 
               <div className="flex items-center space-x-2 pt-2">
                 <Checkbox

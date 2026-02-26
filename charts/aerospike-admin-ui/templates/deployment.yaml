@@ -14,8 +14,9 @@ spec:
     metadata:
       labels:
         {{- include "aerospike-admin-ui.selectorLabels" . | nindent 8 }}
-      {{- with .Values.podAnnotations }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
@@ -35,10 +36,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: frontend
-              containerPort: 3000
+              containerPort: {{ .Values.service.frontendPort }}
               protocol: TCP
             - name: backend
-              containerPort: 8000
+              containerPort: {{ .Values.service.backendPort }}
               protocol: TCP
           envFrom:
             - configMapRef:

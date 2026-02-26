@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 GROUP = "acko.io"
 VERSION = "v1alpha1"
 PLURAL = "aerospikececlusters"
+# Default timeout for K8s API calls (seconds)
+_K8S_API_TIMEOUT = 10
 
 
 class K8sApiError(Exception):
@@ -76,8 +78,9 @@ class K8sClient:
         from kubernetes.client.rest import ApiException
 
         if isinstance(e, ApiException):
-            return K8sApiError(status=e.status, reason=e.reason or "", message=str(e.body) if e.body else "")
-        return K8sApiError(status=500, reason="InternalError", message=str(e))
+            msg = (str(e.body) if e.body else "")[:2000]
+            return K8sApiError(status=e.status, reason=e.reason or "", message=msg)
+        return K8sApiError(status=500, reason="InternalError", message=str(e)[:2000])
 
     def _list_clusters_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
         logger.debug("_list_clusters_sync(namespace=%s)", namespace)
@@ -85,10 +88,19 @@ class K8sClient:
         try:
             if namespace:
                 result = self._custom_api.list_namespaced_custom_object(
-                    group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL
+                    group=GROUP,
+                    version=VERSION,
+                    namespace=namespace,
+                    plural=PLURAL,
+                    _request_timeout=_K8S_API_TIMEOUT,
                 )
             else:
-                result = self._custom_api.list_cluster_custom_object(group=GROUP, version=VERSION, plural=PLURAL)
+                result = self._custom_api.list_cluster_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    plural=PLURAL,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                )
             return result.get("items", [])
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -98,7 +110,12 @@ class K8sClient:
         self._ensure_initialized()
         try:
             return self._custom_api.get_namespaced_custom_object(
-                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=PLURAL,
+                name=name,
+                _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -108,7 +125,12 @@ class K8sClient:
         self._ensure_initialized()
         try:
             return self._custom_api.create_namespaced_custom_object(
-                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, body=body
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=PLURAL,
+                body=body,
+                _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -118,7 +140,13 @@ class K8sClient:
         self._ensure_initialized()
         try:
             return self._custom_api.patch_namespaced_custom_object(
-                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name, body=body
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=PLURAL,
+                name=name,
+                body=body,
+                _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -128,7 +156,12 @@ class K8sClient:
         self._ensure_initialized()
         try:
             return self._custom_api.delete_namespaced_custom_object(
-                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=PLURAL,
+                name=name,
+                _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -137,7 +170,7 @@ class K8sClient:
         logger.debug("_list_namespaces_sync()")
         self._ensure_initialized()
         try:
-            result = self._core_api.list_namespace()
+            result = self._core_api.list_namespace(_request_timeout=_K8S_API_TIMEOUT)
             return [ns.metadata.name for ns in result.items]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -146,7 +179,7 @@ class K8sClient:
         logger.debug("_list_storage_classes_sync()")
         self._ensure_initialized()
         try:
-            result = self._storage_api.list_storage_class()
+            result = self._storage_api.list_storage_class(_request_timeout=_K8S_API_TIMEOUT)
             return [sc.metadata.name for sc in result.items]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -155,7 +188,11 @@ class K8sClient:
         logger.debug("_list_pods_sync(namespace=%s, label_selector=%s)", namespace, label_selector)
         self._ensure_initialized()
         try:
-            result = self._core_api.list_namespaced_pod(namespace=namespace, label_selector=label_selector)
+            result = self._core_api.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=label_selector,
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
             pods = []
             for pod in result.items:
                 ready = False
