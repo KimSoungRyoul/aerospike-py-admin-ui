@@ -34,6 +34,15 @@ export default function K8sClusterDetailPage() {
     }
   }, [namespace, name, fetchCluster]);
 
+  // Auto-refresh polling when cluster is in progress
+  useEffect(() => {
+    if (selectedCluster?.phase !== "InProgress") return;
+    const interval = setInterval(() => {
+      fetchCluster(namespace, name);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedCluster?.phase, namespace, name, fetchCluster]);
+
   const handleScale = async (size: number) => {
     try {
       await scaleCluster(namespace, name, size);

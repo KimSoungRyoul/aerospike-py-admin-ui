@@ -15,9 +15,11 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoadingButton } from "@/components/common/loading-button";
+import { InlineAlert } from "@/components/common/inline-alert";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
+import { validateK8sName, validateK8sCpu, validateK8sMemory } from "@/lib/validations/k8s";
 import { toast } from "sonner";
 import type { CreateK8sClusterRequest } from "@/lib/api/types";
 
@@ -32,6 +34,7 @@ export function K8sClusterWizard() {
   const [creating, setCreating] = useState(false);
   const [k8sNamespaces, setK8sNamespaces] = useState<string[]>([]);
   const [storageClasses, setStorageClasses] = useState<string[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [form, setForm] = useState<CreateK8sClusterRequest>({
     name: "",
@@ -53,13 +56,13 @@ export function K8sClusterWizard() {
       .getK8sNamespaces()
       .then(setK8sNamespaces)
       .catch((err) => {
-        console.warn("Failed to fetch K8s namespaces, using defaults:", err);
+        setFetchError(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}. Using defaults.`);
       });
     api
       .getK8sStorageClasses()
       .then(setStorageClasses)
       .catch((err) => {
-        console.warn("Failed to fetch storage classes, using defaults:", err);
+        setFetchError(`Failed to fetch storage classes: ${getErrorMessage(err)}. Using defaults.`);
       });
   }, []);
 
@@ -99,16 +102,22 @@ export function K8sClusterWizard() {
 
   const isStoragePersistent = form.namespaces[0]?.storageEngine.type === "device";
 
-  const isValidK8sName = (v: string) => v.length > 0 && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v);
-
   const canProceed = () => {
     if (step === 0) {
-      return isValidK8sName(form.name);
+      return validateK8sName(form.name) === null;
     }
     if (step === 1) {
       const ns = form.namespaces[0];
       if (!ns || !ns.name || ns.name.trim().length === 0) return false;
       if (ns.replicationFactor > form.size) return false;
+      return true;
+    }
+    if (step === 2) {
+      const res = form.resources ?? DEFAULT_RESOURCES;
+      if (validateK8sCpu(res.requests.cpu) !== null) return false;
+      if (validateK8sCpu(res.limits.cpu) !== null) return false;
+      if (validateK8sMemory(res.requests.memory) !== null) return false;
+      if (validateK8sMemory(res.limits.memory) !== null) return false;
       return true;
     }
     return true;
@@ -135,6 +144,8 @@ export function K8sClusterWizard() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      <InlineAlert message={fetchError} variant="warning" />
+
       {/* Step indicator */}
       <div className="flex items-center gap-2">
         {STEPS.map((label, i) => (
@@ -185,11 +196,8 @@ export function K8sClusterWizard() {
                   value={form.name}
                   onChange={(e) => updateForm({ name: e.target.value.toLowerCase() })}
                 />
-                {form.name.length > 0 && !isValidK8sName(form.name) ? (
-                  <p className="text-destructive text-xs">
-                    Must start/end with a letter or number. Only lowercase letters, numbers, and
-                    hyphens.
-                  </p>
+                {form.name.length > 0 && validateK8sName(form.name) ? (
+                  <p className="text-destructive text-xs">{validateK8sName(form.name)}</p>
                 ) : (
                   <p className="text-muted-foreground text-xs">
                     Lowercase letters, numbers, and hyphens only (K8s DNS name).
@@ -198,9 +206,9 @@ export function K8sClusterWizard() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Namespace</Label>
+                <Label htmlFor="k8s-namespace">Namespace</Label>
                 <Select value={form.namespace} onValueChange={(v) => updateForm({ namespace: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="k8s-namespace">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,11 +268,15 @@ export function K8sClusterWizard() {
                   value={form.namespaces[0]?.name || "test"}
                   onChange={(e) => updateNamespace(0, { name: e.target.value })}
                 />
+                {form.namespaces[0]?.name !== undefined &&
+                  form.namespaces[0].name.trim().length === 0 && (
+                    <p className="text-destructive text-xs">Namespace name is required</p>
+                  )}
               </div>
 
               <div className="grid gap-2">
-                <Label>Storage Type</Label>
-                <div className="flex gap-2">
+                <Label htmlFor="storage-type">Storage Type</Label>
+                <div id="storage-type" className="flex gap-2">
                   <Button
                     type="button"
                     variant={!isStoragePersistent ? "default" : "outline"}
@@ -303,7 +315,7 @@ export function K8sClusterWizard() {
 
               {!isStoragePersistent && (
                 <div className="grid gap-2">
-                  <Label>Memory Size</Label>
+                  <Label htmlFor="memory-size">Memory Size</Label>
                   <Select
                     value={String(form.namespaces[0]?.storageEngine.dataSize || 1073741824)}
                     onValueChange={(v) =>
@@ -312,7 +324,7 @@ export function K8sClusterWizard() {
                       })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="memory-size">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -328,7 +340,7 @@ export function K8sClusterWizard() {
               {isStoragePersistent && (
                 <>
                   <div className="grid gap-2">
-                    <Label>Storage Class</Label>
+                    <Label htmlFor="storage-class">Storage Class</Label>
                     <Select
                       value={form.storage?.storageClass || "standard"}
                       onValueChange={(v) => {
@@ -340,7 +352,7 @@ export function K8sClusterWizard() {
                         updateForm({ storage: { ...base, storageClass: v } });
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="storage-class">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -410,34 +422,58 @@ export function K8sClusterWizard() {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>CPU Request</Label>
+                  <Label htmlFor="cpu-request">CPU Request</Label>
                   <Input
+                    id="cpu-request"
                     value={form.resources?.requests.cpu || "500m"}
                     onChange={(e) => updateResource("requests", "cpu", e.target.value)}
                   />
+                  {validateK8sCpu(form.resources?.requests.cpu || "500m") && (
+                    <p className="text-destructive text-xs">
+                      {validateK8sCpu(form.resources?.requests.cpu || "500m")}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
-                  <Label>CPU Limit</Label>
+                  <Label htmlFor="cpu-limit">CPU Limit</Label>
                   <Input
+                    id="cpu-limit"
                     value={form.resources?.limits.cpu || "2"}
                     onChange={(e) => updateResource("limits", "cpu", e.target.value)}
                   />
+                  {validateK8sCpu(form.resources?.limits.cpu || "2") && (
+                    <p className="text-destructive text-xs">
+                      {validateK8sCpu(form.resources?.limits.cpu || "2")}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Memory Request</Label>
+                  <Label htmlFor="mem-request">Memory Request</Label>
                   <Input
+                    id="mem-request"
                     value={form.resources?.requests.memory || "1Gi"}
                     onChange={(e) => updateResource("requests", "memory", e.target.value)}
                   />
+                  {validateK8sMemory(form.resources?.requests.memory || "1Gi") && (
+                    <p className="text-destructive text-xs">
+                      {validateK8sMemory(form.resources?.requests.memory || "1Gi")}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
-                  <Label>Memory Limit</Label>
+                  <Label htmlFor="mem-limit">Memory Limit</Label>
                   <Input
+                    id="mem-limit"
                     value={form.resources?.limits.memory || "4Gi"}
                     onChange={(e) => updateResource("limits", "memory", e.target.value)}
                   />
+                  {validateK8sMemory(form.resources?.limits.memory || "4Gi") && (
+                    <p className="text-destructive text-xs">
+                      {validateK8sMemory(form.resources?.limits.memory || "4Gi")}
+                    </p>
+                  )}
                 </div>
               </div>
 

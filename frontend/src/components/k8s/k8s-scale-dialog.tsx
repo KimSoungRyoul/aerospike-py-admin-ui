@@ -74,6 +74,11 @@ export function K8sScaleDialog({
               onChange={(e) => setSize(Math.min(8, Math.max(1, parseInt(e.target.value) || 1)))}
             />
           </div>
+          {size < currentSize && (
+            <p className="text-warning text-sm">
+              Scaling down will remove nodes. Data may be lost if not replicated.
+            </p>
+          )}
           {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
         <DialogFooter>
@@ -83,7 +88,7 @@ export function K8sScaleDialog({
           <LoadingButton
             onClick={handleScale}
             loading={loading}
-            disabled={size === currentSize || loading}
+            disabled={size === currentSize || loading || !!error}
           >
             Scale
           </LoadingButton>

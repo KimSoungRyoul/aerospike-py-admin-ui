@@ -156,3 +156,40 @@ env:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# -- Topology spread constraints for pod scheduling
+topologySpreadConstraints: []
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Termination grace period in seconds
+terminationGracePeriodSeconds: 45
+
+# =============================================================================
+# Network Policy
+# =============================================================================
+networkPolicy:
+  # -- Enable NetworkPolicy for restricting ingress/egress traffic
+  enabled: false
+
+# =============================================================================
+# Pod Disruption Budget
+# =============================================================================
+podDisruptionBudget:
+  # -- Enable PodDisruptionBudget
+  enabled: false
+  # -- Minimum number of pods that must remain available (mutually exclusive with maxUnavailable)
+  # minAvailable: 1
+  # -- Maximum number of pods that can be unavailable (mutually exclusive with minAvailable)
+  # maxUnavailable: 1
+
+# =============================================================================
+# Extra Environment Variables
+# =============================================================================
+# -- Extra environment variables to set on the container
+# Example:
+#   extraEnv:
+#     - name: MY_VAR
+#       value: "my-value"
+extraEnv: []

@@ -19,6 +19,16 @@ VERSION = "v1alpha1"
 PLURAL = "aerospikececlusters"
 
 
+class K8sApiError(Exception):
+    """Wraps kubernetes ApiException with HTTP status code and reason."""
+
+    def __init__(self, status: int, reason: str, message: str = "") -> None:
+        self.status = status
+        self.reason = reason
+        self.message = message
+        super().__init__(f"K8s API error {status} {reason}: {message}")
+
+
 class K8sClient:
     """Singleton wrapper around kubernetes CustomObjectsApi and CoreV1Api."""
 
@@ -60,72 +70,113 @@ class K8sClient:
     # Sync helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _wrap_api_exception(e: Exception) -> K8sApiError:
+        """Convert a kubernetes ApiException into K8sApiError."""
+        from kubernetes.client.rest import ApiException
+
+        if isinstance(e, ApiException):
+            return K8sApiError(status=e.status, reason=e.reason or "", message=str(e.body) if e.body else "")
+        return K8sApiError(status=500, reason="InternalError", message=str(e))
+
     def _list_clusters_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
+        logger.debug("_list_clusters_sync(namespace=%s)", namespace)
         self._ensure_initialized()
-        if namespace:
-            result = self._custom_api.list_namespaced_custom_object(
-                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL
-            )
-        else:
-            result = self._custom_api.list_cluster_custom_object(group=GROUP, version=VERSION, plural=PLURAL)
-        return result.get("items", [])
+        try:
+            if namespace:
+                result = self._custom_api.list_namespaced_custom_object(
+                    group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL
+                )
+            else:
+                result = self._custom_api.list_cluster_custom_object(group=GROUP, version=VERSION, plural=PLURAL)
+            return result.get("items", [])
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _get_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
+        logger.debug("_get_cluster_sync(namespace=%s, name=%s)", namespace, name)
         self._ensure_initialized()
-        return self._custom_api.get_namespaced_custom_object(
-            group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name
-        )
+        try:
+            return self._custom_api.get_namespaced_custom_object(
+                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _create_cluster_sync(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
+        logger.debug("_create_cluster_sync(namespace=%s)", namespace)
         self._ensure_initialized()
-        return self._custom_api.create_namespaced_custom_object(
-            group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, body=body
-        )
+        try:
+            return self._custom_api.create_namespaced_custom_object(
+                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, body=body
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _patch_cluster_sync(self, namespace: str, name: str, body: dict[str, Any]) -> dict[str, Any]:
+        logger.debug("_patch_cluster_sync(namespace=%s, name=%s)", namespace, name)
         self._ensure_initialized()
-        return self._custom_api.patch_namespaced_custom_object(
-            group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name, body=body
-        )
+        try:
+            return self._custom_api.patch_namespaced_custom_object(
+                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name, body=body
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _delete_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
+        logger.debug("_delete_cluster_sync(namespace=%s, name=%s)", namespace, name)
         self._ensure_initialized()
-        return self._custom_api.delete_namespaced_custom_object(
-            group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name
-        )
+        try:
+            return self._custom_api.delete_namespaced_custom_object(
+                group=GROUP, version=VERSION, namespace=namespace, plural=PLURAL, name=name
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _list_namespaces_sync(self) -> list[str]:
+        logger.debug("_list_namespaces_sync()")
         self._ensure_initialized()
-        result = self._core_api.list_namespace()
-        return [ns.metadata.name for ns in result.items]
+        try:
+            result = self._core_api.list_namespace()
+            return [ns.metadata.name for ns in result.items]
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _list_storage_classes_sync(self) -> list[str]:
+        logger.debug("_list_storage_classes_sync()")
         self._ensure_initialized()
-        result = self._storage_api.list_storage_class()
-        return [sc.metadata.name for sc in result.items]
+        try:
+            result = self._storage_api.list_storage_class()
+            return [sc.metadata.name for sc in result.items]
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     def _list_pods_sync(self, namespace: str, label_selector: str) -> list[dict[str, Any]]:
+        logger.debug("_list_pods_sync(namespace=%s, label_selector=%s)", namespace, label_selector)
         self._ensure_initialized()
-        result = self._core_api.list_namespaced_pod(namespace=namespace, label_selector=label_selector)
-        pods = []
-        for pod in result.items:
-            ready = False
-            if pod.status and pod.status.conditions:
-                for cond in pod.status.conditions:
-                    if cond.type == "Ready" and cond.status == "True":
-                        ready = True
-                        break
-            pods.append(
-                {
-                    "name": pod.metadata.name,
-                    "podIP": pod.status.pod_ip if pod.status else None,
-                    "hostIP": pod.status.host_ip if pod.status else None,
-                    "isReady": ready,
-                    "phase": pod.status.phase if pod.status else "Unknown",
-                    "image": pod.spec.containers[0].image if pod.spec and pod.spec.containers else None,
-                }
-            )
-        return pods
+        try:
+            result = self._core_api.list_namespaced_pod(namespace=namespace, label_selector=label_selector)
+            pods = []
+            for pod in result.items:
+                ready = False
+                if pod.status and pod.status.conditions:
+                    for cond in pod.status.conditions:
+                        if cond.type == "Ready" and cond.status == "True":
+                            ready = True
+                            break
+                pods.append(
+                    {
+                        "name": pod.metadata.name,
+                        "podIP": pod.status.pod_ip if pod.status else None,
+                        "hostIP": pod.status.host_ip if pod.status else None,
+                        "isReady": ready,
+                        "phase": pod.status.phase if pod.status else "Unknown",
+                        "image": pod.spec.containers[0].image if pod.spec and pod.spec.containers else None,
+                    }
+                )
+            return pods
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
 
     # ------------------------------------------------------------------
     # Async public API

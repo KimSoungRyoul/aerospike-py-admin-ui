@@ -12,9 +12,11 @@ spec:
       port: {{ .Values.service.frontendPort }}
       targetPort: frontend
       protocol: TCP
+      appProtocol: http
     - name: backend
       port: {{ .Values.service.backendPort }}
       targetPort: backend
       protocol: TCP
+      appProtocol: http
   selector:
     {{- include "aerospike-admin-ui.selectorLabels" . | nindent 4 }}

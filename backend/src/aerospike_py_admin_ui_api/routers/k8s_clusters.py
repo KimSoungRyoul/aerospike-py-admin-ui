@@ -12,9 +12,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Path
+from pydantic import BaseModel
 
 from aerospike_py_admin_ui_api import config, db
-from aerospike_py_admin_ui_api.k8s_client import k8s_client
+from aerospike_py_admin_ui_api.k8s_client import K8sApiError, k8s_client
 from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
 from aerospike_py_admin_ui_api.models.k8s_cluster import (
     CreateK8sClusterRequest,
@@ -34,9 +35,20 @@ _K8S_NAME = Path(..., min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-
 _K8S_NAMESPACE = Path(..., min_length=1, max_length=253, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
 
 
+class DeleteResponse(BaseModel):
+    message: str
+
+
 def _require_k8s() -> None:
     if not config.K8S_MANAGEMENT_ENABLED:
         raise HTTPException(status_code=404, detail="Kubernetes management is not enabled")
+
+
+def _map_k8s_error(e: K8sApiError) -> HTTPException:
+    """Map K8sApiError status codes to appropriate HTTPException responses."""
+    status_map = {404: 404, 409: 409, 422: 422, 403: 403, 401: 401}
+    http_status = status_map.get(e.status, 500)
+    return HTTPException(status_code=http_status, detail=e.message or e.reason)
 
 
 def _calculate_age(creation_timestamp: str | None) -> str | None:
@@ -57,7 +69,7 @@ def _calculate_age(creation_timestamp: str | None) -> str | None:
         return None
 
 
-def _extract_summary(item: dict[str, Any]) -> K8sClusterSummary:
+def _extract_summary(item: dict[str, Any], connection_id: str | None = None) -> K8sClusterSummary:
     metadata = item.get("metadata", {})
     spec = item.get("spec", {})
     status = item.get("status", {})
@@ -68,6 +80,7 @@ def _extract_summary(item: dict[str, Any]) -> K8sClusterSummary:
         image=spec.get("image", ""),
         phase=status.get("phase", "Unknown"),
         age=_calculate_age(metadata.get("creationTimestamp")),
+        connectionId=connection_id,
     )
 
 
@@ -79,7 +92,6 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
         if ns.storage_engine.type == "memory":
             storage_engine["data-size"] = ns.storage_engine.data_size or 1073741824
         else:
-            storage_engine["type"] = "device"
             mount_path = req.storage.mount_path if req.storage else "/opt/aerospike/data"
             storage_engine["file"] = ns.storage_engine.file or f"{mount_path}/{ns.name}.dat"
             storage_engine["filesize"] = ns.storage_engine.filesize or 4294967296
@@ -177,6 +189,8 @@ async def list_k8s_clusters(namespace: str | None = None) -> list[K8sClusterSumm
         return [_extract_summary(item) for item in items]
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to list K8s clusters")
         raise HTTPException(status_code=500, detail="Failed to list Kubernetes clusters") from e
@@ -211,6 +225,8 @@ async def get_k8s_cluster(
         )
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to get K8s cluster %s/%s", namespace, name)
         raise HTTPException(status_code=500, detail="Failed to get Kubernetes cluster") from e
@@ -224,6 +240,7 @@ async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary
         result = await k8s_client.create_cluster(body.namespace, cr)
 
         # Auto-connect: create a connection profile pointing to the headless service
+        connection_id: str | None = None
         if body.auto_connect:
             try:
                 service_host = f"{body.name}.{body.namespace}.svc.cluster.local"
@@ -238,13 +255,16 @@ async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary
                     updatedAt=now,
                 )
                 await db.create_connection(conn)
+                connection_id = conn.id
                 logger.info("Auto-created connection profile for K8s cluster %s/%s", body.namespace, body.name)
             except Exception:
                 logger.warning("Failed to auto-create connection for %s/%s", body.namespace, body.name, exc_info=True)
 
-        return _extract_summary(result)
+        return _extract_summary(result, connection_id=connection_id)
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to create K8s cluster")
         raise HTTPException(status_code=500, detail="Failed to create Kubernetes cluster") from e
@@ -257,6 +277,11 @@ async def update_k8s_cluster(
     name: str = _K8S_NAME,
 ) -> K8sClusterSummary:
     _require_k8s()
+
+    # Validate that at least one field is provided
+    if body.size is None and body.image is None and body.resources is None:
+        raise HTTPException(status_code=400, detail="At least one field must be provided")
+
     try:
         patch: dict[str, Any] = {"spec": {}}
         if body.size is not None:
@@ -276,22 +301,26 @@ async def update_k8s_cluster(
         return _extract_summary(result)
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to update K8s cluster %s/%s", namespace, name)
         raise HTTPException(status_code=500, detail="Failed to update Kubernetes cluster") from e
 
 
-@router.delete("/clusters/{namespace}/{name}", summary="Delete K8s Aerospike cluster")
+@router.delete("/clusters/{namespace}/{name}", status_code=202, summary="Delete K8s Aerospike cluster")
 async def delete_k8s_cluster(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
-) -> dict[str, str]:
+) -> DeleteResponse:
     _require_k8s()
     try:
         await k8s_client.delete_cluster(namespace, name)
-        return {"message": f"Cluster {namespace}/{name} deletion initiated"}
+        return DeleteResponse(message=f"Cluster {namespace}/{name} deletion initiated")
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to delete K8s cluster %s/%s", namespace, name)
         raise HTTPException(status_code=500, detail="Failed to delete Kubernetes cluster") from e
@@ -310,6 +339,8 @@ async def scale_k8s_cluster(
         return _extract_summary(result)
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to scale K8s cluster %s/%s", namespace, name)
         raise HTTPException(status_code=500, detail="Failed to scale Kubernetes cluster") from e
@@ -322,6 +353,8 @@ async def list_k8s_namespaces() -> list[str]:
         return await k8s_client.list_namespaces()
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to list K8s namespaces")
         raise HTTPException(status_code=500, detail="Failed to list Kubernetes namespaces") from e
@@ -334,6 +367,8 @@ async def list_k8s_storage_classes() -> list[str]:
         return await k8s_client.list_storage_classes()
     except HTTPException:
         raise
+    except K8sApiError as e:
+        raise _map_k8s_error(e) from e
     except Exception as e:
         logger.exception("Failed to list K8s storage classes")
         raise HTTPException(status_code=500, detail="Failed to list Kubernetes storage classes") from e

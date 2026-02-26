@@ -14,6 +14,10 @@ spec:
     metadata:
       labels:
         {{- include "aerospike-admin-ui.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "aerospike-admin-ui.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
@@ -24,6 +28,7 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 45 }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ include "aerospike-admin-ui.image" . }}
@@ -38,6 +43,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "aerospike-admin-ui.fullname" . }}-config
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
@@ -79,5 +88,9 @@ spec:
       {{- end }}
       {{- with .Values.affinity }}
       affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
