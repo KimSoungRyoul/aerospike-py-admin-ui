@@ -117,9 +117,11 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
   const router = useRouter();
 
   useEffect(() => {
-    fetchConnections().then(() => {
-      fetchAllHealth();
-    });
+    fetchConnections()
+      .then(() => {
+        fetchAllHealth();
+      })
+      .catch(() => {});
   }, [fetchConnections, fetchAllHealth]);
 
   const filteredConnections = connections.filter((c) =>

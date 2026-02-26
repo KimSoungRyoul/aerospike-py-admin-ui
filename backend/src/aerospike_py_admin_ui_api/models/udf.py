@@ -13,5 +13,5 @@ class UDFModule(BaseModel):
 
 
 class UploadUDFRequest(BaseModel):
-    filename: str = Field(min_length=1)
+    filename: str = Field(min_length=1, pattern=r"^[a-zA-Z0-9_.-]{1,255}$")
     content: str = Field(min_length=1)

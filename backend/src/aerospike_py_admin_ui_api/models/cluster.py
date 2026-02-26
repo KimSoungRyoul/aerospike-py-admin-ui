@@ -52,6 +52,6 @@ class ClusterInfo(BaseModel):
 
 
 class CreateNamespaceRequest(BaseModel):
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, pattern=r"^[a-zA-Z0-9_-]{1,63}$")
     memorySize: int = Field(default=1_073_741_824, ge=1_000_000)  # min 1 MB
     replicationFactor: int = Field(default=2, ge=1, le=8)

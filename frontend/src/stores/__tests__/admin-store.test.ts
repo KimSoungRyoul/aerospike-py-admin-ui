@@ -45,7 +45,8 @@ describe("useAdminStore", () => {
     useAdminStore.setState({
       users: [],
       roles: [],
-      loading: false,
+      usersLoading: false,
+      rolesLoading: false,
       error: null,
       isEnterpriseRequired: false,
     });
@@ -56,21 +57,22 @@ describe("useAdminStore", () => {
     const state = useAdminStore.getState();
     expect(state.users).toEqual([]);
     expect(state.roles).toEqual([]);
-    expect(state.loading).toBe(false);
+    expect(state.usersLoading).toBe(false);
+    expect(state.rolesLoading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.isEnterpriseRequired).toBe(false);
   });
 
   // --- fetchUsers ---
 
-  it("fetchUsers sets loading and populates users", async () => {
+  it("fetchUsers sets usersLoading and populates users", async () => {
     mockApi.getUsers.mockResolvedValue(mockUsers as any);
 
     await useAdminStore.getState().fetchUsers("conn-1");
 
     const state = useAdminStore.getState();
     expect(state.users).toEqual(mockUsers);
-    expect(state.loading).toBe(false);
+    expect(state.usersLoading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.isEnterpriseRequired).toBe(false);
     expect(mockApi.getUsers).toHaveBeenCalledWith("conn-1");
@@ -83,7 +85,7 @@ describe("useAdminStore", () => {
 
     const state = useAdminStore.getState();
     expect(state.error).toBe("Network error");
-    expect(state.loading).toBe(false);
+    expect(state.usersLoading).toBe(false);
     expect(state.isEnterpriseRequired).toBe(false);
   });
 
@@ -94,7 +96,7 @@ describe("useAdminStore", () => {
 
     const state = useAdminStore.getState();
     expect(state.isEnterpriseRequired).toBe(true);
-    expect(state.loading).toBe(false);
+    expect(state.usersLoading).toBe(false);
     expect(state.error).toBeNull();
   });
 
@@ -106,19 +108,19 @@ describe("useAdminStore", () => {
     const state = useAdminStore.getState();
     expect(state.isEnterpriseRequired).toBe(false);
     expect(state.error).toBe("Server error");
-    expect(state.loading).toBe(false);
+    expect(state.usersLoading).toBe(false);
   });
 
   // --- fetchRoles ---
 
-  it("fetchRoles sets loading and populates roles", async () => {
+  it("fetchRoles sets rolesLoading and populates roles", async () => {
     mockApi.getRoles.mockResolvedValue(mockRoles as any);
 
     await useAdminStore.getState().fetchRoles("conn-1");
 
     const state = useAdminStore.getState();
     expect(state.roles).toEqual(mockRoles);
-    expect(state.loading).toBe(false);
+    expect(state.rolesLoading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.isEnterpriseRequired).toBe(false);
     expect(mockApi.getRoles).toHaveBeenCalledWith("conn-1");
@@ -131,7 +133,7 @@ describe("useAdminStore", () => {
 
     const state = useAdminStore.getState();
     expect(state.error).toBe("Connection refused");
-    expect(state.loading).toBe(false);
+    expect(state.rolesLoading).toBe(false);
   });
 
   it("fetchRoles sets isEnterpriseRequired on 403 ApiError", async () => {
@@ -141,7 +143,7 @@ describe("useAdminStore", () => {
 
     const state = useAdminStore.getState();
     expect(state.isEnterpriseRequired).toBe(true);
-    expect(state.loading).toBe(false);
+    expect(state.rolesLoading).toBe(false);
     expect(state.error).toBeNull();
   });
 

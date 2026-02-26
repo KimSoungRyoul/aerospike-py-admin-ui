@@ -10,10 +10,12 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=500"]
       - id: check-merge-conflict
+      - id: check-toml
+      - id: detect-private-key
 
   # ── Python / Backend (ruff) ──────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.10
+    rev: v0.15.1
     hooks:
       - id: ruff
         args: ["--fix"]

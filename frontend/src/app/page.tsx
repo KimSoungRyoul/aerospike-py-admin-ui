@@ -45,6 +45,7 @@ import { useConnectionStore } from "@/stores/connection-store";
 import type { ConnectionProfile } from "@/lib/api/types";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { PRESET_COLORS } from "@/lib/constants";
+import { connectionImportSchema } from "@/lib/validations/connection";
 import { toast } from "sonner";
 
 interface ConnectionFormData {
@@ -94,9 +95,11 @@ export default function ConnectionsPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchConnections().then(() => {
-      fetchAllHealth();
-    });
+    fetchConnections()
+      .then(() => {
+        fetchAllHealth();
+      })
+      .catch(() => {});
   }, [fetchConnections, fetchAllHealth]);
 
   const openCreateDialog = useCallback(() => {
@@ -221,10 +224,17 @@ export default function ConnectionsPage() {
           toast.error("Invalid file format");
           return;
         }
-        for (const conn of imported) {
-          await createConnection(conn);
+        let importedCount = 0;
+        for (let i = 0; i < imported.length; i++) {
+          const result = connectionImportSchema.safeParse(imported[i]);
+          if (!result.success) {
+            toast.error(`Invalid connection at index ${i}: ${result.error.issues[0]?.message}`);
+            continue;
+          }
+          await createConnection(result.data);
+          importedCount++;
         }
-        toast.success(`Imported ${imported.length} cluster(s)`);
+        toast.success(`Imported ${importedCount} cluster(s)`);
         fetchAllHealth();
       } catch {
         toast.error("Failed to import clusters");
@@ -323,7 +333,15 @@ export default function ConnectionsPage() {
                   "hover:border-accent/30",
                 )}
                 style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigateToConnection(conn)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigateToConnection(conn);
+                  }
+                }}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">

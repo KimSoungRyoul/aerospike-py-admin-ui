@@ -21,7 +21,6 @@ describe("useMetricsStore", () => {
       metrics: null,
       loading: false,
       error: null,
-      intervalId: null,
     });
     vi.clearAllMocks();
   });
@@ -62,15 +61,14 @@ describe("useMetricsStore", () => {
     useMetricsStore.getState().startPolling("conn-1");
 
     expect(mockApi.getMetrics).toHaveBeenCalledTimes(1);
-    expect(useMetricsStore.getState().intervalId).not.toBeNull();
   });
 
-  it("stopPolling clears interval", () => {
+  it("stopPolling resets _isFetching", () => {
     mockApi.getMetrics.mockResolvedValue({} as any);
 
     useMetricsStore.getState().startPolling("conn-1");
     useMetricsStore.getState().stopPolling();
 
-    expect(useMetricsStore.getState().intervalId).toBeNull();
+    expect(useMetricsStore.getState()._isFetching).toBe(false);
   });
 });

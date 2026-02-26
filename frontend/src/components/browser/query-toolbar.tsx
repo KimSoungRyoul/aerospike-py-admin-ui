@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Play, Search, SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,11 +60,11 @@ export function QueryToolbar({
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Known bins for multi-select (populated from previous results)
-  const knownBins = (() => {
+  const knownBins = useMemo(() => {
     const bins = new Set<string>();
     store.results.forEach((r) => Object.keys(r.bins).forEach((b) => bins.add(b)));
     return Array.from(bins).sort();
-  })();
+  }, [store.results]);
 
   const toggleBin = useCallback(
     (bin: string) => {

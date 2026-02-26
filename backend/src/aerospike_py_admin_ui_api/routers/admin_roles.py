@@ -6,14 +6,13 @@ import logging
 from aerospike_py.exception import AdminError, AerospikeError
 from fastapi import APIRouter, HTTPException, Query
 
+from aerospike_py_admin_ui_api.constants import EE_MSG
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.admin import AerospikeRole, CreateRoleRequest, Privilege
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
-
-_EE_MSG = "User/role management requires Aerospike Enterprise Edition"
 
 
 def _query_roles_sync(c) -> list[AerospikeRole]:
@@ -56,10 +55,10 @@ async def get_roles(client: AerospikeClient) -> list[AerospikeRole]:
     try:
         return await asyncio.to_thread(_query_roles_sync, client)
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
     except AerospikeError as e:
         if "security" in str(e).lower() or "not enabled" in str(e).lower() or "not supported" in str(e).lower():
-            raise HTTPException(status_code=403, detail=_EE_MSG) from None
+            raise HTTPException(status_code=403, detail=EE_MSG) from None
         raise
 
 
@@ -88,7 +87,7 @@ async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> Aeros
     try:
         await asyncio.to_thread(_create_role_sync, client, body)
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
 
     return AerospikeRole(
         name=body.name,
@@ -116,6 +115,6 @@ async def delete_role(
     try:
         await asyncio.to_thread(_drop_role_sync, client, name)
     except AdminError:
-        raise HTTPException(status_code=403, detail=_EE_MSG) from None
+        raise HTTPException(status_code=403, detail=EE_MSG) from None
 
     return {"message": "Role deleted"}

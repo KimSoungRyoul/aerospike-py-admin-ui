@@ -63,17 +63,12 @@ def _execute_query_sync(c, body: QueryRequest) -> dict:
             "returnedRecords": len(records),
         }
 
+    q = c.query(body.namespace, body.set or "")
     if body.predicate:
-        q = c.query(body.namespace, body.set or "")
         q.where(_build_predicate(body.predicate))
-        if body.selectBins:
-            q.select(*body.selectBins)
-        raw_results = q.results(POLICY_QUERY)
-    else:
-        q = c.query(body.namespace, body.set or "")
-        if body.selectBins:
-            q.select(*body.selectBins)
-        raw_results = q.results(POLICY_QUERY)
+    if body.selectBins:
+        q.select(*body.selectBins)
+    raw_results = q.results(POLICY_QUERY)
 
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
     scanned = len(raw_results)

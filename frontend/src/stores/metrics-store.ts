@@ -4,14 +4,16 @@ import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 import { METRIC_INTERVAL_MS } from "@/lib/constants";
 
+// Module-level variables to avoid storing non-serializable values in Zustand state
+let _intervalId: ReturnType<typeof setInterval> | null = null;
+let _visibilityCleanup: (() => void) | null = null;
+
 interface MetricsState {
   metrics: ClusterMetrics | null;
   loading: boolean;
   error: string | null;
-  intervalId: ReturnType<typeof setInterval> | null;
   _isFetching: boolean;
   _isTabVisible: boolean;
-  _visibilityCleanup: (() => void) | null;
 
   fetchMetrics: (connId: string) => Promise<void>;
   startPolling: (connId: string) => void;
@@ -22,10 +24,8 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
   metrics: null,
   loading: false,
   error: null,
-  intervalId: null,
   _isFetching: false,
   _isTabVisible: true,
-  _visibilityCleanup: null,
 
   fetchMetrics: async (connId) => {
     // Prevent concurrent requests
@@ -42,13 +42,12 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
   },
 
   startPolling: (connId) => {
-    const { intervalId, _visibilityCleanup } = get();
-    if (intervalId) clearInterval(intervalId);
+    if (_intervalId) clearInterval(_intervalId);
     if (_visibilityCleanup) _visibilityCleanup();
 
     get().fetchMetrics(connId);
 
-    const id = setInterval(() => {
+    _intervalId = setInterval(() => {
       // Skip polling when tab is not visible
       if (!get()._isTabVisible) return;
       get().fetchMetrics(connId);
@@ -60,23 +59,22 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    set({
-      intervalId: id,
-      _isTabVisible: !document.hidden,
-      _visibilityCleanup: () => {
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-      },
-    });
+    _visibilityCleanup = () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+
+    set({ _isTabVisible: !document.hidden });
   },
 
   stopPolling: () => {
-    const { intervalId, _visibilityCleanup } = get();
-    if (intervalId) {
-      clearInterval(intervalId);
+    if (_intervalId) {
+      clearInterval(_intervalId);
+      _intervalId = null;
     }
     if (_visibilityCleanup) {
       _visibilityCleanup();
+      _visibilityCleanup = null;
     }
-    set({ intervalId: null, _visibilityCleanup: null });
+    set({ _isFetching: false });
   },
 }));

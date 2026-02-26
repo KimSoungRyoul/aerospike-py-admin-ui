@@ -43,7 +43,8 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
   const {
     users,
     roles,
-    loading,
+    usersLoading,
+    rolesLoading,
     error,
     isEnterpriseRequired,
     fetchUsers,
@@ -230,6 +231,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
+              aria-label={`Change password for ${row.original.username}`}
               onClick={() => {
                 setChangePassUser(row.original.username);
                 setNewPass("");
@@ -242,6 +244,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
               variant="ghost"
               size="sm"
               className="text-destructive h-8 w-8 p-0"
+              aria-label={`Delete user ${row.original.username}`}
               onClick={() => setDeleteUserTarget(row.original.username)}
             >
               <Trash2 className="h-4 w-4" />
@@ -311,6 +314,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
             variant="ghost"
             size="sm"
             className="text-destructive h-8 w-8 p-0"
+            aria-label={`Delete role ${row.original.name}`}
             onClick={() => setDeleteRoleTarget(row.original.name)}
           >
             <Trash2 className="h-4 w-4" />
@@ -369,7 +373,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
             <DataTable
               data={users}
               columns={userColumns}
-              loading={loading}
+              loading={usersLoading}
               emptyState={
                 <EmptyState
                   icon={Users}
@@ -399,7 +403,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
             <DataTable
               data={roles}
               columns={roleColumns}
-              loading={loading}
+              loading={rolesLoading}
               emptyState={
                 <EmptyState
                   icon={Shield}
