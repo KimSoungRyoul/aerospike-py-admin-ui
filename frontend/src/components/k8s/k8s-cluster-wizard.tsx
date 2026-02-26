@@ -52,15 +52,38 @@ export function K8sClusterWizard() {
     api
       .getK8sNamespaces()
       .then(setK8sNamespaces)
-      .catch(() => {});
+      .catch((err) => {
+        console.warn("Failed to fetch K8s namespaces, using defaults:", err);
+      });
     api
       .getK8sStorageClasses()
       .then(setStorageClasses)
-      .catch(() => {});
+      .catch((err) => {
+        console.warn("Failed to fetch storage classes, using defaults:", err);
+      });
   }, []);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
+  };
+
+  const DEFAULT_RESOURCES = {
+    requests: { cpu: "500m", memory: "1Gi" },
+    limits: { cpu: "2", memory: "4Gi" },
+  };
+
+  const updateResource = (
+    section: "requests" | "limits",
+    field: "cpu" | "memory",
+    value: string,
+  ) => {
+    const current = form.resources ?? DEFAULT_RESOURCES;
+    updateForm({
+      resources: {
+        ...current,
+        [section]: { ...current[section], [field]: value },
+      },
+    });
   };
 
   const updateNamespace = (index: number, updates: Record<string, unknown>) => {
@@ -76,9 +99,17 @@ export function K8sClusterWizard() {
 
   const isStoragePersistent = form.namespaces[0]?.storageEngine.type === "device";
 
+  const isValidK8sName = (v: string) => v.length > 0 && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v);
+
   const canProceed = () => {
     if (step === 0) {
-      return form.name.length > 0 && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(form.name);
+      return isValidK8sName(form.name);
+    }
+    if (step === 1) {
+      const ns = form.namespaces[0];
+      if (!ns || !ns.name || ns.name.trim().length === 0) return false;
+      if (ns.replicationFactor > form.size) return false;
+      return true;
     }
     return true;
   };
@@ -111,6 +142,8 @@ export function K8sClusterWizard() {
             key={label}
             onClick={() => i < step && setStep(i)}
             disabled={i > step}
+            aria-label={`Step ${i + 1}: ${label}`}
+            aria-current={i === step ? "step" : undefined}
             className="flex items-center gap-2"
           >
             <span
@@ -152,9 +185,16 @@ export function K8sClusterWizard() {
                   value={form.name}
                   onChange={(e) => updateForm({ name: e.target.value.toLowerCase() })}
                 />
-                <p className="text-muted-foreground text-xs">
-                  Lowercase letters, numbers, and hyphens only (K8s DNS name).
-                </p>
+                {form.name.length > 0 && !isValidK8sName(form.name) ? (
+                  <p className="text-destructive text-xs">
+                    Must start/end with a letter or number. Only lowercase letters, numbers, and
+                    hyphens.
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-xs">
+                    Lowercase letters, numbers, and hyphens only (K8s DNS name).
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-2">
@@ -291,11 +331,14 @@ export function K8sClusterWizard() {
                     <Label>Storage Class</Label>
                     <Select
                       value={form.storage?.storageClass || "standard"}
-                      onValueChange={(v) =>
-                        updateForm({
-                          storage: { ...form.storage!, storageClass: v },
-                        })
-                      }
+                      onValueChange={(v) => {
+                        const base = form.storage ?? {
+                          storageClass: "standard",
+                          size: "10Gi",
+                          mountPath: "/opt/aerospike/data",
+                        };
+                        updateForm({ storage: { ...base, storageClass: v } });
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -318,11 +361,14 @@ export function K8sClusterWizard() {
                     <Label htmlFor="pv-size">Volume Size</Label>
                     <Select
                       value={form.storage?.size || "10Gi"}
-                      onValueChange={(v) =>
-                        updateForm({
-                          storage: { ...form.storage!, size: v },
-                        })
-                      }
+                      onValueChange={(v) => {
+                        const base = form.storage ?? {
+                          storageClass: "standard",
+                          size: "10Gi",
+                          mountPath: "/opt/aerospike/data",
+                        };
+                        updateForm({ storage: { ...base, size: v } });
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -367,37 +413,14 @@ export function K8sClusterWizard() {
                   <Label>CPU Request</Label>
                   <Input
                     value={form.resources?.requests.cpu || "500m"}
-                    onChange={(e) =>
-                      updateForm({
-                        resources: {
-                          requests: {
-                            cpu: e.target.value,
-                            memory: form.resources?.requests.memory || "1Gi",
-                          },
-                          limits: form.resources?.limits || { cpu: "2", memory: "4Gi" },
-                        },
-                      })
-                    }
+                    onChange={(e) => updateResource("requests", "cpu", e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>CPU Limit</Label>
                   <Input
                     value={form.resources?.limits.cpu || "2"}
-                    onChange={(e) =>
-                      updateForm({
-                        resources: {
-                          requests: form.resources?.requests || {
-                            cpu: "500m",
-                            memory: "1Gi",
-                          },
-                          limits: {
-                            cpu: e.target.value,
-                            memory: form.resources?.limits.memory || "4Gi",
-                          },
-                        },
-                      })
-                    }
+                    onChange={(e) => updateResource("limits", "cpu", e.target.value)}
                   />
                 </div>
               </div>
@@ -406,37 +429,14 @@ export function K8sClusterWizard() {
                   <Label>Memory Request</Label>
                   <Input
                     value={form.resources?.requests.memory || "1Gi"}
-                    onChange={(e) =>
-                      updateForm({
-                        resources: {
-                          requests: {
-                            cpu: form.resources?.requests.cpu || "500m",
-                            memory: e.target.value,
-                          },
-                          limits: form.resources?.limits || { cpu: "2", memory: "4Gi" },
-                        },
-                      })
-                    }
+                    onChange={(e) => updateResource("requests", "memory", e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Memory Limit</Label>
                   <Input
                     value={form.resources?.limits.memory || "4Gi"}
-                    onChange={(e) =>
-                      updateForm({
-                        resources: {
-                          requests: form.resources?.requests || {
-                            cpu: "500m",
-                            memory: "1Gi",
-                          },
-                          limits: {
-                            cpu: form.resources?.limits.cpu || "2",
-                            memory: e.target.value,
-                          },
-                        },
-                      })
-                    }
+                    onChange={(e) => updateResource("limits", "memory", e.target.value)}
                   />
                 </div>
               </div>

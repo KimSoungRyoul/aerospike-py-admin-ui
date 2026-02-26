@@ -42,8 +42,14 @@ class K8sClient:
                 k8s_config.load_incluster_config()
                 logger.info("Loaded in-cluster Kubernetes config")
             except k8s_config.ConfigException:
-                k8s_config.load_kube_config()
-                logger.info("Loaded kubeconfig from default location")
+                try:
+                    k8s_config.load_kube_config()
+                    logger.info("Loaded kubeconfig from default location")
+                except Exception as e:
+                    logger.error("Failed to load any Kubernetes config: %s", e)
+                    raise RuntimeError(
+                        "Unable to initialize Kubernetes client — no in-cluster config or valid kubeconfig found"
+                    ) from e
 
             self._custom_api = client.CustomObjectsApi()
             self._core_api = client.CoreV1Api()

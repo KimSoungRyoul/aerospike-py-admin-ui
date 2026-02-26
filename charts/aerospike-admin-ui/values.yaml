@@ -103,6 +103,8 @@ podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1001
   fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -130,12 +132,21 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
 
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: backend
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+
 # =============================================================================
 # Environment
 # =============================================================================
 env:
   # -- Backend CORS origins
-  corsOrigins: "http://localhost:3000"
+  # -- Backend CORS origins (empty = no CORS; frontend proxies via Next.js rewrites)
+  corsOrigins: ""
   # -- Log level
   logLevel: "INFO"
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +31,23 @@ export function K8sScaleDialog({
 }: K8sScaleDialogProps) {
   const [size, setSize] = useState(currentSize);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setSize(currentSize);
+      setError(null);
+    }
+  }, [open, currentSize]);
 
   const handleScale = async () => {
     setLoading(true);
+    setError(null);
     try {
       await onScale(size);
       onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to scale cluster");
     } finally {
       setLoading(false);
     }
@@ -63,6 +74,7 @@ export function K8sScaleDialog({
               onChange={(e) => setSize(Math.min(8, Math.max(1, parseInt(e.target.value) || 1)))}
             />
           </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>

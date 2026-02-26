@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 
 from aerospike_py_admin_ui_api import config, db
 from aerospike_py_admin_ui_api.k8s_client import k8s_client
@@ -28,6 +28,10 @@ from aerospike_py_admin_ui_api.models.k8s_cluster import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/k8s", tags=["k8s-clusters"])
+
+# Reusable K8s DNS-compatible name constraint for path parameters.
+_K8S_NAME = Path(..., min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+_K8S_NAMESPACE = Path(..., min_length=1, max_length=253, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
 
 
 def _require_k8s() -> None:
@@ -175,11 +179,14 @@ async def list_k8s_clusters(namespace: str | None = None) -> list[K8sClusterSumm
         raise
     except Exception as e:
         logger.exception("Failed to list K8s clusters")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to list Kubernetes clusters") from e
 
 
 @router.get("/clusters/{namespace}/{name}", summary="Get K8s Aerospike cluster detail")
-async def get_k8s_cluster(namespace: str, name: str) -> K8sClusterDetail:
+async def get_k8s_cluster(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sClusterDetail:
     _require_k8s()
     try:
         item = await k8s_client.get_cluster(namespace, name)
@@ -206,7 +213,7 @@ async def get_k8s_cluster(namespace: str, name: str) -> K8sClusterDetail:
         raise
     except Exception as e:
         logger.exception("Failed to get K8s cluster %s/%s", namespace, name)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to get Kubernetes cluster") from e
 
 
 @router.post("/clusters", status_code=201, summary="Create K8s Aerospike cluster")
@@ -240,11 +247,15 @@ async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary
         raise
     except Exception as e:
         logger.exception("Failed to create K8s cluster")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to create Kubernetes cluster") from e
 
 
 @router.patch("/clusters/{namespace}/{name}", summary="Update K8s Aerospike cluster")
-async def update_k8s_cluster(namespace: str, name: str, body: UpdateK8sClusterRequest) -> K8sClusterSummary:
+async def update_k8s_cluster(
+    body: UpdateK8sClusterRequest,
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sClusterSummary:
     _require_k8s()
     try:
         patch: dict[str, Any] = {"spec": {}}
@@ -267,11 +278,14 @@ async def update_k8s_cluster(namespace: str, name: str, body: UpdateK8sClusterRe
         raise
     except Exception as e:
         logger.exception("Failed to update K8s cluster %s/%s", namespace, name)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to update Kubernetes cluster") from e
 
 
 @router.delete("/clusters/{namespace}/{name}", summary="Delete K8s Aerospike cluster")
-async def delete_k8s_cluster(namespace: str, name: str) -> dict[str, str]:
+async def delete_k8s_cluster(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> dict[str, str]:
     _require_k8s()
     try:
         await k8s_client.delete_cluster(namespace, name)
@@ -280,11 +294,15 @@ async def delete_k8s_cluster(namespace: str, name: str) -> dict[str, str]:
         raise
     except Exception as e:
         logger.exception("Failed to delete K8s cluster %s/%s", namespace, name)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to delete Kubernetes cluster") from e
 
 
 @router.post("/clusters/{namespace}/{name}/scale", summary="Scale K8s Aerospike cluster")
-async def scale_k8s_cluster(namespace: str, name: str, body: ScaleK8sClusterRequest) -> K8sClusterSummary:
+async def scale_k8s_cluster(
+    body: ScaleK8sClusterRequest,
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sClusterSummary:
     _require_k8s()
     try:
         patch = {"spec": {"size": body.size}}
@@ -294,7 +312,7 @@ async def scale_k8s_cluster(namespace: str, name: str, body: ScaleK8sClusterRequ
         raise
     except Exception as e:
         logger.exception("Failed to scale K8s cluster %s/%s", namespace, name)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to scale Kubernetes cluster") from e
 
 
 @router.get("/namespaces", summary="List Kubernetes namespaces")
@@ -306,7 +324,7 @@ async def list_k8s_namespaces() -> list[str]:
         raise
     except Exception as e:
         logger.exception("Failed to list K8s namespaces")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to list Kubernetes namespaces") from e
 
 
 @router.get("/storageclasses", summary="List Kubernetes storage classes")
@@ -318,4 +336,4 @@ async def list_k8s_storage_classes() -> list[str]:
         raise
     except Exception as e:
         logger.exception("Failed to list K8s storage classes")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to list Kubernetes storage classes") from e
