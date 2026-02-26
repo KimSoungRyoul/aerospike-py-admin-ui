@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { MoreHorizontal, Plus, Search, Server, Table2, Settings, X } from "lucide-react";
+import { Boxes, MoreHorizontal, Plus, Search, Server, Table2, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
+import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import type { ConnectionProfile } from "@/lib/api/types";
@@ -112,6 +113,7 @@ const ConnectionItem = React.memo(function ConnectionItem({
 
 function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
   const { connections, fetchConnections, fetchAllHealth } = useConnectionStore();
+  const { k8sAvailable, checkAvailability } = useK8sClusterStore();
   const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -123,6 +125,10 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
       })
       .catch(() => {});
   }, [fetchConnections, fetchAllHealth]);
+
+  useEffect(() => {
+    checkAvailability();
+  }, [checkAvailability]);
 
   const filteredConnections = connections.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
@@ -139,7 +145,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
         <div className="relative">
           <Search className="text-muted-foreground/50 absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
-            placeholder="Search clusters..."
+            placeholder="Search connections..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-sidebar-accent/50 border-sidebar-border placeholder:text-muted-foreground/40 h-8 pl-8 text-xs"
@@ -150,7 +156,9 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-0.5 py-1">
           {filteredConnections.length === 0 && search && (
-            <p className="text-muted-foreground px-2 py-4 text-center text-xs">No clusters found</p>
+            <p className="text-muted-foreground px-2 py-4 text-center text-xs">
+              No connections found
+            </p>
           )}
           {filteredConnections.map((conn) => (
             <ConnectionItem key={conn.id} connection={conn} isMobileOrTablet={isMobileOrTablet} />
@@ -168,8 +176,30 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
           onClick={() => handleNavigation("/")}
         >
           <Plus className="h-3.5 w-3.5" />
-          New Cluster
+          New Connection
         </Button>
+        {k8sAvailable && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-sidebar-border hover:border-accent/50 hover:bg-accent/5 hover:text-accent h-8 w-full justify-start gap-2 border-dashed text-xs transition-colors"
+              onClick={() => handleNavigation("/k8s/clusters/new")}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create Cluster
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
+              onClick={() => handleNavigation("/k8s/clusters")}
+            >
+              <Boxes className="h-3.5 w-3.5" />
+              K8s Clusters
+            </Button>
+          </>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -220,7 +250,7 @@ export function Sidebar() {
       >
         {/* Close button */}
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-sidebar-foreground text-sm font-semibold">Clusters</span>
+          <span className="text-sidebar-foreground text-sm font-semibold">Connections</span>
           <Button
             variant="ghost"
             size="icon"

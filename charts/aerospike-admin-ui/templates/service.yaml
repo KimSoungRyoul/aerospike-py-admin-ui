@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aerospike-admin-ui.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aerospike-admin-ui.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: frontend
+      port: {{ .Values.service.frontendPort }}
+      targetPort: frontend
+      protocol: TCP
+    - name: backend
+      port: {{ .Values.service.backendPort }}
+      targetPort: backend
+      protocol: TCP
+  selector:
+    {{- include "aerospike-admin-ui.selectorLabels" . | nindent 4 }}

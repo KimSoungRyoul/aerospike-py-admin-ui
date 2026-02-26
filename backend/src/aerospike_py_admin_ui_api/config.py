@@ -27,3 +27,5 @@ AEROSPIKE_HOST: str = os.getenv("AEROSPIKE_HOST", "localhost")
 AEROSPIKE_PORT: int = _get_int("AEROSPIKE_PORT", 3000)
 
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+K8S_MANAGEMENT_ENABLED: bool = os.getenv("K8S_MANAGEMENT_ENABLED", "false").lower() in ("true", "1", "yes")

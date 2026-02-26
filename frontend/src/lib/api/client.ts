@@ -190,4 +190,39 @@ export const api = {
   // Metrics
   getMetrics: (connId: string) =>
     request<import("./types").ClusterMetrics>(`/api/metrics/${connId}`),
+
+  // K8s Clusters
+  getK8sClusters: (namespace?: string) =>
+    request<import("./types").K8sClusterSummary[]>(
+      `/api/k8s/clusters${namespace ? `?namespace=${namespace}` : ""}`,
+    ),
+  getK8sCluster: (namespace: string, name: string) =>
+    request<import("./types").K8sClusterDetail>(`/api/k8s/clusters/${namespace}/${name}`),
+  createK8sCluster: (data: import("./types").CreateK8sClusterRequest) =>
+    request<import("./types").K8sClusterSummary>("/api/k8s/clusters", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateK8sCluster: (
+    namespace: string,
+    name: string,
+    data: import("./types").UpdateK8sClusterRequest,
+  ) =>
+    request<import("./types").K8sClusterSummary>(`/api/k8s/clusters/${namespace}/${name}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteK8sCluster: (namespace: string, name: string) =>
+    request<void>(`/api/k8s/clusters/${namespace}/${name}`, { method: "DELETE" }),
+  scaleK8sCluster: (
+    namespace: string,
+    name: string,
+    data: import("./types").ScaleK8sClusterRequest,
+  ) =>
+    request<import("./types").K8sClusterSummary>(`/api/k8s/clusters/${namespace}/${name}/scale`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getK8sNamespaces: () => request<string[]>("/api/k8s/namespaces"),
+  getK8sStorageClasses: () => request<string[]>("/api/k8s/storageclasses"),
 };

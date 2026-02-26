@@ -25,6 +25,9 @@ from aerospike_py_admin_ui_api.routers import (
     udfs,
 )
 
+if config.K8S_MANAGEMENT_ENABLED:
+    from aerospike_py_admin_ui_api.routers import k8s_clusters
+
 setup_logging(config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
@@ -173,6 +176,9 @@ app.include_router(admin_users.router)
 app.include_router(admin_roles.router)
 app.include_router(udfs.router)
 app.include_router(metrics.router)
+
+if config.K8S_MANAGEMENT_ENABLED:
+    app.include_router(k8s_clusters.router)
 
 
 @app.get("/api/health")
