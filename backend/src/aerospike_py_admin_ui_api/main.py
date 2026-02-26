@@ -71,6 +71,19 @@ async def request_logging_middleware(request: Request, call_next: RequestRespons
 
 
 # ---------------------------------------------------------------------------
+# Security headers middleware
+# ---------------------------------------------------------------------------
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
+
+
+# ---------------------------------------------------------------------------
 # Global exception handlers for aerospike-py errors
 # ---------------------------------------------------------------------------
 
