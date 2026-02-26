@@ -1,0 +1,256 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ApiError } from "../errors";
+import { api } from "../client";
+
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+function createResponse(status: number, body: unknown) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: `Status ${status}`,
+    json: vi.fn().mockResolvedValue(body),
+  };
+}
+
+/**
+ * Helper that runs a promise expected to reject alongside fake timers.
+ * Attaches a .catch() immediately so the rejection is handled before
+ * vi.runAllTimersAsync() flushes microtasks, avoiding "unhandled rejection" warnings.
+ */
+async function expectRejection<T>(promiseFactory: () => Promise<T>): Promise<ApiError> {
+  let caughtError: unknown;
+  const promise = promiseFactory().catch((err) => {
+    caughtError = err;
+  });
+
+  await vi.runAllTimersAsync();
+  await promise;
+
+  expect(caughtError).toBeInstanceOf(ApiError);
+  return caughtError as ApiError;
+}
+
+describe("api client", () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    vi.useRealTimers();
+  });
+
+  describe("successful requests", () => {
+    it("returns JSON data for a GET request", async () => {
+      const data = [{ id: "1", name: "Test Connection" }];
+      mockFetch.mockResolvedValueOnce(createResponse(200, data));
+
+      const result = await api.getConnections();
+
+      expect(result).toEqual(data);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/connections",
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+
+    it("sends body and returns JSON for a POST request", async () => {
+      const connectionData = {
+        name: "New Cluster",
+        hosts: ["localhost"],
+        port: 3000,
+        color: "#ff0000",
+      };
+      const responseData = {
+        id: "abc",
+        ...connectionData,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      };
+      mockFetch.mockResolvedValueOnce(createResponse(200, responseData));
+
+      const result = await api.createConnection(connectionData);
+
+      expect(result).toEqual(responseData);
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/connections",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify(connectionData),
+        }),
+      );
+    });
+  });
+
+  describe("error responses", () => {
+    it("throws ApiError with correct status and message for non-ok response", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(404, { message: "Connection not found" }));
+
+      await expect(api.getConnections()).rejects.toThrow(ApiError);
+    });
+
+    it("includes status and message on ApiError", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(404, { message: "Connection not found" }));
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Connection not found",
+        status: 404,
+      });
+    });
+
+    it("uses statusText when error body cannot be parsed as JSON", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: vi.fn().mockRejectedValue(new SyntaxError("invalid json")),
+      });
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Forbidden",
+        status: 403,
+      });
+    });
+
+    it("includes error code from response body", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createResponse(422, { message: "Validation failed", code: "VALIDATION_ERROR" }),
+      );
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        status: 422,
+        code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("does NOT retry 400 Bad Request", async () => {
+      mockFetch.mockResolvedValue(createResponse(400, { message: "Bad request" }));
+
+      await expect(api.getConnections()).rejects.toMatchObject({ status: 400 });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT retry 404 Not Found", async () => {
+      mockFetch.mockResolvedValue(createResponse(404, { message: "Not found" }));
+
+      await expect(api.getConnections()).rejects.toMatchObject({ status: 404 });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT retry 422 Unprocessable Entity", async () => {
+      mockFetch.mockResolvedValue(createResponse(422, { message: "Invalid" }));
+
+      await expect(api.getConnections()).rejects.toMatchObject({ status: 422 });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("retry behavior", () => {
+    it("retries 500 errors up to MAX_RETRIES (2) times then throws", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(500, { message: "Server error" }));
+
+      const error = await expectRejection(() => api.getConnections());
+
+      expect(error.status).toBe(500);
+      expect(error.message).toBe("Server error");
+      // 1 initial + 2 retries = 3 total
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("retries 429 Too Many Requests up to MAX_RETRIES times", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(429, { message: "Rate limited" }));
+
+      const error = await expectRejection(() => api.getConnections());
+
+      expect(error.status).toBe(429);
+      expect(error.message).toBe("Rate limited");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("retries 502 Bad Gateway", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(502, { message: "Bad gateway" }));
+
+      const error = await expectRejection(() => api.getConnections());
+
+      expect(error.status).toBe(502);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("succeeds on retry after initial 5xx failure", async () => {
+      vi.useFakeTimers();
+      const data = [{ id: "1" }];
+      mockFetch
+        .mockResolvedValueOnce(createResponse(503, { message: "Unavailable" }))
+        .mockResolvedValueOnce(createResponse(200, data));
+
+      let result: unknown;
+      const promise = api.getConnections().then((res) => {
+        result = res;
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(result).toEqual(data);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("timeout", () => {
+    it("throws ApiError with status 408 on timeout", async () => {
+      vi.useFakeTimers();
+
+      mockFetch.mockImplementation(
+        (_url: string, options: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options.signal.addEventListener("abort", () => {
+              reject(new DOMException("The operation was aborted.", "AbortError"));
+            });
+          }),
+      );
+
+      // getConnectionHealth uses a 10_000ms timeout
+      const error = await expectRejection(() => api.getConnectionHealth("test-id"));
+
+      expect(error.message).toBe("Request timed out");
+      expect(error.status).toBe(408);
+    });
+  });
+
+  describe("network errors", () => {
+    it("throws ApiError with status 0 after exhausting retries on network failure", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+      const error = await expectRejection(() => api.getConnections());
+
+      expect(error.status).toBe(0);
+      // 1 initial + 2 retries = 3 total
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("recovers on retry after transient network error", async () => {
+      vi.useFakeTimers();
+      const data = [{ id: "1" }];
+      mockFetch
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce(createResponse(200, data));
+
+      let result: unknown;
+      const promise = api.getConnections().then((res) => {
+        result = res;
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(result).toEqual(data);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+});
