@@ -1,4 +1,24 @@
 services:
+  # ── PostgreSQL ───────────────────────────────────────────────────────
+  postgres:
+    container_name: postgres
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: aerospike
+      POSTGRES_PASSWORD: aerospike
+      POSTGRES_DB: aerospike_manager
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aerospike -d aerospike_manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data
+    restart: unless-stopped
+
   # ── Aerospike 3-Node Mesh Cluster ──────────────────────────────────
   aerospike-node-1:
     container_name: aerospike-node-1
@@ -100,3 +120,6 @@ services:
       aerospike-node-3:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  postgres-data-dev:

@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from testcontainers.postgres import PostgresContainer
 
 from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
+
+
+@pytest.fixture(scope="session")
+def postgres_url() -> str:
+    """Start a PostgreSQL container once per test session and return its URL."""
+    with PostgresContainer("postgres:17-alpine") as pg:
+        url = pg.get_connection_url()
+        # testcontainers returns psycopg2-style URL; convert to asyncpg format
+        yield url.replace("postgresql+psycopg2://", "postgresql://")
 
 
 @pytest.fixture()
@@ -30,21 +39,18 @@ def sample_connection() -> ConnectionProfile:
 
 
 @pytest.fixture()
-def tmp_db_path(tmp_path: Path) -> str:
-    """Return a temporary database file path."""
-    return str(tmp_path / "test_connections.db")
-
-
-@pytest.fixture()
-def init_test_db(tmp_db_path: str):
+async def init_test_db(postgres_url: str):
     """Initialize a temporary database for testing and clean up after.
 
-    Patches config.DATABASE_PATH so that init_db() creates the database
-    at the temporary location.
+    Patches config.DATABASE_URL so that init_db() connects to the
+    testcontainers PostgreSQL instance.
     """
     from aerospike_py_admin_ui_api import db
 
-    with patch("aerospike_py_admin_ui_api.config.DATABASE_PATH", tmp_db_path):
-        db.init_db()
-        yield tmp_db_path
-        db.close_db()
+    with patch("aerospike_py_admin_ui_api.config.DATABASE_URL", postgres_url):
+        await db.init_db()
+        yield postgres_url
+        # Clean up: drop all rows so each test starts fresh
+        if db._pool is not None:
+            await db._pool.execute("DELETE FROM connections")
+            await db.close_db()

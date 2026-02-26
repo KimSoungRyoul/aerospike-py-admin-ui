@@ -35,10 +35,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting Aerospike Py Admin UI API")
-    db.init_db()
+    await db.init_db()
     yield
     await client_manager.close_all()
-    db.close_db()
+    await db.close_db()
     logger.info("Shutdown complete")
 
 

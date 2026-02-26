@@ -21,7 +21,7 @@ CORS_ORIGINS: list[str] = [
 HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = _get_int("PORT", 8000)
 
-DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/connections.db")
+DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://aerospike:aerospike@localhost:5432/aerospike_manager")
 
 AEROSPIKE_HOST: str = os.getenv("AEROSPIKE_HOST", "localhost")
 AEROSPIKE_PORT: int = _get_int("AEROSPIKE_PORT", 3000)

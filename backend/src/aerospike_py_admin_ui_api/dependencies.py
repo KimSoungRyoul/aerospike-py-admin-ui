@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Annotated
 
@@ -26,7 +25,7 @@ async def _get_verified_connection(conn_id: str = Path()) -> str:
 async def _get_client(conn_id: str = Depends(_get_verified_connection)) -> aerospike_py.Client:
     """Resolve *conn_id* and return a cached Aerospike client."""
     try:
-        return await asyncio.to_thread(client_manager._get_client_sync, conn_id)
+        return await client_manager.get_client(conn_id)
     except Exception as e:
         logger.warning("Failed to connect to Aerospike for connection '%s': %s", conn_id, e)
         raise HTTPException(

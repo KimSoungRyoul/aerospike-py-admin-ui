@@ -1,72 +1,73 @@
-"""SQLite persistence layer for connection profiles.
+"""PostgreSQL persistence layer for connection profiles.
 
-Uses stdlib sqlite3 with asyncio.to_thread() to avoid blocking the event loop.
+Uses asyncpg with a connection pool for fully async database access.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
-import sqlite3
+import logging
 from datetime import UTC, datetime
-from pathlib import Path
+
+import asyncpg
 
 from aerospike_py_admin_ui_api import config
 from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
 
-_connection: sqlite3.Connection | None = None
+logger = logging.getLogger(__name__)
+
+_pool: asyncpg.Pool | None = None
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS connections (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    hosts       TEXT NOT NULL,
-    port        INTEGER NOT NULL DEFAULT 3000,
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL,
+    hosts        JSONB NOT NULL,
+    port         INTEGER NOT NULL DEFAULT 3000,
     cluster_name TEXT,
-    username    TEXT,
-    password    TEXT,
-    color       TEXT NOT NULL DEFAULT '#0097D3',
-    created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    username     TEXT,
+    password     TEXT,
+    color        TEXT NOT NULL DEFAULT '#0097D3',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
 );
 """
 
 
-def _get_conn() -> sqlite3.Connection:
-    if _connection is None:
+def _get_pool() -> asyncpg.Pool:
+    if _pool is None:
         raise RuntimeError("Database not initialized. Call init_db() first.")
-    return _connection
+    return _pool
 
 
-def init_db() -> None:
-    global _connection
-    db_path = Path(config.DATABASE_PATH)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    _connection = sqlite3.connect(str(db_path), check_same_thread=False)
-    _connection.row_factory = sqlite3.Row
-    _connection.execute("PRAGMA journal_mode=WAL;")
-    _connection.execute(CREATE_TABLE_SQL)
-    _connection.commit()
-    _seed_if_empty()
+async def init_db() -> None:
+    global _pool
+    _pool = await asyncpg.create_pool(config.DATABASE_URL, min_size=2, max_size=10)
+    async with _pool.acquire() as conn:
+        await conn.execute(CREATE_TABLE_SQL)
+    await _seed_if_empty()
 
 
-def close_db() -> None:
-    global _connection
-    if _connection:
-        _connection.close()
-        _connection = None
+async def close_db() -> None:
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
 
 
 # ---------------------------------------------------------------------------
-# Row ↔ Model helpers
+# Row -> Model helper
 # ---------------------------------------------------------------------------
 
 
-def _row_to_profile(row: sqlite3.Row) -> ConnectionProfile:
+def _row_to_profile(row: asyncpg.Record) -> ConnectionProfile:
+    hosts = row["hosts"]
+    if isinstance(hosts, str):
+        hosts = json.loads(hosts)
     return ConnectionProfile(
         id=row["id"],
         name=row["name"],
-        hosts=json.loads(row["hosts"]),
+        hosts=hosts,
         port=row["port"],
         clusterName=row["cluster_name"],
         username=row["username"],
@@ -78,43 +79,42 @@ def _row_to_profile(row: sqlite3.Row) -> ConnectionProfile:
 
 
 # ---------------------------------------------------------------------------
-# Sync helpers (run inside asyncio.to_thread)
+# Async public API
 # ---------------------------------------------------------------------------
 
 
-def _get_all_sync() -> list[ConnectionProfile]:
-    cur = _get_conn().execute("SELECT * FROM connections ORDER BY created_at")
-    return [_row_to_profile(row) for row in cur.fetchall()]
+async def get_all_connections() -> list[ConnectionProfile]:
+    pool = _get_pool()
+    rows = await pool.fetch("SELECT * FROM connections ORDER BY created_at")
+    return [_row_to_profile(row) for row in rows]
 
 
-def _get_one_sync(conn_id: str) -> ConnectionProfile | None:
-    cur = _get_conn().execute("SELECT * FROM connections WHERE id = ?", (conn_id,))
-    row = cur.fetchone()
+async def get_connection(conn_id: str) -> ConnectionProfile | None:
+    pool = _get_pool()
+    row = await pool.fetchrow("SELECT * FROM connections WHERE id = $1", conn_id)
     return _row_to_profile(row) if row else None
 
 
-def _insert_sync(conn: ConnectionProfile) -> None:
-    _get_conn().execute(
+async def create_connection(conn: ConnectionProfile) -> None:
+    pool = _get_pool()
+    await pool.execute(
         """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            conn.id,
-            conn.name,
-            json.dumps(conn.hosts),
-            conn.port,
-            conn.clusterName,
-            conn.username,
-            conn.password,
-            conn.color,
-            conn.createdAt,
-            conn.updatedAt,
-        ),
+           VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10)""",
+        conn.id,
+        conn.name,
+        json.dumps(conn.hosts),
+        conn.port,
+        conn.clusterName,
+        conn.username,
+        conn.password,
+        conn.color,
+        conn.createdAt,
+        conn.updatedAt,
     )
-    _get_conn().commit()
 
 
-def _update_sync(conn_id: str, data: dict) -> ConnectionProfile | None:
-    existing = _get_one_sync(conn_id)
+async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | None:
+    existing = await get_connection(conn_id)
     if not existing:
         return None
 
@@ -123,55 +123,29 @@ def _update_sync(conn_id: str, data: dict) -> ConnectionProfile | None:
     merged["id"] = conn_id
     merged["updatedAt"] = datetime.now(UTC).isoformat()
 
-    _get_conn().execute(
+    pool = _get_pool()
+    await pool.execute(
         """UPDATE connections
-           SET name = ?, hosts = ?, port = ?, cluster_name = ?, username = ?, password = ?, color = ?, updated_at = ?
-           WHERE id = ?""",
-        (
-            merged["name"],
-            json.dumps(merged["hosts"]),
-            merged["port"],
-            merged.get("clusterName"),
-            merged.get("username"),
-            merged.get("password"),
-            merged["color"],
-            merged["updatedAt"],
-            conn_id,
-        ),
+           SET name = $1, hosts = $2::jsonb, port = $3, cluster_name = $4,
+               username = $5, password = $6, color = $7, updated_at = $8
+           WHERE id = $9""",
+        merged["name"],
+        json.dumps(merged["hosts"]),
+        merged["port"],
+        merged.get("clusterName"),
+        merged.get("username"),
+        merged.get("password"),
+        merged["color"],
+        merged["updatedAt"],
+        conn_id,
     )
-    _get_conn().commit()
-    return _get_one_sync(conn_id)
-
-
-def _delete_sync(conn_id: str) -> bool:
-    cur = _get_conn().execute("DELETE FROM connections WHERE id = ?", (conn_id,))
-    _get_conn().commit()
-    return cur.rowcount > 0
-
-
-# ---------------------------------------------------------------------------
-# Async public API
-# ---------------------------------------------------------------------------
-
-
-async def get_all_connections() -> list[ConnectionProfile]:
-    return await asyncio.to_thread(_get_all_sync)
-
-
-async def get_connection(conn_id: str) -> ConnectionProfile | None:
-    return await asyncio.to_thread(_get_one_sync, conn_id)
-
-
-async def create_connection(conn: ConnectionProfile) -> None:
-    await asyncio.to_thread(_insert_sync, conn)
-
-
-async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | None:
-    return await asyncio.to_thread(_update_sync, conn_id, data)
+    return await get_connection(conn_id)
 
 
 async def delete_connection(conn_id: str) -> bool:
-    return await asyncio.to_thread(_delete_sync, conn_id)
+    pool = _get_pool()
+    result = await pool.execute("DELETE FROM connections WHERE id = $1", conn_id)
+    return result == "DELETE 1"
 
 
 # ---------------------------------------------------------------------------
@@ -179,10 +153,10 @@ async def delete_connection(conn_id: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _seed_if_empty() -> None:
-    cur = _get_conn().execute("SELECT COUNT(*) FROM connections")
-    count = cur.fetchone()[0]
-    if count > 0:
+async def _seed_if_empty() -> None:
+    pool = _get_pool()
+    row = await pool.fetchrow("SELECT COUNT(*) AS cnt FROM connections")
+    if row["cnt"] > 0:
         return
 
     now = datetime.now(UTC).isoformat()
@@ -195,4 +169,4 @@ def _seed_if_empty() -> None:
         createdAt=now,
         updatedAt=now,
     )
-    _insert_sync(default)
+    await create_connection(default)
