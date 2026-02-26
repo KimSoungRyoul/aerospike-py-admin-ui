@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TerminalCommand(BaseModel):
@@ -12,4 +12,4 @@ class TerminalCommand(BaseModel):
 
 
 class TerminalRequest(BaseModel):
-    command: str
+    command: str = Field(min_length=1)

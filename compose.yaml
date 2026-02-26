@@ -45,7 +45,7 @@ services:
   # ── Aerospike Tools (stays alive for `podman exec -it`) ─────────────
   aerospike-tools:
     container_name: aerospike-tools
-    image: aerospike/aerospike-tools:latest
+    image: aerospike/aerospike-tools:8.1
     entrypoint: []
     command: ["tail", "-f", "/dev/null"]
     depends_on:
@@ -58,7 +58,7 @@ services:
   # ── Seed Data (runs once: 1234 records + indexes + UDFs) ───────────
   aerospike-seed:
     container_name: aerospike-seed
-    image: aerospike/aerospike-tools:latest
+    image: aerospike/aerospike-tools:8.1
     entrypoint: []
     volumes:
       - ./aerospike/seed-data.sh:/seed-data.sh:ro
@@ -79,7 +79,7 @@ services:
   # ── Prometheus Exporters (per node) ────────────────────────────────
   aerospike-exporter-1:
     container_name: aerospike-exporter-1
-    image: aerospike/aerospike-prometheus-exporter:latest
+    image: aerospike/aerospike-prometheus-exporter:v1.15.0
     environment:
       - AS_HOST=aerospike-node-1
       - AS_PORT=3000
@@ -92,7 +92,7 @@ services:
 
   aerospike-exporter-2:
     container_name: aerospike-exporter-2
-    image: aerospike/aerospike-prometheus-exporter:latest
+    image: aerospike/aerospike-prometheus-exporter:v1.15.0
     environment:
       - AS_HOST=aerospike-node-2
       - AS_PORT=3000
@@ -105,7 +105,7 @@ services:
 
   aerospike-exporter-3:
     container_name: aerospike-exporter-3
-    image: aerospike/aerospike-prometheus-exporter:latest
+    image: aerospike/aerospike-prometheus-exporter:v1.15.0
     environment:
       - AS_HOST=aerospike-node-3
       - AS_PORT=3000
@@ -157,6 +157,12 @@ services:
       - "${FRONTEND_PORT:-3100}:3000"
     environment:
       - BACKEND_URL=http://aerospike-py-admin-ui-backend:8000
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       aerospike-py-admin-ui-backend:
         condition: service_healthy

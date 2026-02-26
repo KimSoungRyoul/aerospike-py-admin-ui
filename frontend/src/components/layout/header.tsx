@@ -39,6 +39,7 @@ export function Header() {
               size="icon"
               onClick={handleToggle}
               className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
+              aria-label="Toggle sidebar"
             >
               {isDesktop ? <PanelLeft className="h-4 w-4" /> : <Menu className="h-5 w-5" />}
             </Button>
@@ -70,6 +71,7 @@ export function Header() {
               variant="ghost"
               size="icon"
               className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
+              aria-label="Toggle theme"
             >
               {theme === "dark" ? (
                 <Moon className="h-4 w-4" />

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 
 from aerospike_py import INDEX_TYPE_LIST, predicates
@@ -13,6 +14,8 @@ from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.query import QueryPredicate, QueryRequest, QueryResponse
 from aerospike_py_admin_ui_api.routers.records import _auto_detect_pk
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 

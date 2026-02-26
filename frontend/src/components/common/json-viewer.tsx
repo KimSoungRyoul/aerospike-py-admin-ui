@@ -37,6 +37,8 @@ export function JsonViewer({ data, collapsed = false, level = 0, className }: Js
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="hover:text-accent inline-flex items-center"
+          aria-expanded={!isCollapsed}
+          aria-label={isCollapsed ? "Expand JSON array" : "Collapse JSON array"}
         >
           {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
@@ -69,6 +71,8 @@ export function JsonViewer({ data, collapsed = false, level = 0, className }: Js
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="hover:text-accent inline-flex items-center"
+          aria-expanded={!isCollapsed}
+          aria-label={isCollapsed ? "Expand JSON object" : "Collapse JSON object"}
         >
           {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>

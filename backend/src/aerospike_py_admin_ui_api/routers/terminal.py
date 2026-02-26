@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import time
 from datetime import UTC, datetime
@@ -27,6 +28,8 @@ from aerospike_py_admin_ui_api.info_parser import (
     safe_int,
 )
 from aerospike_py_admin_ui_api.models.terminal import TerminalCommand, TerminalRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/terminal", tags=["terminal"])
 
@@ -127,6 +130,7 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
         resp = c.info_random_node(command)
         return resp.strip() if resp.strip() else "(empty response)", True
     except Exception as e:
+        logger.exception("Terminal command failed: %s", command)
         return f"Error: {e}", False
 
 

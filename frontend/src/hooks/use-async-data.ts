@@ -16,23 +16,35 @@ export function useAsyncData<T>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetcherRef = useRef(fetcher);
+  const requestIdRef = useRef(0);
   fetcherRef.current = fetcher;
 
   const fetch = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const result = await fetcherRef.current();
-      setData(result);
+      if (requestIdRef.current === requestId) {
+        setData(result);
+      }
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (requestIdRef.current === requestId) {
+        setError(getErrorMessage(err));
+      }
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetch();
+    const ref = requestIdRef;
+    return () => {
+      ref.current++;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 

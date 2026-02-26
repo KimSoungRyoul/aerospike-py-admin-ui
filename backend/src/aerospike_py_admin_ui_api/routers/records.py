@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -12,6 +13,8 @@ from aerospike_py_admin_ui_api.models.record import (
     RecordListResponse,
     RecordWriteRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _auto_detect_pk(pk: str) -> str | int:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ClusterNode(BaseModel):
@@ -52,6 +52,6 @@ class ClusterInfo(BaseModel):
 
 
 class CreateNamespaceRequest(BaseModel):
-    name: str
-    memorySize: int = 1_073_741_824  # 1 GB
-    replicationFactor: int = 2
+    name: str = Field(min_length=1)
+    memorySize: int = Field(default=1_073_741_824, ge=1_000_000)  # min 1 MB
+    replicationFactor: int = Field(default=2, ge=1, le=8)

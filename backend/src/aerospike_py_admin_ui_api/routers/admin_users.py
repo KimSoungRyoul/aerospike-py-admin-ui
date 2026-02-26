@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from aerospike_py.exception import AdminError, AerospikeError
 from fastapi import APIRouter, HTTPException, Query
 
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.admin import AerospikeUser, ChangePasswordRequest, CreateUserRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
 

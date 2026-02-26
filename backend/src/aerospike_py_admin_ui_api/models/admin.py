@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Privilege(BaseModel):
@@ -18,14 +18,14 @@ class AerospikeUser(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
     roles: list[str] | None = None
 
 
 class ChangePasswordRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
 
 
 class AerospikeRole(BaseModel):

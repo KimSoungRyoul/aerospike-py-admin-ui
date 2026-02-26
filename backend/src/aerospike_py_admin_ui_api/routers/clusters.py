@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException
 
@@ -29,6 +30,8 @@ from aerospike_py_admin_ui_api.models.cluster import (
     NamespaceInfo,
     SetInfo,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
 

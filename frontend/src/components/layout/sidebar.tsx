@@ -92,6 +92,7 @@ const ConnectionItem = React.memo(function ConnectionItem({
               "h-6 w-6 shrink-0 transition-opacity",
               isMobileOrTablet ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
+            aria-label={`More options for ${connection.name}`}
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
@@ -223,6 +224,7 @@ export function Sidebar() {
             size="icon"
             className="text-muted-foreground hover:text-foreground h-8 w-8"
             onClick={() => setMobileNavOpen(false)}
+            aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />
           </Button>
