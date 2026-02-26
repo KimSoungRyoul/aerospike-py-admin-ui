@@ -16,11 +16,21 @@ export function K8sPodTable({ pods }: K8sPodTableProps) {
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-muted/50 border-b">
-            <th className="px-4 py-2 text-left font-medium">Name</th>
-            <th className="px-4 py-2 text-left font-medium">Status</th>
-            <th className="px-4 py-2 text-left font-medium">Pod IP</th>
-            <th className="px-4 py-2 text-left font-medium">Host IP</th>
-            <th className="px-4 py-2 text-left font-medium">Image</th>
+            <th scope="col" className="px-4 py-2 text-left font-medium">
+              Name
+            </th>
+            <th scope="col" className="px-4 py-2 text-left font-medium">
+              Status
+            </th>
+            <th scope="col" className="px-4 py-2 text-left font-medium">
+              Pod IP
+            </th>
+            <th scope="col" className="px-4 py-2 text-left font-medium">
+              Host IP
+            </th>
+            <th scope="col" className="px-4 py-2 text-left font-medium">
+              Image
+            </th>
           </tr>
         </thead>
         <tbody>

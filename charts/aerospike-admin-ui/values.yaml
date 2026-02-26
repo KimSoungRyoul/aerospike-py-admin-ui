@@ -103,6 +103,8 @@ podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1001
   fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -130,12 +132,21 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
 
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: backend
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+
 # =============================================================================
 # Environment
 # =============================================================================
 env:
   # -- Backend CORS origins
-  corsOrigins: "http://localhost:3000"
+  # -- Backend CORS origins (empty = no CORS; frontend proxies via Next.js rewrites)
+  corsOrigins: ""
   # -- Log level
   logLevel: "INFO"
 
@@ -145,3 +156,83 @@ env:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# -- Topology spread constraints for pod scheduling
+topologySpreadConstraints: []
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Termination grace period in seconds
+terminationGracePeriodSeconds: 45
+
+# =============================================================================
+# Aerospike Ports
+# =============================================================================
+aerospikePorts:
+  # -- Aerospike service port
+  service: 3000
+  # -- Aerospike fabric port
+  fabric: 3001
+  # -- Aerospike heartbeat port
+  heartbeat: 3002
+
+# =============================================================================
+# Network Policy
+# =============================================================================
+networkPolicy:
+  # -- Enable NetworkPolicy for restricting ingress/egress traffic
+  enabled: false
+  # -- Optional ingress source restrictions (namespaceSelector, podSelector)
+  # Example:
+  #   ingressFrom:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           name: ingress-nginx
+  #     - podSelector:
+  #         matchLabels:
+  #           app: my-frontend
+  ingressFrom: []
+
+# =============================================================================
+# Pod Disruption Budget
+# =============================================================================
+podDisruptionBudget:
+  # -- Enable PodDisruptionBudget
+  enabled: false
+  # -- Minimum number of pods that must remain available (mutually exclusive with maxUnavailable)
+  # minAvailable: 1
+  # -- Maximum number of pods that can be unavailable (mutually exclusive with minAvailable)
+  # maxUnavailable: 1
+
+# =============================================================================
+# Autoscaling (HPA)
+# =============================================================================
+autoscaling:
+  # -- Enable Horizontal Pod Autoscaler
+  enabled: false
+  # -- Minimum number of replicas
+  minReplicas: 1
+  # -- Maximum number of replicas
+  maxReplicas: 3
+  # -- Target CPU utilization percentage
+  targetCPUUtilizationPercentage: 80
+  # -- Target memory utilization percentage (optional, uncomment to enable)
+  # targetMemoryUtilizationPercentage: 80
+
+# =============================================================================
+# Extra Environment Variables
+# =============================================================================
+# -- Extra environment variables to set on the container
+# Example:
+#   extraEnv:
+#     - name: MY_VAR
+#       value: "my-value"
+extraEnv: []
+
+# =============================================================================
+# Helm Tests
+# =============================================================================
+tests:
+  # -- Enable Helm test pods (run with `helm test <release>`)
+  enabled: true

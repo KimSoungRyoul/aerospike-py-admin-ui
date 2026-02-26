@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/common/loading-button";
+import { getErrorMessage } from "@/lib/utils";
 
 interface K8sScaleDialogProps {
   open: boolean;
@@ -31,12 +32,23 @@ export function K8sScaleDialog({
 }: K8sScaleDialogProps) {
   const [size, setSize] = useState(currentSize);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setSize(currentSize);
+      setError(null);
+    }
+  }, [open, currentSize]);
 
   const handleScale = async () => {
     setLoading(true);
+    setError(null);
     try {
       await onScale(size);
       onOpenChange(false);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -60,9 +72,19 @@ export function K8sScaleDialog({
               min={1}
               max={8}
               value={size}
-              onChange={(e) => setSize(Math.min(8, Math.max(1, parseInt(e.target.value) || 1)))}
+              onChange={(e) => {
+                setSize(Math.min(8, Math.max(1, parseInt(e.target.value) || 1)));
+                setError(null);
+              }}
+              disabled={loading}
             />
           </div>
+          {size < currentSize && (
+            <p className="text-warning text-sm">
+              Scaling down will remove nodes. Data may be lost if not replicated.
+            </p>
+          )}
+          {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
@@ -71,7 +93,7 @@ export function K8sScaleDialog({
           <LoadingButton
             onClick={handleScale}
             loading={loading}
-            disabled={size === currentSize || loading}
+            disabled={size === currentSize || loading || !!error}
           >
             Scale
           </LoadingButton>

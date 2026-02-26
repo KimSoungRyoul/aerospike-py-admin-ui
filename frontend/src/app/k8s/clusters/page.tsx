@@ -25,6 +25,16 @@ export default function K8sClustersPage() {
     fetchClusters();
   }, [fetchClusters]);
 
+  // Auto-refresh polling when any cluster is in progress
+  useEffect(() => {
+    const hasInProgress = clusters.some((c) => c.phase === "InProgress");
+    if (!hasInProgress) return;
+    const interval = setInterval(() => {
+      fetchClusters();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [clusters, fetchClusters]);
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);

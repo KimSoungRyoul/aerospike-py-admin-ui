@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import logging
+import re
+import warnings
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 
 class AerospikeNamespaceStorage(BaseModel):
-    type: str = Field(default="memory", description="memory or device")
+    type: Literal["memory", "device"] = Field(default="memory", description="memory or device")
     data_size: int | None = Field(default=1073741824, alias="dataSize", description="For memory type, in bytes")
     file: str | None = Field(default=None, description="For device type, data file path")
     filesize: int | None = Field(default=None, description="For device type, max data file size in bytes")
@@ -18,36 +25,121 @@ class AerospikeNamespaceConfig(BaseModel):
 
 class StorageVolumeConfig(BaseModel):
     storage_class: str = Field(default="standard", alias="storageClass")
-    size: str = Field(default="10Gi")
+    size: str = Field(default="10Gi", pattern=r"^[0-9]+[KMGTPE]i$")
     mount_path: str = Field(default="/opt/aerospike/data", alias="mountPath")
 
 
+def _parse_cpu_millis(cpu: str) -> float:
+    """Convert K8s CPU string to millicores for comparison."""
+    if cpu.endswith("m"):
+        return float(cpu[:-1])
+    return float(cpu) * 1000
+
+
+_MEMORY_UNITS: dict[str, int] = {"Ki": 1, "Mi": 2, "Gi": 3, "Ti": 4, "Pi": 5, "Ei": 6}
+
+
+def _parse_memory_bytes(mem: str) -> float:
+    """Convert K8s memory string to bytes for comparison."""
+    m = re.match(r"^([0-9]+(?:\.[0-9]+)?)([KMGTPE]i)$", mem)
+    if not m:
+        return 0
+    value = float(m.group(1))
+    unit = m.group(2)
+    return value * (1024 ** _MEMORY_UNITS.get(unit, 0))
+
+
+# Minimum recommended resource thresholds for Aerospike pods.
+_MIN_CPU_MILLIS = 100  # 100m
+_MIN_MEMORY_BYTES = 256 * 1024 * 1024  # 256Mi
+
+
 class ResourceSpec(BaseModel):
-    cpu: str = "1"
-    memory: str = "2Gi"
+    cpu: str = Field(default="1", pattern=r"^[0-9]+(\.[0-9]+)?m?$")
+    memory: str = Field(default="2Gi", pattern=r"^[0-9]+(\.[0-9]+)?[KMGTPE]i$")
+
+    @field_validator("cpu")
+    @classmethod
+    def warn_cpu_minimum(cls, v: str) -> str:
+        millis = _parse_cpu_millis(v)
+        if millis < _MIN_CPU_MILLIS:
+            warnings.warn(
+                f"CPU value '{v}' ({millis:.0f}m) is below the recommended minimum of 100m. "
+                "Aerospike may not function properly with insufficient CPU resources.",
+                UserWarning,
+                stacklevel=2,
+            )
+            logger.warning("CPU value '%s' is below recommended minimum of 100m", v)
+        return v
+
+    @field_validator("memory")
+    @classmethod
+    def warn_memory_minimum(cls, v: str) -> str:
+        mem_bytes = _parse_memory_bytes(v)
+        if mem_bytes < _MIN_MEMORY_BYTES:
+            warnings.warn(
+                f"Memory value '{v}' is below the recommended minimum of 256Mi. "
+                "Aerospike may not function properly with insufficient memory.",
+                UserWarning,
+                stacklevel=2,
+            )
+            logger.warning("Memory value '%s' is below recommended minimum of 256Mi", v)
+        return v
 
 
 class ResourceConfig(BaseModel):
     requests: ResourceSpec = Field(default_factory=lambda: ResourceSpec(cpu="500m", memory="1Gi"))
     limits: ResourceSpec = Field(default_factory=lambda: ResourceSpec(cpu="2", memory="4Gi"))
 
+    @model_validator(mode="after")
+    def limits_gte_requests(self) -> ResourceConfig:
+        if _parse_cpu_millis(self.limits.cpu) < _parse_cpu_millis(self.requests.cpu):
+            raise ValueError(f"CPU limit ({self.limits.cpu}) must be >= request ({self.requests.cpu})")
+        if _parse_memory_bytes(self.limits.memory) < _parse_memory_bytes(self.requests.memory):
+            raise ValueError(f"Memory limit ({self.limits.memory}) must be >= request ({self.requests.memory})")
+        return self
+
 
 class CreateK8sClusterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
-    namespace: str = Field(default="aerospike")
+    namespace: str = Field(
+        default="aerospike",
+        min_length=1,
+        max_length=253,
+        pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$",
+    )
     size: int = Field(ge=1, le=8)
-    image: str = Field(default="aerospike:ce-8.1.1.1")
-    namespaces: list[AerospikeNamespaceConfig] = Field(default_factory=lambda: [AerospikeNamespaceConfig()])
+    image: str = Field(
+        default="aerospike:ce-8.1.1.1",
+        pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$",
+    )
+    namespaces: list[AerospikeNamespaceConfig] = Field(
+        default_factory=lambda: [AerospikeNamespaceConfig()],
+        max_length=5,
+    )
     storage: StorageVolumeConfig | None = None
     resources: ResourceConfig | None = None
     auto_connect: bool = Field(default=True, alias="autoConnect")
 
     model_config = {"populate_by_name": True}
 
+    @model_validator(mode="after")
+    def replication_factor_lte_size(self) -> CreateK8sClusterRequest:
+        for ns in self.namespaces:
+            if ns.replication_factor > self.size:
+                raise ValueError(
+                    f"Namespace '{ns.name}' replication-factor ({ns.replication_factor}) "
+                    f"must be <= cluster size ({self.size})"
+                )
+        return self
+
 
 class UpdateK8sClusterRequest(BaseModel):
     size: int | None = Field(default=None, ge=1, le=8)
-    image: str | None = None
+    image: str | None = Field(
+        default=None,
+        pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$",
+    )
     resources: ResourceConfig | None = None
 
     model_config = {"populate_by_name": True}
@@ -67,13 +159,14 @@ class K8sPodStatus(BaseModel):
 
 
 class K8sClusterSummary(BaseModel):
-    name: str
-    namespace: str
+    name: str = Field(min_length=1)
+    namespace: str = Field(min_length=1)
     size: int
     image: str
     phase: str = "Unknown"
     age: str | None = None
     connectionId: str | None = None
+    autoConnectWarning: str | None = None
 
 
 class K8sClusterDetail(BaseModel):
