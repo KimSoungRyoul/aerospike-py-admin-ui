@@ -1,11 +1,11 @@
 "use client";
 
 import { use, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   Activity,
   Clock,
   Database,
-  HardDrive,
   Network,
   RefreshCw,
   Server,
@@ -25,7 +25,6 @@ import { FullPageError } from "@/components/common/full-page-error";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { StatCard } from "@/components/common/stat-card";
-import { ChartTooltipContent } from "@/components/common/chart-tooltip";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useMetricsStore } from "@/stores/metrics-store";
 import { api } from "@/lib/api/client";
@@ -33,18 +32,24 @@ import type { MetricPoint, MetricSeries } from "@/lib/api/types";
 import { formatBytes, formatNumber, formatUptime, formatPercent } from "@/lib/formatters";
 import { METRIC_INTERVAL_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
+
+const ClusterCharts = dynamic(
+  () =>
+    import("@/components/cluster/cluster-charts").then((m) => ({
+      default: m.ClusterCharts,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Skeleton className="h-[300px]" />
+        <Skeleton className="h-[300px]" />
+        <Skeleton className="h-[300px]" />
+        <Skeleton className="h-[300px]" />
+      </div>
+    ),
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Chart helpers
@@ -385,184 +390,14 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
               </div>
 
               {/* Charts 2x2 grid */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Read / Write TPS</CardTitle>
-                    <CardDescription>Transactions per second over time</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={tpsData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis
-                            dataKey="time"
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            interval="preserveStartEnd"
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            width={45}
-                          />
-                          <RechartsTooltip content={<ChartTooltipContent />} />
-                          <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                          <Line
-                            type="monotone"
-                            dataKey="reads"
-                            stroke="hsl(var(--chart-1))"
-                            strokeWidth={2}
-                            dot={false}
-                            name="Reads"
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="writes"
-                            stroke="hsl(var(--chart-2))"
-                            strokeWidth={2}
-                            dot={false}
-                            name="Writes"
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Client Connections</CardTitle>
-                    <CardDescription>Active connections over time</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={connData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis
-                            dataKey="time"
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            interval="preserveStartEnd"
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            width={45}
-                          />
-                          <RechartsTooltip content={<ChartTooltipContent />} />
-                          <Line
-                            type="monotone"
-                            dataKey="connections"
-                            stroke="hsl(var(--chart-3))"
-                            strokeWidth={2}
-                            dot={false}
-                            name="Connections"
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Database className="h-4 w-4" />
-                      Memory Usage by Namespace
-                    </CardTitle>
-                    <CardDescription>Percentage of memory used per namespace</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={memData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis
-                            dataKey="time"
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            interval="preserveStartEnd"
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            width={45}
-                            domain={[0, "auto"]}
-                            unit="%"
-                          />
-                          <RechartsTooltip content={<ChartTooltipContent />} />
-                          <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                          {metrics.memoryUsageByNs.map((s) => (
-                            <Area
-                              key={s.name}
-                              type="monotone"
-                              dataKey={s.label}
-                              stackId="mem"
-                              stroke={s.color}
-                              fill={s.color}
-                              fillOpacity={0.3}
-                              strokeWidth={2}
-                              name={s.label}
-                            />
-                          ))}
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <HardDrive className="h-4 w-4" />
-                      Device Usage by Namespace
-                    </CardTitle>
-                    <CardDescription>
-                      Percentage of device storage used per namespace
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={devData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis
-                            dataKey="time"
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            interval="preserveStartEnd"
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11 }}
-                            className="text-muted-foreground"
-                            width={45}
-                            domain={[0, "auto"]}
-                            unit="%"
-                          />
-                          <RechartsTooltip content={<ChartTooltipContent />} />
-                          <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                          {metrics.deviceUsageByNs.map((s) => (
-                            <Area
-                              key={s.name}
-                              type="monotone"
-                              dataKey={s.label}
-                              stackId="dev"
-                              stroke={s.color}
-                              fill={s.color}
-                              fillOpacity={0.3}
-                              strokeWidth={2}
-                              name={s.label}
-                            />
-                          ))}
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <ClusterCharts
+                tpsData={tpsData}
+                connData={connData}
+                memData={memData}
+                devData={devData}
+                memoryUsageByNs={metrics.memoryUsageByNs}
+                deviceUsageByNs={metrics.deviceUsageByNs}
+              />
 
               {/* Namespace detail cards */}
               <div>

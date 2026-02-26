@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   experimental: {
-    optimizePackageImports: ["recharts", "lucide-react"],
+    optimizePackageImports: ["recharts", "lucide-react", "@tanstack/react-table"],
   },
   async headers() {
     return [

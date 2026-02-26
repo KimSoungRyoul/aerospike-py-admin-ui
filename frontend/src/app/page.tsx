@@ -99,7 +99,7 @@ export default function ConnectionsPage() {
       .then(() => {
         fetchAllHealth();
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to load connections:", err));
   }, [fetchConnections, fetchAllHealth]);
 
   const openCreateDialog = useCallback(() => {
