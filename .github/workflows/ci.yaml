@@ -38,6 +38,29 @@ jobs:
 
       - uses: pre-commit/action@v3.0.1
 
+  backend:
+    name: Backend Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run tests
+        run: uv run pytest tests/ -v --tb=short
+
   frontend:
     name: Frontend Test & Build
     runs-on: ubuntu-latest
