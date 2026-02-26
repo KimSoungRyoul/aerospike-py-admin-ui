@@ -12,4 +12,4 @@ class TerminalCommand(BaseModel):
 
 
 class TerminalRequest(BaseModel):
-    command: str = Field(min_length=1)
+    command: str = Field(min_length=1, max_length=4096)

@@ -16,6 +16,7 @@ import aerospike_py
 from aerospike_py.exception import AerospikeError
 
 from aerospike_py_admin_ui_api import db
+from aerospike_py_admin_ui_api.utils import parse_host_port
 
 
 class ClientManager:
@@ -37,16 +38,7 @@ class ClientManager:
         if profile is None:
             raise ValueError(f"Connection profile '{conn_id}' not found")
 
-        hosts = []
-        for h in profile.hosts:
-            if ":" in h:
-                host, port_str = h.rsplit(":", 1)
-                try:
-                    hosts.append((host, int(port_str)))
-                except ValueError:
-                    hosts.append((h, profile.port))
-            else:
-                hosts.append((h, profile.port))
+        hosts = [parse_host_port(h, profile.port) for h in profile.hosts]
         config: dict[str, Any] = {"hosts": hosts}
         if profile.username and profile.password:
             config["user"] = profile.username
