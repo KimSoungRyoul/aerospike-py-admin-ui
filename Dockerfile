@@ -58,10 +58,21 @@ COPY --from=frontend-builder /app/.next/static /app/frontend/.next/static
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+# Create non-root user
+RUN groupadd --gid 1001 appuser \
+    && useradd --uid 1001 --gid appuser --shell /bin/false --create-home appuser \
+    && mkdir -p /app/data \
+    && chown -R appuser:appuser /app
+
+USER appuser
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Frontend: 3000, Backend: 8000
 EXPOSE 3000 8000
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=15s \
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]
