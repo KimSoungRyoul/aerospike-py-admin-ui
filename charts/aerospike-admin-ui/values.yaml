@@ -167,11 +167,32 @@ podAnnotations: {}
 terminationGracePeriodSeconds: 45
 
 # =============================================================================
+# Aerospike Ports
+# =============================================================================
+aerospikePorts:
+  # -- Aerospike service port
+  service: 3000
+  # -- Aerospike fabric port
+  fabric: 3001
+  # -- Aerospike heartbeat port
+  heartbeat: 3002
+
+# =============================================================================
 # Network Policy
 # =============================================================================
 networkPolicy:
   # -- Enable NetworkPolicy for restricting ingress/egress traffic
   enabled: false
+  # -- Optional ingress source restrictions (namespaceSelector, podSelector)
+  # Example:
+  #   ingressFrom:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           name: ingress-nginx
+  #     - podSelector:
+  #         matchLabels:
+  #           app: my-frontend
+  ingressFrom: []
 
 # =============================================================================
 # Pod Disruption Budget
@@ -185,6 +206,21 @@ podDisruptionBudget:
   # maxUnavailable: 1
 
 # =============================================================================
+# Autoscaling (HPA)
+# =============================================================================
+autoscaling:
+  # -- Enable Horizontal Pod Autoscaler
+  enabled: false
+  # -- Minimum number of replicas
+  minReplicas: 1
+  # -- Maximum number of replicas
+  maxReplicas: 3
+  # -- Target CPU utilization percentage
+  targetCPUUtilizationPercentage: 80
+  # -- Target memory utilization percentage (optional, uncomment to enable)
+  # targetMemoryUtilizationPercentage: 80
+
+# =============================================================================
 # Extra Environment Variables
 # =============================================================================
 # -- Extra environment variables to set on the container
@@ -193,3 +229,10 @@ podDisruptionBudget:
 #     - name: MY_VAR
 #       value: "my-value"
 extraEnv: []
+
+# =============================================================================
+# Helm Tests
+# =============================================================================
+tests:
+  # -- Enable Helm test pods (run with `helm test <release>`)
+  enabled: true

@@ -41,6 +41,8 @@ export function K8sClusterWizard() {
   const [k8sNamespaces, setK8sNamespaces] = useState<string[]>([]);
   const [storageClasses, setStorageClasses] = useState<string[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchingOptions, setFetchingOptions] = useState(true);
+  const [creationError, setCreationError] = useState<string | null>(null);
 
   const [form, setForm] = useState<CreateK8sClusterRequest>({
     name: "",
@@ -58,18 +60,31 @@ export function K8sClusterWizard() {
   });
 
   useEffect(() => {
-    api
-      .getK8sNamespaces()
-      .then(setK8sNamespaces)
-      .catch((err) => {
-        setFetchError(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}. Using defaults.`);
-      });
-    api
-      .getK8sStorageClasses()
-      .then(setStorageClasses)
-      .catch((err) => {
-        setFetchError(`Failed to fetch storage classes: ${getErrorMessage(err)}. Using defaults.`);
-      });
+    setFetchingOptions(true);
+    Promise.allSettled([
+      api
+        .getK8sNamespaces()
+        .then((ns) => {
+          setK8sNamespaces(ns);
+          setFetchError(null);
+        })
+        .catch((err) => {
+          setFetchError(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}. Using defaults.`);
+        }),
+      api
+        .getK8sStorageClasses()
+        .then((sc) => {
+          setStorageClasses(sc);
+          setFetchError(null);
+        })
+        .catch((err) => {
+          setFetchError(
+            `Failed to fetch storage classes: ${getErrorMessage(err)}. Using defaults.`,
+          );
+        }),
+    ]).finally(() => {
+      setFetchingOptions(false);
+    });
   }, []);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
@@ -133,13 +148,16 @@ export function K8sClusterWizard() {
   };
 
   const handleCreate = async () => {
+    setCreationError(null);
     setCreating(true);
     try {
       await createCluster(form);
       toast.success(`Cluster "${form.name}" creation initiated`);
       router.push("/k8s/clusters");
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setCreationError(msg);
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -154,40 +172,52 @@ export function K8sClusterWizard() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <InlineAlert message={fetchError} variant="warning" />
+      <InlineAlert message={creationError} variant="error" />
 
       {/* Step indicator */}
-      <div className="flex items-center gap-2">
-        {STEPS.map((label, i) => (
-          <button
-            key={label}
-            onClick={() => i < step && setStep(i)}
-            disabled={i > step}
-            aria-label={`Step ${i + 1}: ${label}`}
-            aria-current={i === step ? "step" : undefined}
-            className="flex items-center gap-2"
-          >
-            <span
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
-                i === step
-                  ? "bg-accent text-accent-foreground"
-                  : i < step
-                    ? "bg-accent/20 text-accent"
-                    : "bg-muted text-muted-foreground"
-              }`}
+      <nav aria-label="Wizard steps">
+        <div className="flex items-center gap-2" role="tablist">
+          {STEPS.map((label, i) => (
+            <button
+              key={label}
+              onClick={() => i < step && setStep(i)}
+              disabled={i > step}
+              role="tab"
+              aria-selected={i === step}
+              aria-label={`Step ${i + 1}: ${label}`}
+              aria-current={i === step ? "step" : undefined}
+              className="flex items-center gap-2"
             >
-              {i + 1}
-            </span>
-            <span
-              className={`hidden text-sm sm:inline ${
-                i === step ? "text-foreground font-medium" : "text-muted-foreground"
-              }`}
-            >
-              {label}
-            </span>
-            {i < STEPS.length - 1 && <span className="bg-border mx-1 h-px w-4 sm:w-8" />}
-          </button>
-        ))}
-      </div>
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
+                  i === step
+                    ? "bg-accent text-accent-foreground"
+                    : i < step
+                      ? "bg-accent/20 text-accent"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {i + 1}
+              </span>
+              <span
+                className={`hidden text-sm sm:inline ${
+                  i === step ? "text-foreground font-medium" : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </span>
+              {i < STEPS.length - 1 && <span className="bg-border mx-1 h-px w-4 sm:w-8" />}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {fetchingOptions && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <div className="border-accent h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" />
+          <span className="text-muted-foreground text-sm">Loading K8s options...</span>
+        </div>
+      )}
 
       {/* Step content */}
       <Card>
@@ -285,7 +315,12 @@ export function K8sClusterWizard() {
 
               <div className="grid gap-2">
                 <Label htmlFor="storage-type">Storage Type</Label>
-                <div id="storage-type" className="flex gap-2">
+                <div
+                  id="storage-type"
+                  className="flex gap-2"
+                  role="group"
+                  aria-label="Storage type"
+                >
                   <Button
                     type="button"
                     variant={!isStoragePersistent ? "default" : "outline"}
@@ -423,6 +458,12 @@ export function K8sClusterWizard() {
                     })
                   }
                 />
+                {(form.namespaces[0]?.replicationFactor || 1) > form.size && (
+                  <p className="text-destructive text-xs">
+                    Replication factor ({form.namespaces[0]?.replicationFactor}) cannot exceed
+                    cluster size ({form.size}).
+                  </p>
+                )}
               </div>
             </>
           )}

@@ -19,13 +19,21 @@ spec:
           protocol: TCP
         - port: {{ .Values.service.backendPort }}
           protocol: TCP
+      {{- with .Values.networkPolicy.ingressFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
   egress:
-    # DNS
+    # DNS (restricted to kube-system namespace)
     - ports:
         - port: 53
           protocol: UDP
         - port: 53
           protocol: TCP
+      to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
     # K8s API server
     - ports:
         - port: 443
@@ -34,10 +42,10 @@ spec:
           protocol: TCP
     # Aerospike clusters (within cluster network)
     - ports:
-        - port: 3000
+        - port: {{ .Values.aerospikePorts.service }}
           protocol: TCP
-        - port: 3001
+        - port: {{ .Values.aerospikePorts.fabric }}
           protocol: TCP
-        - port: 3002
+        - port: {{ .Values.aerospikePorts.heartbeat }}
           protocol: TCP
 {{- end }}

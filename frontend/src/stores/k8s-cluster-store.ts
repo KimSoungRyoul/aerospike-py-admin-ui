@@ -35,6 +35,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => ({
   },
 
   fetchClusters: async (namespace?: string) => {
+    if (get().loading) return;
     set({ loading: true, error: null });
     try {
       const clusters = await api.getK8sClusters(namespace);
@@ -45,6 +46,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => ({
   },
 
   fetchCluster: async (namespace: string, name: string) => {
+    if (get().loading) return;
     set({ loading: true, error: null });
     try {
       const cluster = await api.getK8sCluster(namespace, name);
@@ -55,37 +57,45 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => ({
   },
 
   createCluster: async (data: CreateK8sClusterRequest) => {
+    if (get().loading) return {} as K8sClusterSummary;
+    set({ loading: true, error: null });
     try {
       const result = await api.createK8sCluster(data);
+      set({ loading: false });
       await get().fetchClusters();
       return result;
     } catch (error) {
-      set({ error: getErrorMessage(error) });
+      set({ error: getErrorMessage(error), loading: false });
       throw error;
     }
   },
 
   deleteCluster: async (namespace: string, name: string) => {
+    if (get().loading) return;
+    set({ loading: true, error: null });
     try {
       await api.deleteK8sCluster(namespace, name);
-      set({ selectedCluster: null });
+      set({ selectedCluster: null, loading: false });
       await get().fetchClusters();
     } catch (error) {
-      set({ error: getErrorMessage(error) });
+      set({ error: getErrorMessage(error), loading: false });
       throw error;
     }
   },
 
   scaleCluster: async (namespace: string, name: string, size: number) => {
+    if (get().loading) return;
+    set({ loading: true, error: null });
     try {
       await api.scaleK8sCluster(namespace, name, { size });
+      set({ loading: false });
       await get().fetchClusters();
       const { selectedCluster } = get();
       if (selectedCluster?.name === name && selectedCluster?.namespace === namespace) {
         await get().fetchCluster(namespace, name);
       }
     } catch (error) {
-      set({ error: getErrorMessage(error) });
+      set({ error: getErrorMessage(error), loading: false });
       throw error;
     }
   },

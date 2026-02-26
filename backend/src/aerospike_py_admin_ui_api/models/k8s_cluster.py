@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 import re
+import warnings
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 
 class AerospikeNamespaceStorage(BaseModel):
@@ -25,11 +29,6 @@ class StorageVolumeConfig(BaseModel):
     mount_path: str = Field(default="/opt/aerospike/data", alias="mountPath")
 
 
-class ResourceSpec(BaseModel):
-    cpu: str = Field(default="1", pattern=r"^[0-9]+(\.[0-9]+)?m?$")
-    memory: str = Field(default="2Gi", pattern=r"^[0-9]+(\.[0-9]+)?[KMGTPE]i$")
-
-
 def _parse_cpu_millis(cpu: str) -> float:
     """Convert K8s CPU string to millicores for comparison."""
     if cpu.endswith("m"):
@@ -48,6 +47,44 @@ def _parse_memory_bytes(mem: str) -> float:
     value = float(m.group(1))
     unit = m.group(2)
     return value * (1024 ** _MEMORY_UNITS.get(unit, 0))
+
+
+# Minimum recommended resource thresholds for Aerospike pods.
+_MIN_CPU_MILLIS = 100  # 100m
+_MIN_MEMORY_BYTES = 256 * 1024 * 1024  # 256Mi
+
+
+class ResourceSpec(BaseModel):
+    cpu: str = Field(default="1", pattern=r"^[0-9]+(\.[0-9]+)?m?$")
+    memory: str = Field(default="2Gi", pattern=r"^[0-9]+(\.[0-9]+)?[KMGTPE]i$")
+
+    @field_validator("cpu")
+    @classmethod
+    def warn_cpu_minimum(cls, v: str) -> str:
+        millis = _parse_cpu_millis(v)
+        if millis < _MIN_CPU_MILLIS:
+            warnings.warn(
+                f"CPU value '{v}' ({millis:.0f}m) is below the recommended minimum of 100m. "
+                "Aerospike may not function properly with insufficient CPU resources.",
+                UserWarning,
+                stacklevel=2,
+            )
+            logger.warning("CPU value '%s' is below recommended minimum of 100m", v)
+        return v
+
+    @field_validator("memory")
+    @classmethod
+    def warn_memory_minimum(cls, v: str) -> str:
+        mem_bytes = _parse_memory_bytes(v)
+        if mem_bytes < _MIN_MEMORY_BYTES:
+            warnings.warn(
+                f"Memory value '{v}' is below the recommended minimum of 256Mi. "
+                "Aerospike may not function properly with insufficient memory.",
+                UserWarning,
+                stacklevel=2,
+            )
+            logger.warning("Memory value '%s' is below recommended minimum of 256Mi", v)
+        return v
 
 
 class ResourceConfig(BaseModel):

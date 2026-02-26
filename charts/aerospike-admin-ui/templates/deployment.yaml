@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "aerospike-admin-ui.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "aerospike-admin-ui.selectorLabels" . | nindent 6 }}
