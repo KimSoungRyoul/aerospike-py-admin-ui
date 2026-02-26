@@ -139,6 +139,7 @@ Local dev with `compose.dev.yaml` requires setting `AEROSPIKE_HOST=localhost AER
 ## Environment Variables
 
 See `.env.example`. Used in podman Compose:
+- `DATABASE_URL` — PostgreSQL connection string (default: `postgresql://aerospike:aerospike@localhost:5432/aerospike_manager`)
 - `AEROSPIKE_HOST`, `AEROSPIKE_PORT` — Aerospike server connection info
 - `BACKEND_PORT` (default 8000), `FRONTEND_PORT` (default 3100)
 - `CORS_ORIGINS` — Backend CORS allowed origins

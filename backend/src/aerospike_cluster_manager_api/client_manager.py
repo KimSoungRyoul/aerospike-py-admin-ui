@@ -25,25 +25,11 @@ class ClientManager:
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
-    # Internal sync helpers
+    # Internal sync helpers (blocking Aerospike operations only)
     # ------------------------------------------------------------------
 
-    def _get_client_sync(self, conn_id: str) -> aerospike_py.Client:
-        with self._lock:
-            client = self._clients.get(conn_id)
-            if client is not None and client.is_connected():
-                return client
-
-        profile = db._get_one_sync(conn_id)
-        if profile is None:
-            raise ValueError(f"Connection profile '{conn_id}' not found")
-
-        hosts = [parse_host_port(h, profile.port) for h in profile.hosts]
-        config: dict[str, Any] = {"hosts": hosts}
-        if profile.username and profile.password:
-            config["user"] = profile.username
-            config["password"] = profile.password
-
+    def _connect_sync(self, conn_id: str, config: dict[str, Any]) -> aerospike_py.Client:
+        """Create and connect an Aerospike client (blocking)."""
         client = aerospike_py.client(config).connect()
 
         with self._lock:
@@ -75,7 +61,22 @@ class ClientManager:
     # ------------------------------------------------------------------
 
     async def get_client(self, conn_id: str) -> aerospike_py.Client:
-        return await asyncio.to_thread(self._get_client_sync, conn_id)
+        with self._lock:
+            client = self._clients.get(conn_id)
+            if client is not None and client.is_connected():
+                return client
+
+        profile = await db.get_connection(conn_id)
+        if profile is None:
+            raise ValueError(f"Connection profile '{conn_id}' not found")
+
+        hosts = [parse_host_port(h, profile.port) for h in profile.hosts]
+        as_config: dict[str, Any] = {"hosts": hosts}
+        if profile.username and profile.password:
+            as_config["user"] = profile.username
+            as_config["password"] = profile.password
+
+        return await asyncio.to_thread(self._connect_sync, conn_id, as_config)
 
     async def close_client(self, conn_id: str) -> None:
         await asyncio.to_thread(self._close_client_sync, conn_id)
@@ -85,7 +86,7 @@ class ClientManager:
 
     async def run(self, conn_id: str, fn: Callable[..., Any], *args: Any) -> Any:
         """Get client for *conn_id* and execute ``fn(client, *args)`` in a thread."""
-        client = await asyncio.to_thread(self._get_client_sync, conn_id)
+        client = await self.get_client(conn_id)
         return await asyncio.to_thread(fn, client, *args)
 
 
