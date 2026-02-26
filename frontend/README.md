@@ -1,4 +1,4 @@
-# Aerospike Py Admin UI — Frontend
+# Aerospike Cluster Manager — Frontend
 
 Next.js 16 (App Router) + React 19 + TypeScript frontend for Aerospike database management.
 

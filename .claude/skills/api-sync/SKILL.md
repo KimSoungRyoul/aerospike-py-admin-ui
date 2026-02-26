@@ -14,7 +14,7 @@ Synchronize backend Pydantic models with frontend TypeScript type definitions.
 
 ## Source Files
 
-- **Backend models**: `backend/src/aerospike_py_admin_ui_api/models/`
+- **Backend models**: `backend/src/aerospike_cluster_manager_api/models/`
   - `connection.py`, `cluster.py`, `record.py`, `index.py`, `admin.py`, `metrics.py`, `query.py`, `terminal.py`, `udf.py`
 - **Frontend types**: `frontend/src/lib/api/types.ts`
 

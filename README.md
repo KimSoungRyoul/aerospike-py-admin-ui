@@ -1,7 +1,7 @@
-# Aerospike Py Admin UI
+# Aerospike Cluster Manager
 
-[![CI](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/ci.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/ci.yaml)
-[![CD](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/cd.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-py-admin-ui/actions/workflows/cd.yaml)
+[![CI](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/ci.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/ci.yaml)
+[![CD](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/cd.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/cd.yaml)
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
@@ -69,7 +69,7 @@ podman compose -f compose.yaml up --build
 ```bash
 cd backend
 uv sync                            # Install dependencies
-uv run uvicorn aerospike_py_admin_ui_api.main:app --reload
+uv run uvicorn aerospike_cluster_manager_api.main:app --reload
 ```
 
 **Frontend:**
@@ -97,9 +97,9 @@ npm run dev                        # http://localhost:3000
 ## Project Structure
 
 ```
-aerospike-py-admin-ui/
+aerospike-cluster-manager/
 ├── backend/                # FastAPI REST API
-│   ├── src/aerospike_py_admin_ui_api/
+│   ├── src/aerospike_cluster_manager_api/
 │   │   ├── main.py         # App entry point
 │   │   ├── models/         # Pydantic models
 │   │   ├── routers/        # API endpoints

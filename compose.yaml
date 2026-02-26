@@ -117,8 +117,8 @@ services:
     restart: unless-stopped
 
   # ── Backend ────────────────────────────────────────────────────────
-  aerospike-py-admin-ui-backend:
-    container_name: aerospike-py-admin-ui-backend
+  aerospike-cluster-manager-backend:
+    container_name: aerospike-cluster-manager-backend
     build: ./backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -147,16 +147,16 @@ services:
     restart: unless-stopped
 
   # ── Frontend ───────────────────────────────────────────────────────
-  aerospike-py-admin-ui-frontend:
-    container_name: aerospike-py-admin-ui-frontend
+  aerospike-cluster-manager-frontend:
+    container_name: aerospike-cluster-manager-frontend
     build:
       context: ./frontend
       args:
-        BACKEND_URL: http://aerospike-py-admin-ui-backend:8000
+        BACKEND_URL: http://aerospike-cluster-manager-backend:8000
     ports:
       - "${FRONTEND_PORT:-3100}:3000"
     environment:
-      - BACKEND_URL=http://aerospike-py-admin-ui-backend:8000
+      - BACKEND_URL=http://aerospike-cluster-manager-backend:8000
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
       interval: 10s
@@ -164,7 +164,7 @@ services:
       retries: 5
       start_period: 15s
     depends_on:
-      aerospike-py-admin-ui-backend:
+      aerospike-cluster-manager-backend:
         condition: service_healthy
     restart: unless-stopped
 

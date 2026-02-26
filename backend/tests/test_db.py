@@ -1,4 +1,4 @@
-"""Tests for aerospike_py_admin_ui_api.db module.
+"""Tests for aerospike_cluster_manager_api.db module.
 
 Uses a temporary SQLite database to test CRUD operations on connection profiles.
 """
@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from aerospike_py_admin_ui_api import db
-from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
+from aerospike_cluster_manager_api import db
+from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 # ---- Sync helpers (testing the _*_sync functions directly) ------------------
 

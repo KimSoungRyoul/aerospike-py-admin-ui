@@ -1,4 +1,4 @@
-# Aerospike Py Admin UI — Backend API
+# Aerospike Cluster Manager — Backend API
 
 FastAPI REST API backend for Aerospike database management.
 
@@ -14,7 +14,7 @@ FastAPI REST API backend for Aerospike database management.
 
 ```bash
 uv sync                    # Install dependencies
-uv run uvicorn aerospike_py_admin_ui_api.main:app --reload  # Start dev server on port 8000
+uv run uvicorn aerospike_cluster_manager_api.main:app --reload  # Start dev server on port 8000
 ```
 
 Requires an Aerospike server. Use `podman compose -f compose.dev.yaml up -d` to start a local 3-node cluster.
@@ -53,7 +53,7 @@ uv run ruff format src         # Format
 ## Project Structure
 
 ```
-src/aerospike_py_admin_ui_api/
+src/aerospike_cluster_manager_api/
 ├── main.py          # FastAPI app, CORS, middleware
 ├── config.py        # Environment configuration
 ├── client_manager.py# Aerospike client lifecycle

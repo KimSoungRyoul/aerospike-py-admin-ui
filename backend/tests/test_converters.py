@@ -1,9 +1,9 @@
-"""Tests for aerospike_py_admin_ui_api.converters module."""
+"""Tests for aerospike_cluster_manager_api.converters module."""
 
 from __future__ import annotations
 
-from aerospike_py_admin_ui_api.converters import raw_to_record
-from aerospike_py_admin_ui_api.models.record import AerospikeRecord
+from aerospike_cluster_manager_api.converters import raw_to_record
+from aerospike_cluster_manager_api.models.record import AerospikeRecord
 
 
 class TestRawToRecord:
