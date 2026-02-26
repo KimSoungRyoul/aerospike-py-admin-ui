@@ -63,7 +63,7 @@ until podman compose -f compose.dev.yaml ps --format json | grep -q '"Health":"h
 **Step 2: Backend 기동 (별도 터미널/백그라운드)**
 
 ```bash
-cd backend && AEROSPIKE_HOST=localhost AEROSPIKE_PORT=14790 uv run uvicorn aerospike_py_admin_ui_api.main:app --reload --host 0.0.0.0 --port 8000
+cd backend && AEROSPIKE_HOST=localhost AEROSPIKE_PORT=14790 uv run uvicorn aerospike_cluster_manager_api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Backend health check 대기:

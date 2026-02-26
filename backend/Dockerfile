@@ -25,4 +25,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=15s \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-CMD ["uv", "run", "uvicorn", "aerospike_py_admin_ui_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "aerospike_cluster_manager_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

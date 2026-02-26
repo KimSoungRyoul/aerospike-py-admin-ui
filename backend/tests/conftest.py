@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from aerospike_py_admin_ui_api.models.connection import ConnectionProfile
+from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 
 @pytest.fixture()
@@ -42,9 +42,9 @@ def init_test_db(tmp_db_path: str):
     Patches config.DATABASE_PATH so that init_db() creates the database
     at the temporary location.
     """
-    from aerospike_py_admin_ui_api import db
+    from aerospike_cluster_manager_api import db
 
-    with patch("aerospike_py_admin_ui_api.config.DATABASE_PATH", tmp_db_path):
+    with patch("aerospike_cluster_manager_api.config.DATABASE_PATH", tmp_db_path):
         db.init_db()
         yield tmp_db_path
         db.close_db()

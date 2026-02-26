@@ -1,7 +1,7 @@
 [project]
-name = "aerospike-py-admin-ui-api"
+name = "aerospike-cluster-manager-api"
 version = "0.1.0"
-description = "Aerospike Py Admin UI Backend API"
+description = "Aerospike Cluster Manager Backend API"
 readme = "README.md"
 authors = [
     { name = "KimSoungRyoul", email = "KimSoungRyoul@gmail.com" }
@@ -39,7 +39,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["aerospike_py_admin_ui_api"]
+known-first-party = ["aerospike_cluster_manager_api"]
 
 [dependency-groups]
 dev = [
