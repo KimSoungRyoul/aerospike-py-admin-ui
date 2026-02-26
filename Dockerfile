@@ -1,12 +1,12 @@
 # =============================================================================
 # Stage 1: Frontend build
 # =============================================================================
-FROM node:24-alpine AS frontend-deps
+FROM node:22-alpine AS frontend-deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
-FROM node:24-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app
 COPY --from=frontend-deps /app/node_modules ./node_modules
 COPY frontend/ .
@@ -17,7 +17,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Backend build
 # =============================================================================
-FROM python:3.14-slim AS backend-builder
+FROM python:3.13-slim AS backend-builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app/backend
@@ -31,14 +31,14 @@ RUN uv sync --frozen --no-dev
 # =============================================================================
 # Stage 3: Production runtime (Python + Node.js)
 # =============================================================================
-FROM python:3.14-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 24
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+# Install Node.js 22
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
