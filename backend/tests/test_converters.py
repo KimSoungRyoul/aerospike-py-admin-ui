@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from aerospike_cluster_manager_api.converters import raw_to_record
 from aerospike_cluster_manager_api.models.record import AerospikeRecord
 
@@ -36,29 +39,21 @@ class TestRawToRecord:
         assert record.key.pk == "42"
 
     def test_empty_key_tuple(self):
-        """Empty key tuple should default all key fields."""
+        """Empty key tuple should raise ValidationError (namespace is required)."""
         key_tuple = ()
         meta = {"gen": 1, "ttl": 0}
         bins = {"x": 1}
 
-        record = raw_to_record((key_tuple, meta, bins))
-
-        assert record.key.namespace == ""
-        assert record.key.set == ""
-        assert record.key.pk == ""
-        assert record.key.digest is None
+        with pytest.raises(ValidationError, match="namespace"):
+            raw_to_record((key_tuple, meta, bins))
 
     def test_none_key_tuple(self):
-        """None key tuple should be handled gracefully."""
+        """None key tuple should raise ValidationError (namespace is required)."""
         meta = {"gen": 1, "ttl": 0}
         bins = {"x": 1}
 
-        record = raw_to_record((None, meta, bins))
-
-        assert record.key.namespace == ""
-        assert record.key.set == ""
-        assert record.key.pk == ""
-        assert record.key.digest is None
+        with pytest.raises(ValidationError, match="namespace"):
+            raw_to_record((None, meta, bins))
 
     def test_partial_key_tuple_namespace_only(self):
         key_tuple = ("test",)
