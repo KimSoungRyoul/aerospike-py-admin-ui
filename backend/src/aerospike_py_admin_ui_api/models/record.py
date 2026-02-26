@@ -13,9 +13,9 @@ class GeoJSON(BaseModel):
 
 
 class RecordKey(BaseModel):
-    namespace: str
-    set: str = ""
-    pk: str = ""
+    namespace: str = Field(min_length=1, max_length=31)
+    set: str = Field(default="", max_length=63)
+    pk: str = Field(default="", max_length=1024)
     digest: str | None = None
 
 

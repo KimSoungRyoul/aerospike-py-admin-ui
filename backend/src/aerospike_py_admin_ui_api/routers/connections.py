@@ -24,6 +24,7 @@ from aerospike_py_admin_ui_api.models.connection import (
     TestConnectionRequest,
     UpdateConnectionRequest,
 )
+from aerospike_py_admin_ui_api.utils import parse_host_port
 
 logger = logging.getLogger(__name__)
 
@@ -116,16 +117,7 @@ async def get_connection_health(client: AerospikeClient) -> ConnectionStatus:
 
 
 def _test_connect_sync(body: TestConnectionRequest) -> dict:
-    hosts: list[tuple[str, int]] = []
-    for h in body.hosts:
-        if ":" in h:
-            host, port_str = h.rsplit(":", 1)
-            try:
-                hosts.append((host, int(port_str)))
-            except ValueError:
-                hosts.append((h, body.port))
-        else:
-            hosts.append((h, body.port))
+    hosts = [parse_host_port(h, body.port) for h in body.hosts]
 
     config: dict[str, Any] = {"hosts": hosts}
     if body.username and body.password:

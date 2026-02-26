@@ -93,6 +93,7 @@ export default function ConnectionsPage() {
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ConnectionProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
 
   useEffect(() => {
     fetchConnections()
@@ -189,8 +190,7 @@ export default function ConnectionsPage() {
     }
   };
 
-  const handleExport = useCallback(() => {
-    if (!window.confirm("Export connections? Passwords will NOT be included for security.")) return;
+  const doExport = useCallback(() => {
     const data = connections.map(({ name, hosts, port, color, username }) => ({
       name,
       hosts,
@@ -207,8 +207,12 @@ export default function ConnectionsPage() {
     a.download = "aerospike-connections.json";
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Connections exported (passwords excluded)");
+    toast.success("Connections exported");
   }, [connections]);
+
+  const handleExport = useCallback(() => {
+    setExportConfirmOpen(true);
+  }, []);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
@@ -585,6 +589,17 @@ export default function ConnectionsPage() {
         variant="destructive"
         onConfirm={handleDelete}
         loading={deleting}
+      />
+
+      {/* Export Confirmation */}
+      <ConfirmDialog
+        open={exportConfirmOpen}
+        onOpenChange={setExportConfirmOpen}
+        title="Export Connections"
+        description="Export connections? Passwords will NOT be included for security."
+        confirmLabel="Export"
+        variant="default"
+        onConfirm={doExport}
       />
     </div>
   );

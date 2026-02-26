@@ -158,7 +158,7 @@ export function K8sClusterWizard() {
     } catch (err) {
       const msg = getErrorMessage(err);
       setCreationError(msg);
-      toast.error(msg);
+      toast.error("Failed to create cluster");
     } finally {
       setCreating(false);
     }
