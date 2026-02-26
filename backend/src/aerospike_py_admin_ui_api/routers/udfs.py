@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from aerospike_py_admin_ui_api.constants import INFO_UDF_LIST
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.info_parser import parse_records
 from aerospike_py_admin_ui_api.models.udf import UDFModule, UploadUDFRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/udfs", tags=["udfs"])
 

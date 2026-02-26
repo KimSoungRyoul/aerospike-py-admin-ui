@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 BinValue = Any
 
@@ -14,14 +14,14 @@ class GeoJSON(BaseModel):
 
 class RecordKey(BaseModel):
     namespace: str
-    set: str
-    pk: str
+    set: str = ""
+    pk: str = ""
     digest: str | None = None
 
 
 class RecordMeta(BaseModel):
-    generation: int
-    ttl: int
+    generation: int = Field(ge=0)
+    ttl: int = Field(ge=0)
     lastUpdateMs: int | None = None
 
 

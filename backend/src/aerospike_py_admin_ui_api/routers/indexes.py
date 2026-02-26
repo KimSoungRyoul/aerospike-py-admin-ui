@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Query
 
@@ -8,6 +9,8 @@ from aerospike_py_admin_ui_api.constants import INFO_NAMESPACES, info_sindex
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.info_parser import parse_list, parse_records
 from aerospike_py_admin_ui_api.models.index import CreateIndexRequest, SecondaryIndex
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/indexes", tags=["indexes"])
 

@@ -26,6 +26,7 @@ import { CodeEditor } from "@/components/common/code-editor";
 import { api } from "@/lib/api/client";
 import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";
+import { sanitizeFilename } from "@/lib/sanitize";
 import { getErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -83,7 +84,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
     setUploading(true);
     try {
       await api.uploadUDF(connId, {
-        filename: uploadFilename.trim(),
+        filename: sanitizeFilename(uploadFilename.trim()),
         content: uploadContent,
       });
       toast.success("UDF uploaded");
@@ -106,7 +107,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const text = await file.text();
-      setUploadFilename(file.name);
+      setUploadFilename(sanitizeFilename(file.name));
       setUploadContent(text);
       setUploadOpen(true);
     };

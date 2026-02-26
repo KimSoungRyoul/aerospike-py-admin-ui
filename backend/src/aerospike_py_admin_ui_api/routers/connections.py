@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -22,6 +23,8 @@ from aerospike_py_admin_ui_api.models.connection import (
     TestConnectionRequest,
     UpdateConnectionRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
@@ -105,6 +108,7 @@ async def get_connection_health(client: AerospikeClient) -> ConnectionStatus:
             edition=info["edition"],
         )
     except Exception:
+        logger.exception("Health check failed for connection")
         return ConnectionStatus(connected=False, nodeCount=0, namespaceCount=0)
 
 
@@ -145,6 +149,7 @@ async def test_connection(body: TestConnectionRequest) -> dict:
     try:
         return await asyncio.to_thread(_test_connect_sync, body)
     except Exception as e:
+        logger.exception("Test connection failed")
         return {"success": False, "message": str(e)}
 
 
