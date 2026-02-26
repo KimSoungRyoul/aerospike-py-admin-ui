@@ -5,11 +5,13 @@ import contextlib
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_WRITE
 from aerospike_py_admin_ui_api.converters import raw_to_record
 from aerospike_py_admin_ui_api.dependencies import AerospikeClient
 from aerospike_py_admin_ui_api.models.record import (
+    AerospikeRecord,
     RecordListResponse,
     RecordWriteRequest,
 )
@@ -66,7 +68,7 @@ async def get_records(
     return RecordListResponse(**result)
 
 
-def _put_record_sync(c, body: RecordWriteRequest):
+def _put_record_sync(c, body: RecordWriteRequest) -> AerospikeRecord:
     k = body.key
     key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
 
@@ -100,6 +102,7 @@ def _delete_record_sync(c, ns: str, set_name: str, pk: str) -> None:
 
 @router.delete(
     "/{conn_id}",
+    status_code=204,
     summary="Delete record",
     description="Delete a record identified by namespace, set, and primary key.",
 )
@@ -108,7 +111,7 @@ async def delete_record(
     ns: str = Query(..., min_length=1),
     set: str = Query(..., min_length=1),
     pk: str = Query(..., min_length=1),
-) -> dict:
+) -> Response:
     """Delete a record identified by namespace, set, and primary key."""
     await asyncio.to_thread(_delete_record_sync, client, ns, set, pk)
-    return {"message": "Record deleted"}
+    return Response(status_code=204)

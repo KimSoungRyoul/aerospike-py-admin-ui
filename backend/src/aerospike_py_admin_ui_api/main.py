@@ -39,7 +39,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Shutdown complete")
 
 
-app = FastAPI(title="Aerospike Py Admin UI API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="Aerospike Py Admin UI API",
+    version="0.1.0",
+    description="REST API for managing Aerospike Community Edition clusters",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,

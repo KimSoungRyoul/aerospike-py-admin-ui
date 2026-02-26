@@ -10,6 +10,7 @@ from typing import Any
 import aerospike_py
 from aerospike_py.exception import AerospikeError
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.responses import Response
 
 from aerospike_py_admin_ui_api import db
 from aerospike_py_admin_ui_api.client_manager import client_manager
@@ -59,7 +60,9 @@ async def create_connection(body: CreateConnectionRequest) -> ConnectionProfile:
 async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfile:
     """Retrieve a single connection profile by its ID."""
     conn = await db.get_connection(conn_id)
-    return conn  # type: ignore[return-value]
+    if not conn:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    return conn
 
 
 @router.put(
@@ -154,10 +157,13 @@ async def test_connection(body: TestConnectionRequest) -> dict:
 
 
 @router.delete(
-    "/{conn_id}", summary="Delete connection", description="Delete a connection profile and close its active client."
+    "/{conn_id}",
+    status_code=204,
+    summary="Delete connection",
+    description="Delete a connection profile and close its active client.",
 )
-async def delete_connection(conn_id: str = Depends(_get_verified_connection)) -> dict:
+async def delete_connection(conn_id: str = Depends(_get_verified_connection)) -> Response:
     """Delete a connection profile and close its active client."""
     await db.delete_connection(conn_id)
     await client_manager.close_client(conn_id)
-    return {"message": "Connection deleted"}
+    return Response(status_code=204)
