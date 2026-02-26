@@ -44,6 +44,11 @@ export function K8sClusterWizard() {
   const [fetchingOptions, setFetchingOptions] = useState(true);
   const [creationError, setCreationError] = useState<string | null>(null);
 
+  const DEFAULT_RESOURCES = {
+    requests: { cpu: "500m", memory: "1Gi" },
+    limits: { cpu: "2", memory: "4Gi" },
+  };
+
   const [form, setForm] = useState<CreateK8sClusterRequest>({
     name: "",
     namespace: "aerospike",
@@ -56,6 +61,7 @@ export function K8sClusterWizard() {
         storageEngine: { type: "memory", dataSize: 1073741824 },
       },
     ],
+    resources: DEFAULT_RESOURCES,
     autoConnect: true,
   });
 
@@ -89,11 +95,6 @@ export function K8sClusterWizard() {
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
-  };
-
-  const DEFAULT_RESOURCES = {
-    requests: { cpu: "500m", memory: "1Gi" },
-    limits: { cpu: "2", memory: "4Gi" },
   };
 
   const updateResource = (

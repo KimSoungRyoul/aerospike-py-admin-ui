@@ -80,7 +80,8 @@ class K8sClient:
         if isinstance(e, ApiException):
             msg = (str(e.body) if e.body else "")[:2000]
             return K8sApiError(status=e.status, reason=e.reason or "", message=msg)
-        return K8sApiError(status=500, reason="InternalError", message=str(e)[:2000])
+        logger.error("Unexpected error in K8s operation: %s", e, exc_info=True)
+        return K8sApiError(status=500, reason="InternalError", message="Internal server error")
 
     def _list_clusters_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
         logger.debug("_list_clusters_sync(namespace=%s)", namespace)
@@ -208,7 +209,11 @@ class K8sClient:
                         "hostIP": pod.status.host_ip if pod.status else None,
                         "isReady": ready,
                         "phase": pod.status.phase if pod.status else "Unknown",
-                        "image": pod.spec.containers[0].image if pod.spec and pod.spec.containers else None,
+                        "image": (
+                            pod.spec.containers[0].image
+                            if pod.spec and pod.spec.containers and len(pod.spec.containers) > 0
+                            else None
+                        ),
                     }
                 )
             return pods
