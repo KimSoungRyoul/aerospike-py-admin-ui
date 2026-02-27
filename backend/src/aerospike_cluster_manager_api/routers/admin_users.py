@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from aerospike_py.exception import AdminError, AerospikeError
@@ -17,22 +16,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
 
 
-def _query_users_sync(c) -> list[AerospikeUser]:
-    raw_users = c.admin_query_users_info()
-    users: list[AerospikeUser] = []
-    for info in raw_users:
-        users.append(
-            AerospikeUser(
-                username=info.get("user", ""),
-                roles=info.get("roles", []),
-                readQuota=info.get("read_quota", 0),
-                writeQuota=info.get("write_quota", 0),
-                connections=info.get("connections", 0),
-            )
-        )
-    return users
-
-
 @router.get(
     "/{conn_id}/users",
     summary="List users",
@@ -41,17 +24,25 @@ def _query_users_sync(c) -> list[AerospikeUser]:
 async def get_users(client: AerospikeClient) -> list[AerospikeUser]:
     """Retrieve all Aerospike users and their roles. Requires Enterprise Edition."""
     try:
-        return await asyncio.to_thread(_query_users_sync, client)
+        raw_users = await client.admin_query_users_info()
+        users: list[AerospikeUser] = []
+        for info in raw_users:
+            users.append(
+                AerospikeUser(
+                    username=info.get("user", ""),
+                    roles=info.get("roles", []),
+                    readQuota=info.get("read_quota", 0),
+                    writeQuota=info.get("write_quota", 0),
+                    connections=info.get("connections", 0),
+                )
+            )
+        return users
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
     except AerospikeError as e:
         if "security" in str(e).lower() or "not enabled" in str(e).lower() or "not supported" in str(e).lower():
             raise HTTPException(status_code=403, detail=EE_MSG) from None
         raise
-
-
-def _create_user_sync(c, username: str, password: str, roles: list[str]) -> None:
-    c.admin_create_user(username, password, roles)
 
 
 @router.post(
@@ -66,7 +57,7 @@ async def create_user(body: CreateUserRequest, client: AerospikeClient) -> Aeros
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
     try:
-        await asyncio.to_thread(_create_user_sync, client, body.username, body.password, body.roles or [])
+        await client.admin_create_user(body.username, body.password, body.roles or [])
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 
@@ -77,10 +68,6 @@ async def create_user(body: CreateUserRequest, client: AerospikeClient) -> Aeros
         writeQuota=0,
         connections=0,
     )
-
-
-def _change_password_sync(c, username: str, password: str) -> None:
-    c.admin_change_password(username, password)
 
 
 @router.patch(
@@ -95,15 +82,11 @@ async def change_password(body: ChangePasswordRequest, client: AerospikeClient) 
         raise HTTPException(status_code=400, detail="Missing required fields: username, password")
 
     try:
-        await asyncio.to_thread(_change_password_sync, client, body.username, body.password)
+        await client.admin_change_password(body.username, body.password)
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 
     return MessageResponse(message="Password updated")
-
-
-def _drop_user_sync(c, username: str) -> None:
-    c.admin_drop_user(username)
 
 
 @router.delete(
@@ -118,7 +101,7 @@ async def delete_user(
 ) -> Response:
     """Delete an Aerospike user by username. Requires Enterprise Edition."""
     try:
-        await asyncio.to_thread(_drop_user_sync, client, username)
+        await client.admin_drop_user(username)
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 

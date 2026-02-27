@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, Query
@@ -19,13 +18,19 @@ _STATE_MAP = {"RW": "ready", "WO": "building", "D": "error"}
 _TYPE_MAP = {"numeric": "numeric", "string": "string", "geo2dsphere": "geo2dsphere"}
 
 
-def _list_indexes_sync(c) -> list[SecondaryIndex]:
-    ns_raw = c.info_random_node(INFO_NAMESPACES)
+@router.get(
+    "/{conn_id}",
+    summary="List secondary indexes",
+    description="Retrieve all secondary indexes across all namespaces in the cluster.",
+)
+async def get_indexes(client: AerospikeClient) -> list[SecondaryIndex]:
+    """Retrieve all secondary indexes across all namespaces in the cluster."""
+    ns_raw = await client.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
 
     indexes: list[SecondaryIndex] = []
     for ns in ns_names:
-        sindex_raw = c.info_random_node(info_sindex(ns))
+        sindex_raw = await client.info_random_node(info_sindex(ns))
         for rec in parse_records(sindex_raw):
             raw_type = rec.get("type", rec.get("bin_type", "string")).lower()
             idx_type = _TYPE_MAP.get(raw_type, "string")
@@ -45,27 +50,6 @@ def _list_indexes_sync(c) -> list[SecondaryIndex]:
     return indexes
 
 
-@router.get(
-    "/{conn_id}",
-    summary="List secondary indexes",
-    description="Retrieve all secondary indexes across all namespaces in the cluster.",
-)
-async def get_indexes(client: AerospikeClient) -> list[SecondaryIndex]:
-    """Retrieve all secondary indexes across all namespaces in the cluster."""
-    return await asyncio.to_thread(_list_indexes_sync, client)
-
-
-def _create_index_sync(c, body: CreateIndexRequest) -> None:
-    if body.type == "numeric":
-        c.index_integer_create(body.namespace, body.set, body.bin, body.name)
-    elif body.type == "string":
-        c.index_string_create(body.namespace, body.set, body.bin, body.name)
-    elif body.type == "geo2dsphere":
-        c.index_geo2dsphere_create(body.namespace, body.set, body.bin, body.name)
-    else:
-        raise ValueError(f"Unsupported index type: {body.type}")
-
-
 @router.post(
     "/{conn_id}",
     status_code=201,
@@ -74,7 +58,15 @@ def _create_index_sync(c, body: CreateIndexRequest) -> None:
 )
 async def create_index(body: CreateIndexRequest, client: AerospikeClient) -> SecondaryIndex:
     """Create a new secondary index on a specified namespace, set, and bin."""
-    await asyncio.to_thread(_create_index_sync, client, body)
+    if body.type == "numeric":
+        await client.index_integer_create(body.namespace, body.set, body.bin, body.name)
+    elif body.type == "string":
+        await client.index_string_create(body.namespace, body.set, body.bin, body.name)
+    elif body.type == "geo2dsphere":
+        await client.index_geo2dsphere_create(body.namespace, body.set, body.bin, body.name)
+    else:
+        raise ValueError(f"Unsupported index type: {body.type}")
+
     return SecondaryIndex(
         name=body.name,
         namespace=body.namespace,
@@ -83,10 +75,6 @@ async def create_index(body: CreateIndexRequest, client: AerospikeClient) -> Sec
         type=body.type,
         state="building",
     )
-
-
-def _delete_index_sync(c, ns: str, name: str) -> None:
-    c.index_remove(ns, name)
 
 
 @router.delete(
@@ -101,5 +89,5 @@ async def delete_index(
     ns: str = Query(..., min_length=1),
 ) -> Response:
     """Remove a secondary index by name from the specified namespace."""
-    await asyncio.to_thread(_delete_index_sync, client, ns, name)
+    await client.index_remove(ns, name)
     return Response(status_code=204)

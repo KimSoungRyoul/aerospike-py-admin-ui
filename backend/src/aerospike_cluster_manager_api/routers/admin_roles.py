@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from aerospike_py.exception import AdminError, AerospikeError
@@ -16,36 +15,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
 
 
-def _query_roles_sync(c) -> list[AerospikeRole]:
-    raw_roles = c.admin_query_roles()
-    roles: list[AerospikeRole] = []
-    for info in raw_roles:
-        privs_raw = info.get("privileges", [])
-        privileges: list[Privilege] = []
-        for p in privs_raw:
-            if isinstance(p, dict):
-                privileges.append(
-                    Privilege(
-                        code=p.get("code", ""),
-                        namespace=p.get("ns") or p.get("namespace"),
-                        set=p.get("set"),
-                    )
-                )
-            else:
-                privileges.append(Privilege(code=str(p)))
-
-        roles.append(
-            AerospikeRole(
-                name=info.get("role", ""),
-                privileges=privileges,
-                whitelist=info.get("whitelist", []),
-                readQuota=info.get("read_quota", 0),
-                writeQuota=info.get("write_quota", 0),
-            )
-        )
-    return roles
-
-
 @router.get(
     "/{conn_id}/roles",
     summary="List roles",
@@ -54,24 +23,39 @@ def _query_roles_sync(c) -> list[AerospikeRole]:
 async def get_roles(client: AerospikeClient) -> list[AerospikeRole]:
     """Retrieve all Aerospike roles and their privileges. Requires Enterprise Edition."""
     try:
-        return await asyncio.to_thread(_query_roles_sync, client)
+        raw_roles = await client.admin_query_roles()
+        roles: list[AerospikeRole] = []
+        for info in raw_roles:
+            privs_raw = info.get("privileges", [])
+            privileges: list[Privilege] = []
+            for p in privs_raw:
+                if isinstance(p, dict):
+                    privileges.append(
+                        Privilege(
+                            code=p.get("code", ""),
+                            namespace=p.get("ns") or p.get("namespace"),
+                            set=p.get("set"),
+                        )
+                    )
+                else:
+                    privileges.append(Privilege(code=str(p)))
+
+            roles.append(
+                AerospikeRole(
+                    name=info.get("role", ""),
+                    privileges=privileges,
+                    whitelist=info.get("whitelist", []),
+                    readQuota=info.get("read_quota", 0),
+                    writeQuota=info.get("write_quota", 0),
+                )
+            )
+        return roles
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
     except AerospikeError as e:
         if "security" in str(e).lower() or "not enabled" in str(e).lower() or "not supported" in str(e).lower():
             raise HTTPException(status_code=403, detail=EE_MSG) from None
         raise
-
-
-def _create_role_sync(c, body: CreateRoleRequest) -> None:
-    privileges = [{"code": p.code, "ns": p.namespace or "", "set": p.set or ""} for p in body.privileges]
-    c.admin_create_role(
-        body.name,
-        privileges,
-        whitelist=body.whitelist or [],
-        read_quota=body.readQuota or 0,
-        write_quota=body.writeQuota or 0,
-    )
 
 
 @router.post(
@@ -86,7 +70,14 @@ async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> Aeros
         raise HTTPException(status_code=400, detail="Missing required fields: name, privileges")
 
     try:
-        await asyncio.to_thread(_create_role_sync, client, body)
+        privileges = [{"code": p.code, "ns": p.namespace or "", "set": p.set or ""} for p in body.privileges]
+        await client.admin_create_role(
+            body.name,
+            privileges,
+            whitelist=body.whitelist or [],
+            read_quota=body.readQuota or 0,
+            write_quota=body.writeQuota or 0,
+        )
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 
@@ -97,10 +88,6 @@ async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> Aeros
         readQuota=body.readQuota or 0,
         writeQuota=body.writeQuota or 0,
     )
-
-
-def _drop_role_sync(c, name: str) -> None:
-    c.admin_drop_role(name)
 
 
 @router.delete(
@@ -115,7 +102,7 @@ async def delete_role(
 ) -> Response:
     """Delete an Aerospike role by name. Requires Enterprise Edition."""
     try:
-        await asyncio.to_thread(_drop_role_sync, client, name)
+        await client.admin_drop_role(name)
     except AdminError:
         raise HTTPException(status_code=403, detail=EE_MSG) from None
 

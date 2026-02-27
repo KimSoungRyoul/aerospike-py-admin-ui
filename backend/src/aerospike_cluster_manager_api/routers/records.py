@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 
@@ -8,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
 
 from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_WRITE
-from aerospike_cluster_manager_api.converters import raw_to_record
+from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.models.record import (
     AerospikeRecord,
@@ -30,27 +29,6 @@ def _auto_detect_pk(pk: str) -> str | int:
 router = APIRouter(prefix="/api/records", tags=["records"])
 
 
-def _list_records_sync(c, ns: str, set_name: str, page: int, page_size: int) -> dict:
-    q = c.query(ns, set_name)
-    raw_results = q.results(POLICY_QUERY)
-
-    if len(raw_results) > MAX_QUERY_RECORDS:
-        raw_results = raw_results[:MAX_QUERY_RECORDS]
-
-    total = len(raw_results)
-    start = (page - 1) * page_size
-    paged = raw_results[start : start + page_size]
-    records = [raw_to_record(r) for r in paged]
-
-    return {
-        "records": records,
-        "total": total,
-        "page": page,
-        "pageSize": page_size,
-        "hasMore": start + page_size < total,
-    }
-
-
 @router.get(
     "/{conn_id}",
     summary="List records",
@@ -64,21 +42,24 @@ async def get_records(
     pageSize: int = Query(25, ge=1, le=500),
 ) -> RecordListResponse:
     """Retrieve paginated records from a namespace and set."""
-    result = await asyncio.to_thread(_list_records_sync, client, ns, set, page, pageSize)
-    return RecordListResponse(**result)
+    q = client.query(ns, set)
+    raw_results = await q.results(POLICY_QUERY)
 
+    if len(raw_results) > MAX_QUERY_RECORDS:
+        raw_results = raw_results[:MAX_QUERY_RECORDS]
 
-def _put_record_sync(c, body: RecordWriteRequest) -> AerospikeRecord:
-    k = body.key
-    key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
+    total = len(raw_results)
+    start = (page - 1) * pageSize
+    paged = raw_results[start : start + pageSize]
+    records = [record_to_model(r) for r in paged]
 
-    meta = None
-    if body.ttl is not None:
-        meta = {"ttl": body.ttl}
-
-    c.put(key_tuple, body.bins, meta=meta, policy=POLICY_WRITE)
-    result = c.get(key_tuple, policy=POLICY_READ)
-    return raw_to_record(result)
+    return RecordListResponse(
+        records=records,
+        total=total,
+        page=page,
+        pageSize=pageSize,
+        hasMore=start + pageSize < total,
+    )
 
 
 @router.post(
@@ -87,17 +68,21 @@ def _put_record_sync(c, body: RecordWriteRequest) -> AerospikeRecord:
     summary="Create or update record",
     description="Write a record to Aerospike with the specified key, bins, and optional TTL.",
 )
-async def put_record(body: RecordWriteRequest, client: AerospikeClient):
+async def put_record(body: RecordWriteRequest, client: AerospikeClient) -> AerospikeRecord:
     """Write a record to Aerospike with the specified key, bins, and optional TTL."""
     k = body.key
     if not k.namespace or not k.set or not k.pk:
         raise HTTPException(status_code=400, detail="Missing required key fields: namespace, set, pk")
 
-    return await asyncio.to_thread(_put_record_sync, client, body)
+    key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
 
+    meta = None
+    if body.ttl is not None:
+        meta = {"ttl": body.ttl}
 
-def _delete_record_sync(c, ns: str, set_name: str, pk: str) -> None:
-    c.remove((ns, set_name, _auto_detect_pk(pk)))
+    await client.put(key_tuple, body.bins, meta=meta, policy=POLICY_WRITE)
+    result = await client.get(key_tuple, policy=POLICY_READ)
+    return record_to_model(result)
 
 
 @router.delete(
@@ -113,5 +98,5 @@ async def delete_record(
     pk: str = Query(..., min_length=1),
 ) -> Response:
     """Delete a record identified by namespace, set, and primary key."""
-    await asyncio.to_thread(_delete_record_sync, client, ns, set, pk)
+    await client.remove((ns, set, _auto_detect_pk(pk)))
     return Response(status_code=204)

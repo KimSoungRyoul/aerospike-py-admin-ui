@@ -22,8 +22,8 @@ async def _get_verified_connection(conn_id: str = Path()) -> str:
     return conn_id
 
 
-async def _get_client(conn_id: str = Depends(_get_verified_connection)) -> aerospike_py.Client:
-    """Resolve *conn_id* and return a cached Aerospike client."""
+async def _get_client(conn_id: str = Depends(_get_verified_connection)) -> aerospike_py.AsyncClient:
+    """Resolve *conn_id* and return a cached Aerospike async client."""
     try:
         return await client_manager.get_client(conn_id)
     except Exception as e:
@@ -37,5 +37,5 @@ async def _get_client(conn_id: str = Depends(_get_verified_connection)) -> aeros
 VerifiedConnId = Annotated[str, Depends(_get_verified_connection)]
 """Inject a verified connection id from the path."""
 
-AerospikeClient = Annotated[aerospike_py.Client, Depends(_get_client)]
-"""Inject a cached Aerospike client resolved from the path ``conn_id``."""
+AerospikeClient = Annotated[aerospike_py.AsyncClient, Depends(_get_client)]
+"""Inject a cached Aerospike async client resolved from the path ``conn_id``."""

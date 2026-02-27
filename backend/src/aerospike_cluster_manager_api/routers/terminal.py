@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import random
 import time
@@ -34,12 +33,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/terminal", tags=["terminal"])
 
 
-def _execute_sync(c, command: str) -> tuple[str, bool]:
+async def _execute(c, command: str) -> tuple[str, bool]:
     """Execute a terminal command against Aerospike. Returns (output, success)."""
     lower = command.lower()
 
     if lower == "show namespaces":
-        ns_raw = c.info_random_node(INFO_NAMESPACES)
+        ns_raw = await c.info_random_node(INFO_NAMESPACES)
         ns_list = parse_list(ns_raw)
         if not ns_list:
             return "(no namespaces)", True
@@ -47,17 +46,15 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
         return "Namespaces:\n" + "\n".join(lines), True
 
     if lower == "show sets":
-        ns_raw = c.info_random_node(INFO_NAMESPACES)
+        ns_raw = await c.info_random_node(INFO_NAMESPACES)
         ns_list = parse_list(ns_raw)
         set_lines: list[str] = []
         for ns in ns_list:
-            # Get replication factor for this namespace
-            ns_info_raw = c.info_random_node(f"namespace/{ns}")
+            ns_info_raw = await c.info_random_node(f"namespace/{ns}")
             ns_kv = parse_kv_pairs(ns_info_raw)
             rf = safe_int(ns_kv.get("replication-factor"), 1)
 
-            # Aggregate sets from all nodes
-            sets_all = c.info_all(info_sets(ns))
+            sets_all = await c.info_all(info_sets(ns))
             agg_sets = aggregate_set_records(sets_all, rf)
             for s in agg_sets:
                 set_lines.append(
@@ -67,12 +64,11 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
         return "Sets:\n" + "\n".join(set_lines) if set_lines else "(no sets)", True
 
     if lower == "show bins":
-        ns_raw = c.info_random_node(INFO_NAMESPACES)
+        ns_raw = await c.info_random_node(INFO_NAMESPACES)
         ns_list = parse_list(ns_raw)
         all_bins: set[str] = set()
         for ns in ns_list:
-            # Collect bins from all nodes (union)
-            bins_all = c.info_all(info_bins(ns))
+            bins_all = await c.info_all(info_bins(ns))
             for _name, err, bins_raw in bins_all:
                 if err is not None:
                     continue
@@ -87,11 +83,11 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
         return "(no bins)", True
 
     if lower == "show indexes" or lower == "show sindex":
-        ns_raw = c.info_random_node(INFO_NAMESPACES)
+        ns_raw = await c.info_random_node(INFO_NAMESPACES)
         ns_list = parse_list(ns_raw)
         idx_lines: list[str] = []
         for ns in ns_list:
-            sindex_raw = c.info_random_node(info_sindex(ns))
+            sindex_raw = await c.info_random_node(info_sindex(ns))
             for rec in parse_records(sindex_raw):
                 name = rec.get("indexname", rec.get("index_name", ""))
                 bin_name = rec.get("bin", rec.get("bin_name", ""))
@@ -101,20 +97,20 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
         return "Indexes:\n" + "\n".join(idx_lines) if idx_lines else "(no indexes)", True
 
     if lower == "status":
-        resp = c.info_random_node(INFO_STATUS)
+        resp = await c.info_random_node(INFO_STATUS)
         return resp.strip(), True
 
     if lower == "build":
-        build = c.info_random_node(INFO_BUILD).strip()
-        edition = c.info_random_node(INFO_EDITION).strip()
+        build = (await c.info_random_node(INFO_BUILD)).strip()
+        edition = (await c.info_random_node(INFO_EDITION)).strip()
         return f"{edition} {build}", True
 
     if lower == "node":
-        resp = c.info_random_node(INFO_NODE)
+        resp = await c.info_random_node(INFO_NODE)
         return resp.strip(), True
 
     if lower == "statistics":
-        stats_all = c.info_all(INFO_STATISTICS)
+        stats_all = await c.info_all(INFO_STATISTICS)
         output_parts: list[str] = []
         for node_name, err, raw in stats_all:
             if err is not None:
@@ -127,7 +123,7 @@ def _execute_sync(c, command: str) -> tuple[str, bool]:
 
     # Fallback: try as raw info command
     try:
-        resp = c.info_random_node(command)
+        resp = await c.info_random_node(command)
         return resp.strip() if resp.strip() else "(empty response)", True
     except Exception as e:
         logger.exception("Terminal command failed: %s", command)
@@ -145,7 +141,7 @@ async def execute_command(body: TerminalRequest, client: AerospikeClient) -> Ter
     if not command:
         raise HTTPException(status_code=400, detail="Missing required field: command")
 
-    output, success = await asyncio.to_thread(_execute_sync, client, command)
+    output, success = await _execute(client, command)
 
     return TerminalCommand(
         id=f"cmd-{int(time.time() * 1000)}-{random.getrandbits(24):06x}",
