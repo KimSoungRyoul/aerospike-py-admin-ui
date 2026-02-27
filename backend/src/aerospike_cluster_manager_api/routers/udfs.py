@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import tempfile
 from pathlib import Path
@@ -18,8 +17,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/udfs", tags=["udfs"])
 
 
-def _list_udfs_sync(c) -> list[UDFModule]:
-    raw = c.info_random_node(INFO_UDF_LIST)
+async def _list_udfs(c) -> list[UDFModule]:
+    raw = await c.info_random_node(INFO_UDF_LIST)
     records = parse_records(raw, field_sep=",")
     modules: list[UDFModule] = []
     for rec in records:
@@ -40,20 +39,7 @@ def _list_udfs_sync(c) -> list[UDFModule]:
 )
 async def get_udfs(client: AerospikeClient) -> list[UDFModule]:
     """Retrieve all registered UDF modules from the Aerospike cluster."""
-    return await asyncio.to_thread(_list_udfs_sync, client)
-
-
-def _upload_udf_sync(c, filename: str, content: str) -> None:
-    tmp_path: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".lua", delete=False) as tmp:
-            tmp.write(content)
-            tmp.flush()
-            tmp_path = tmp.name
-        c.udf_put(tmp_path)
-    finally:
-        if tmp_path:
-            Path(tmp_path).unlink(missing_ok=True)
+    return await _list_udfs(client)
 
 
 @router.post(
@@ -64,18 +50,23 @@ def _upload_udf_sync(c, filename: str, content: str) -> None:
 )
 async def upload_udf(body: UploadUDFRequest, client: AerospikeClient) -> UDFModule:
     """Upload and register a Lua UDF module to the Aerospike cluster."""
-    await asyncio.to_thread(_upload_udf_sync, client, body.filename, body.content)
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".lua", delete=False) as tmp:
+            tmp.write(body.content)
+            tmp.flush()
+            tmp_path = tmp.name
+        await client.udf_put(tmp_path)
+    finally:
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
 
     # Re-fetch to get actual hash
-    modules = await asyncio.to_thread(_list_udfs_sync, client)
+    modules = await _list_udfs(client)
     uploaded = next((m for m in modules if m.filename == body.filename), None)
     if uploaded:
         return uploaded
     return UDFModule(filename=body.filename, type="LUA", hash="", content=body.content)
-
-
-def _delete_udf_sync(c, module_name: str) -> None:
-    c.udf_remove(module_name)
 
 
 @router.delete(
@@ -89,5 +80,5 @@ async def delete_udf(
     filename: str = Query(..., min_length=1),
 ) -> Response:
     """Remove a registered UDF module from the Aerospike cluster by filename."""
-    await asyncio.to_thread(_delete_udf_sync, client, filename)
+    await client.udf_remove(filename)
     return Response(status_code=204)

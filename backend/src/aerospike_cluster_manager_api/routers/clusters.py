@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -38,13 +37,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/clusters", tags=["clusters"])
 
 
-def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
+@router.get(
+    "/{conn_id}",
+    summary="Get cluster info",
+    description="Retrieve full cluster information including nodes, namespaces, and sets.",
+)
+async def get_cluster(client: AerospikeClient, conn_id: VerifiedConnId) -> ClusterInfo:
+    """Retrieve full cluster information including nodes, namespaces, and sets."""
     # --- Nodes ---
-    node_names = c.get_node_names()
-    info_all_stats = c.info_all(INFO_STATISTICS)
-    info_all_build = c.info_all(INFO_BUILD)
-    info_all_edition = c.info_all(INFO_EDITION)
-    info_all_service = c.info_all(INFO_SERVICE)
+    node_names = await client.get_node_names()
+    info_all_stats = await client.info_all(INFO_STATISTICS)
+    info_all_build = await client.info_all(INFO_BUILD)
+    info_all_edition = await client.info_all(INFO_EDITION)
+    info_all_service = await client.info_all(INFO_SERVICE)
 
     node_map: dict[str, dict] = {}
     for name, _err, resp in info_all_stats:
@@ -78,15 +83,14 @@ def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
         )
 
     # --- Namespaces ---
-    ns_raw = c.info_random_node(INFO_NAMESPACES)
+    ns_raw = await client.info_random_node(INFO_NAMESPACES)
     ns_names = parse_list(ns_raw)
 
     total_nodes = len(node_names)
 
     namespaces: list[NamespaceInfo] = []
     for ns_name in ns_names:
-        # Aggregate namespace stats from all nodes
-        ns_all = c.info_all(info_namespace(ns_name))
+        ns_all = await client.info_all(info_namespace(ns_name))
         ns_stats = aggregate_node_kv(ns_all, keys_to_sum=NS_SUM_KEYS)
 
         replication_factor = safe_int(ns_stats.get("replication-factor"), 1)
@@ -105,7 +109,7 @@ def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
             memory_free_pct = int((1 - memory_used / memory_total) * 100)
 
         # --- Sets for this namespace (query all nodes and merge) ---
-        sets_all = c.info_all(info_sets(ns_name))
+        sets_all = await client.info_all(info_sets(ns_name))
         agg_sets = aggregate_set_records(sets_all, replication_factor)
         sets = [
             SetInfo(
@@ -145,47 +149,6 @@ def _fetch_cluster_sync(c, conn_id: str) -> ClusterInfo:
     return ClusterInfo(connectionId=conn_id, nodes=nodes, namespaces=namespaces)
 
 
-@router.get(
-    "/{conn_id}",
-    summary="Get cluster info",
-    description="Retrieve full cluster information including nodes, namespaces, and sets.",
-)
-async def get_cluster(client: AerospikeClient, conn_id: VerifiedConnId) -> ClusterInfo:
-    """Retrieve full cluster information including nodes, namespaces, and sets."""
-    return await asyncio.to_thread(_fetch_cluster_sync, client, conn_id)
-
-
-def _configure_namespace_sync(c, body: CreateNamespaceRequest) -> str:
-    """Update runtime config of an existing namespace.
-
-    NOTE: Aerospike does NOT support creating namespaces dynamically.
-    Namespaces must be defined in aerospike.conf and require a server restart.
-    This endpoint only modifies runtime-tunable parameters of *existing* namespaces.
-    """
-    # Verify the namespace actually exists before attempting config change
-    ns_raw = c.info_random_node(INFO_NAMESPACES)
-    existing = parse_list(ns_raw)
-    if body.name not in existing:
-        raise ValueError(
-            f"Namespace '{body.name}' does not exist. "
-            "Aerospike does not support dynamic namespace creation. "
-            "Namespaces must be defined in aerospike.conf and require a server restart."
-        )
-
-    cmd = (
-        f"set-config:context=namespace;id={body.name}"
-        f";memory-size={body.memorySize}"
-        f";replication-factor={body.replicationFactor}"
-    )
-    resp = c.info_random_node(cmd)
-
-    # Aerospike returns "ok" on success; anything else is an error
-    if resp.strip().lower() != "ok":
-        raise ValueError(f"Failed to configure namespace '{body.name}': {resp.strip()}")
-
-    return resp
-
-
 @router.post(
     "/{conn_id}/namespaces",
     status_code=200,
@@ -195,8 +158,26 @@ def _configure_namespace_sync(c, body: CreateNamespaceRequest) -> str:
 )
 async def configure_namespace(body: CreateNamespaceRequest, client: AerospikeClient) -> MessageResponse:
     """Update runtime-tunable parameters of an existing Aerospike namespace."""
-    try:
-        await asyncio.to_thread(_configure_namespace_sync, client, body)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from None
+    ns_raw = await client.info_random_node(INFO_NAMESPACES)
+    existing = parse_list(ns_raw)
+    if body.name not in existing:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Namespace '{body.name}' does not exist. "
+                "Aerospike does not support dynamic namespace creation. "
+                "Namespaces must be defined in aerospike.conf and require a server restart."
+            ),
+        )
+
+    cmd = (
+        f"set-config:context=namespace;id={body.name}"
+        f";memory-size={body.memorySize}"
+        f";replication-factor={body.replicationFactor}"
+    )
+    resp = await client.info_random_node(cmd)
+
+    if resp.strip().lower() != "ok":
+        raise HTTPException(status_code=400, detail=f"Failed to configure namespace '{body.name}': {resp.strip()}")
+
     return MessageResponse(message=f"Namespace '{body.name}' configured successfully")
