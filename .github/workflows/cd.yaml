@@ -29,6 +29,9 @@ jobs:
           REPO="${GITHUB_REPOSITORY,,}"
           echo "IMAGE=ghcr.io/${REPO}" >> "$GITHUB_ENV"
 
+      - name: Set up QEMU (for multi-arch builds)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -51,10 +54,11 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build & Push
+      - name: Build & Push (multi-arch)
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
