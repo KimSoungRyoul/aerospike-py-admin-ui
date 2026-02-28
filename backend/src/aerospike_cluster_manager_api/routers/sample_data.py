@@ -5,7 +5,6 @@ import tempfile
 import time
 from pathlib import Path
 
-from aerospike_py.exception import IndexFoundError
 from fastapi import APIRouter
 
 from aerospike_cluster_manager_api.constants import POLICY_WRITE
@@ -55,9 +54,15 @@ async def create_sample_data(
                 elif idx_type == "geo2dsphere":
                     await client.index_geo2dsphere_create(ns, set_name, bin_name, idx_name)
                 indexes_created.append(idx_name)
-            except IndexFoundError:
-                indexes_skipped.append(idx_name)
-                logger.info("Index %s already exists, skipping", idx_name)
+            except Exception as exc:
+                # aerospike_py 0.0.1 has a bug where IndexFoundError is not properly mapped
+                # and surfaces as a generic ClientError with "IndexFound" in the message.
+                # Catch both the mapped and unmapped variants.
+                if "IndexFound" in str(exc) or "already exists" in str(exc):
+                    indexes_skipped.append(idx_name)
+                    logger.info("Index %s already exists, skipping", idx_name)
+                else:
+                    raise
 
     # 3. Register UDFs (if requested)
     udfs_registered: list[str] = []
