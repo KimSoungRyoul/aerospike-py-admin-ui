@@ -229,7 +229,7 @@ async def get_k8s_cluster(
     status = item.get("status", {})
 
     # Fetch pods for this cluster
-    pods_raw = await k8s_client.list_pods(namespace, f"app=aerospike,aerospike-cluster={name}")
+    pods_raw = await k8s_client.list_pods(namespace, f"app.kubernetes.io/name=aerospike-cluster,app.kubernetes.io/instance={name}")
     pods = [K8sPodStatus(**p) for p in pods_raw]
 
     return K8sClusterDetail(
