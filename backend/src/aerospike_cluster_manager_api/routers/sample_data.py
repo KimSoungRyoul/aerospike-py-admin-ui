@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import tempfile
 import time
 from pathlib import Path
@@ -41,26 +42,30 @@ async def create_sample_data(
         await client.put(key_tuple, bins, policy=POLICY_WRITE)
         records_created += 1
 
+    # Short random suffix to avoid name collisions across multiple invocations.
+    suffix = secrets.token_hex(3)  # e.g. "a3f2b1"
+
     # 2. Create secondary indexes (if requested)
     indexes_created: list[str] = []
     indexes_skipped: list[str] = []
     if body.create_indexes:
         for idx_name, bin_name, idx_type in SAMPLE_INDEXES:
+            actual_idx_name = f"{idx_name}_{suffix}"
             try:
                 if idx_type == "numeric":
-                    await client.index_integer_create(ns, set_name, bin_name, idx_name)
+                    await client.index_integer_create(ns, set_name, bin_name, actual_idx_name)
                 elif idx_type == "string":
-                    await client.index_string_create(ns, set_name, bin_name, idx_name)
+                    await client.index_string_create(ns, set_name, bin_name, actual_idx_name)
                 elif idx_type == "geo2dsphere":
-                    await client.index_geo2dsphere_create(ns, set_name, bin_name, idx_name)
-                indexes_created.append(idx_name)
+                    await client.index_geo2dsphere_create(ns, set_name, bin_name, actual_idx_name)
+                indexes_created.append(actual_idx_name)
             except Exception as exc:
                 # aerospike_py 0.0.1 has a bug where IndexFoundError is not properly mapped
                 # and surfaces as a generic ClientError with "IndexFound" in the message.
                 # Catch both the mapped and unmapped variants.
                 if "IndexFound" in str(exc) or "already exists" in str(exc):
-                    indexes_skipped.append(idx_name)
-                    logger.info("Index %s already exists, skipping", idx_name)
+                    indexes_skipped.append(actual_idx_name)
+                    logger.info("Index %s already exists, skipping", actual_idx_name)
                 else:
                     raise
 
@@ -68,12 +73,14 @@ async def create_sample_data(
     udfs_registered: list[str] = []
     if body.register_udfs:
         for filename, content in get_lua_modules().items():
-            # Use a named temp dir so udf_put registers the module under the correct filename.
+            # Add suffix to module name to avoid collisions: aggregation_a3f2b1.lua
+            stem = Path(filename).stem
+            actual_filename = f"{stem}_{suffix}.lua"
             with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_path = str(Path(tmp_dir) / filename)
+                tmp_path = str(Path(tmp_dir) / actual_filename)
                 Path(tmp_path).write_text(content)
                 await client.udf_put(tmp_path)
-                udfs_registered.append(filename)
+                udfs_registered.append(actual_filename)
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
