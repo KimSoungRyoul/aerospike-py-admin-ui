@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Admin | Aerospike Admin",
+  title: "Admin | Aerospike Cluster Manager",
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

@@ -190,7 +190,7 @@ export default function SettingsPage() {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Application</span>
-              <span className="font-medium">Aerospike-Py Admin</span>
+              <span className="font-medium">Aerospike Cluster Manager</span>
             </div>
             <Separator className="bg-border/50" />
             <div className="flex justify-between py-0.5">

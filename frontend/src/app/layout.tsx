@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aerospike-Py Admin",
+  title: "Aerospike Cluster Manager",
   description: "GUI management tool for Aerospike Community Edition",
 };
 
