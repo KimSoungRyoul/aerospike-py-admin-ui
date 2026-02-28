@@ -2,7 +2,16 @@
 
 import React, { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Database, RefreshCw, ChevronRight, Layers, HardDrive, Plus, Settings } from "lucide-react";
+import {
+  Database,
+  RefreshCw,
+  ChevronRight,
+  Layers,
+  HardDrive,
+  Plus,
+  Settings,
+  FlaskConical,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +37,7 @@ import { useAsyncData } from "@/hooks/use-async-data";
 import { api } from "@/lib/api/client";
 import { formatNumber, formatBytes, formatPercent } from "@/lib/formatters";
 import { cn, getErrorMessage } from "@/lib/utils";
+import { CreateSampleDataDialog } from "@/components/browser/create-sample-data-dialog";
 import { toast } from "sonner";
 
 export default function BrowserSetListPage({ params }: { params: Promise<{ connId: string }> }) {
@@ -49,6 +59,9 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
   const [nsMemorySizeMB, setNsMemorySizeMB] = useState("1024");
   const [nsReplicationFactor, setNsReplicationFactor] = useState("2");
   const [configuringNs, setConfiguringNs] = useState(false);
+
+  // Sample Data dialog state
+  const [sampleDataOpen, setSampleDataOpen] = useState(false);
 
   // Create Set dialog state
   const [createSetOpen, setCreateSetOpen] = useState(false);
@@ -122,10 +135,16 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
         title="Namespaces"
         description="Select a set to browse records"
         actions={
-          <Button variant="outline" size="sm" onClick={fetchData}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSampleDataOpen(true)}>
+              <FlaskConical className="mr-2 h-4 w-4" />
+              Create Sample Data
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchData}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         }
       />
 
@@ -369,6 +388,15 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
           })}
         </div>
       )}
+
+      {/* Create Sample Data Dialog */}
+      <CreateSampleDataDialog
+        open={sampleDataOpen}
+        onOpenChange={setSampleDataOpen}
+        connId={connId}
+        namespaces={namespaces.map((ns) => ns.name)}
+        onSuccess={fetchData}
+      />
 
       {/* Configure Namespace Dialog */}
       <Dialog open={configNsOpen} onOpenChange={setConfigNsOpen}>

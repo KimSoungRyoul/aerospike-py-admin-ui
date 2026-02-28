@@ -192,6 +192,14 @@ export const api = {
       method: "DELETE",
     }),
 
+  // Sample Data
+  createSampleData: (connId: string, data: import("./types").CreateSampleDataRequest) =>
+    request<import("./types").CreateSampleDataResponse>(`/api/sample-data/${connId}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+      timeout: 60_000,
+    }),
+
   // Terminal
   executeCommand: (connId: string, command: string) =>
     request<import("./types").TerminalCommand>(`/api/terminal/${connId}`, {

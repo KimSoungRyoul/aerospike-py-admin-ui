@@ -354,6 +354,23 @@ export interface PrometheusMetric {
   category: string;
 }
 
+// === Sample Data ===
+export interface CreateSampleDataRequest {
+  namespace: string;
+  setName?: string;
+  recordCount?: number;
+  createIndexes?: boolean;
+  registerUdfs?: boolean;
+}
+
+export interface CreateSampleDataResponse {
+  recordsCreated: number;
+  indexesCreated: string[];
+  indexesSkipped: string[];
+  udfsRegistered: string[];
+  elapsedMs: number;
+}
+
 // === K8s Cluster Management ===
 export type K8sClusterPhase = "InProgress" | "Completed" | "Error" | "Unknown";
 

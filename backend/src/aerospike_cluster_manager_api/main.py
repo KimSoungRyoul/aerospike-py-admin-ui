@@ -21,6 +21,7 @@ from aerospike_cluster_manager_api.routers import (
     metrics,
     query,
     records,
+    sample_data,
     terminal,
     udfs,
 )
@@ -183,6 +184,7 @@ app.include_router(terminal.router)
 app.include_router(admin_users.router)
 app.include_router(admin_roles.router)
 app.include_router(udfs.router)
+app.include_router(sample_data.router)
 app.include_router(metrics.router)
 
 if config.K8S_MANAGEMENT_ENABLED:
