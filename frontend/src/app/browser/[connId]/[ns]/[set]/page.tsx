@@ -472,9 +472,15 @@ for result in batch_results:
           </span>
         ),
         cell: ({ row }) => (
-          <span className="text-foreground truncate font-mono text-[13px] font-medium">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewRecord(row.original);
+            }}
+            className="text-foreground hover:text-accent w-full truncate text-left font-mono text-[13px] font-medium hover:underline"
+          >
             {truncateMiddle(String(row.original.key.pk), 28)}
-          </span>
+          </button>
         ),
         meta: { className: "overflow-hidden" },
       },
@@ -839,7 +845,6 @@ for result in batch_results:
               }
               enableColumnPinning
               columnPinning={COLUMN_PINNING}
-              onRowClick={(row) => setViewRecord(row.original)}
               tableMinWidth={tableMinWidth}
               testId="records-table"
             />
