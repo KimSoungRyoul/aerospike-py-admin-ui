@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class AerospikeNamespaceStorage(BaseModel):
+    model_config = {"populate_by_name": True}
+
     type: Literal["memory", "device"] = Field(default="memory", description="memory or device")
     data_size: int | None = Field(default=1073741824, alias="dataSize", description="For memory type, in bytes")
     file: str | None = Field(default=None, description="For device type, data file path")
@@ -18,12 +20,16 @@ class AerospikeNamespaceStorage(BaseModel):
 
 
 class AerospikeNamespaceConfig(BaseModel):
+    model_config = {"populate_by_name": True}
+
     name: str = Field(default="test", min_length=1, max_length=63)
     replication_factor: int = Field(default=1, ge=1, le=8, alias="replicationFactor")
     storage_engine: AerospikeNamespaceStorage = Field(default_factory=AerospikeNamespaceStorage, alias="storageEngine")
 
 
 class StorageVolumeConfig(BaseModel):
+    model_config = {"populate_by_name": True}
+
     storage_class: str = Field(default="standard", alias="storageClass")
     size: str = Field(default="10Gi", pattern=r"^[0-9]+[KMGTPE]i$")
     mount_path: str = Field(default="/opt/aerospike/data", alias="mountPath")

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Server } from "lucide-react";
+import { Plus, RefreshCw, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common/empty-state";
@@ -71,10 +71,16 @@ export default function K8sClustersPage() {
         title="K8s Clusters"
         description="Manage Aerospike clusters on Kubernetes"
         actions={
-          <Button onClick={() => router.push("/k8s/clusters/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Create Cluster</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => fetchClusters()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button onClick={() => router.push("/k8s/clusters/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Create Cluster</span>
+            </Button>
+          </div>
         }
       />
 

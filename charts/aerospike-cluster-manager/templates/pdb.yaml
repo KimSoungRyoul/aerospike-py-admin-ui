@@ -1,5 +1,4 @@
 {{- if .Values.podDisruptionBudget.enabled }}
-{{- if or .Values.podDisruptionBudget.minAvailable .Values.podDisruptionBudget.maxUnavailable }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -8,14 +7,12 @@ metadata:
   labels:
     {{- include "aerospike-cluster-manager.labels" . | nindent 4 }}
 spec:
-  {{- if .Values.podDisruptionBudget.minAvailable }}
-  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
-  {{- end }}
   {{- if .Values.podDisruptionBudget.maxUnavailable }}
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable | default 1 }}
   {{- end }}
   selector:
     matchLabels:
       {{- include "aerospike-cluster-manager.selectorLabels" . | nindent 6 }}
-{{- end }}
 {{- end }}
