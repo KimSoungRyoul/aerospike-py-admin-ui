@@ -68,17 +68,12 @@ async def create_sample_data(
     udfs_registered: list[str] = []
     if body.register_udfs:
         for filename, content in get_lua_modules().items():
-            tmp_path: str | None = None
-            try:
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".lua", delete=False) as tmp:
-                    tmp.write(content)
-                    tmp.flush()
-                    tmp_path = tmp.name
+            # Use a named temp dir so udf_put registers the module under the correct filename.
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_path = str(Path(tmp_dir) / filename)
+                Path(tmp_path).write_text(content)
                 await client.udf_put(tmp_path)
                 udfs_registered.append(filename)
-            finally:
-                if tmp_path:
-                    Path(tmp_path).unlink(missing_ok=True)
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
