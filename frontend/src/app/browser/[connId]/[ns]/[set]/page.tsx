@@ -37,7 +37,12 @@ import { useBrowserStore } from "@/stores/browser-store";
 import { useFilterStore } from "@/stores/filter-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { usePagination } from "@/hooks/use-pagination";
-import type { AerospikeRecord, BinValue, RecordWriteRequest, SecondaryIndex } from "@/lib/api/types";
+import type {
+  AerospikeRecord,
+  BinValue,
+  RecordWriteRequest,
+  SecondaryIndex,
+} from "@/lib/api/types";
 import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { truncateMiddle, formatNumber, formatTTLAsExpiry } from "@/lib/formatters";
@@ -111,7 +116,10 @@ export default function BrowserPage({
   // Fetch secondary indexes for this connection
   const [indexes, setIndexes] = useState<SecondaryIndex[]>([]);
   useEffect(() => {
-    api.getIndexes(connId).then(setIndexes).catch(() => setIndexes([]));
+    api
+      .getIndexes(connId)
+      .then(setIndexes)
+      .catch(() => setIndexes([]));
   }, [connId]);
 
   // Initial fetch
@@ -159,8 +167,12 @@ export default function BrowserPage({
       Array.from(indexedBinSet.entries())
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([name, idx]) => {
-          const indexType = idx.type === "numeric" ? "integer" : idx.type === "geo2dsphere" ? "geo" : idx.type;
-          return { name, type: binTypeHints[name] ?? (indexType as import("@/lib/api/types").BinDataType) };
+          const indexType =
+            idx.type === "numeric" ? "integer" : idx.type === "geo2dsphere" ? "geo" : idx.type;
+          return {
+            name,
+            type: binTypeHints[name] ?? (indexType as import("@/lib/api/types").BinDataType),
+          };
         }),
     [binTypeHints, indexedBinSet],
   );

@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Hash, Type, ToggleLeft, MapPin, List, Braces, Binary, Search, DatabaseZap } from "lucide-react";
+import {
+  Hash,
+  Type,
+  ToggleLeft,
+  MapPin,
+  List,
+  Braces,
+  Binary,
+  Search,
+  DatabaseZap,
+} from "lucide-react";
 import type { BinDataType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +86,9 @@ export function FilterColumnPicker({ bins, onSelect, onClose }: FilterColumnPick
             </p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-muted-foreground px-3 py-4 text-center text-xs">No matching bins</div>
+          <div className="text-muted-foreground px-3 py-4 text-center text-xs">
+            No matching bins
+          </div>
         ) : (
           filtered.map((bin) => {
             const Icon = TYPE_ICONS[bin.type] ?? Binary;
