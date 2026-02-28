@@ -71,7 +71,7 @@ services:
   # ── Aerospike Tools (stays alive for `podman exec -it`) ─────────────
   aerospike-tools:
     container_name: aerospike-tools
-    image: aerospike/aerospike-tools:8.1
+    image: aerospike/aerospike-tools:latest
     entrypoint: []
     command: ["tail", "-f", "/dev/null"]
     depends_on:
@@ -84,7 +84,7 @@ services:
   # ── Prometheus Exporters (per node) ────────────────────────────────
   aerospike-exporter-1:
     container_name: aerospike-exporter-1
-    image: aerospike/aerospike-prometheus-exporter:v1.15.0
+    image: aerospike/aerospike-prometheus-exporter:1.15.0
     environment:
       - AS_HOST=aerospike-node-1
       - AS_PORT=3000
@@ -97,7 +97,7 @@ services:
 
   aerospike-exporter-2:
     container_name: aerospike-exporter-2
-    image: aerospike/aerospike-prometheus-exporter:v1.15.0
+    image: aerospike/aerospike-prometheus-exporter:1.15.0
     environment:
       - AS_HOST=aerospike-node-2
       - AS_PORT=3000
@@ -110,7 +110,7 @@ services:
 
   aerospike-exporter-3:
     container_name: aerospike-exporter-3
-    image: aerospike/aerospike-prometheus-exporter:v1.15.0
+    image: aerospike/aerospike-prometheus-exporter:1.15.0
     environment:
       - AS_HOST=aerospike-node-3
       - AS_PORT=3000

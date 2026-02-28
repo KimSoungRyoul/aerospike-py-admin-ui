@@ -122,6 +122,14 @@ export const api = {
     request<void>(`/api/records/${connId}?ns=${ns}&set=${set}&pk=${pk}`, {
       method: "DELETE",
     }),
+  getFilteredRecords: (
+    connId: string,
+    body: import("./types").FilteredQueryRequest,
+  ): Promise<import("./types").FilteredQueryResponse> =>
+    request<import("./types").FilteredQueryResponse>(`/api/records/${connId}/filter`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // Query
   executeQuery: (connId: string, query: import("./types").QueryRequest) =>

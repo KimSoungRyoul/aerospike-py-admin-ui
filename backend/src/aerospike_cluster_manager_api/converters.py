@@ -18,7 +18,7 @@ def record_to_model(rec: Record) -> AerospikeRecord:
     ``bins``: ``{bin_name: value, ...}``
     """
     key_tuple = rec.key if rec.key is not None else ()
-    meta: dict[str, Any] = rec.meta or {}
+    meta = rec.meta
     bins: dict[str, Any] = rec.bins or {}
 
     ns: str = key_tuple[0] if len(key_tuple) > 0 else ""
@@ -28,6 +28,17 @@ def record_to_model(rec: Record) -> AerospikeRecord:
 
     digest_hex = digest.hex() if isinstance(digest, bytes | bytearray) else None
 
+    # meta can be a RecordMetadata NamedTuple (gen, ttl) or a dict
+    if meta is not None and hasattr(meta, "gen"):
+        gen = meta.gen
+        ttl = meta.ttl
+    elif isinstance(meta, dict):
+        gen = meta.get("gen", 0)
+        ttl = meta.get("ttl", 0)
+    else:
+        gen = 0
+        ttl = 0
+
     return AerospikeRecord(
         key=RecordKey(
             namespace=ns,
@@ -36,8 +47,8 @@ def record_to_model(rec: Record) -> AerospikeRecord:
             digest=digest_hex,
         ),
         meta=RecordMeta(
-            generation=meta.get("gen", 0),
-            ttl=meta.get("ttl", 0),
+            generation=gen,
+            ttl=ttl,
         ),
         bins=bins,
     )

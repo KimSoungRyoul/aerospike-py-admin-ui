@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { AerospikeRecord, RecordListResponse, RecordWriteRequest } from "@/lib/api/types";
+import type {
+  AerospikeRecord,
+  FilteredQueryRequest,
+  FilteredQueryResponse,
+  FilterGroup,
+  RecordListResponse,
+  RecordWriteRequest,
+} from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
@@ -12,6 +19,8 @@ interface BrowserState {
   hasMore: boolean;
   loading: boolean;
   error: string | null;
+  executionTimeMs: number;
+  scannedRecords: number;
 
   selectedNamespace: string | null;
   selectedSet: string | null;
@@ -24,6 +33,15 @@ interface BrowserState {
     set: string,
     page?: number,
     pageSize?: number,
+  ) => Promise<void>;
+  fetchFilteredRecords: (
+    connId: string,
+    ns: string,
+    set: string,
+    filters?: FilterGroup,
+    page?: number,
+    pageSize?: number,
+    primaryKey?: string,
   ) => Promise<void>;
   putRecord: (connId: string, data: RecordWriteRequest) => Promise<void>;
   deleteRecord: (connId: string, ns: string, set: string, pk: string) => Promise<void>;
@@ -40,6 +58,8 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   hasMore: false,
   loading: false,
   error: null,
+  executionTimeMs: 0,
+  scannedRecords: 0,
   selectedNamespace: null,
   selectedSet: null,
 
@@ -58,6 +78,35 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
         page: result.page,
         pageSize: result.pageSize,
         hasMore: result.hasMore,
+        loading: false,
+      });
+    } catch (error) {
+      set({ error: getErrorMessage(error), loading: false });
+    }
+  },
+
+  fetchFilteredRecords: async (connId, ns, setName, filters, page, pageSize, primaryKey) => {
+    const p = page ?? get().page;
+    const ps = pageSize ?? get().pageSize;
+    set({ loading: true, error: null });
+    try {
+      const body: FilteredQueryRequest = {
+        namespace: ns,
+        set: setName,
+        filters,
+        page: p,
+        pageSize: ps,
+        primaryKey: primaryKey || undefined,
+      };
+      const result: FilteredQueryResponse = await api.getFilteredRecords(connId, body);
+      set({
+        records: result.records,
+        total: result.total,
+        page: result.page,
+        pageSize: result.pageSize,
+        hasMore: result.hasMore,
+        executionTimeMs: result.executionTimeMs,
+        scannedRecords: result.scannedRecords,
         loading: false,
       });
     } catch (error) {
@@ -98,5 +147,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
       selectedNamespace: null,
       selectedSet: null,
       error: null,
+      executionTimeMs: 0,
+      scannedRecords: 0,
     }),
 }));

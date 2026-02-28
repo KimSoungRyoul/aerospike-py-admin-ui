@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DataTable } from "@/components/common/data-table";
-import { InlineAlert } from "@/components/common/inline-alert";
 import { TablePagination } from "@/components/common/table-pagination";
 import { renderCellValue } from "@/components/browser/record-cell-renderer";
 import { RecordViewDialog } from "@/components/browser/record-view-dialog";
@@ -33,16 +32,18 @@ import {
   serializeBinValue,
 } from "@/components/browser/record-editor-dialog";
 import { BatchReadDialog } from "@/components/browser/batch-read-dialog";
-import { QueryToolbar, type ViewMode } from "@/components/browser/query-toolbar";
+import { FilterToolbar } from "@/components/browser/filter-toolbar";
 import { useBrowserStore } from "@/stores/browser-store";
-import { useQueryStore } from "@/stores/query-store";
+import { useFilterStore } from "@/stores/filter-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { usePagination } from "@/hooks/use-pagination";
-import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/types";
+import type { AerospikeRecord, BinValue, RecordWriteRequest, SecondaryIndex } from "@/lib/api/types";
 import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
 import { cn, getErrorMessage } from "@/lib/utils";
-import { truncateMiddle, formatNumber, formatTTLAsExpiry, formatDuration } from "@/lib/formatters";
+import { truncateMiddle, formatNumber, formatTTLAsExpiry } from "@/lib/formatters";
+import { detectBinTypes } from "@/lib/bin-type-detector";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { api } from "@/lib/api/client";
 import { toast } from "sonner";
 
 const COLUMN_PINNING: ColumnPinningState = {
@@ -67,14 +68,16 @@ export default function BrowserPage({
     pageSize,
     loading,
     error,
-    fetchRecords,
+    executionTimeMs,
+    scannedRecords,
+    fetchFilteredRecords,
     putRecord,
     deleteRecord,
     setPage,
     setPageSize,
   } = useBrowserStore();
 
-  const queryStore = useQueryStore();
+  const filterStore = useFilterStore();
 
   const pagination = usePagination({ total, page, pageSize });
 
@@ -83,9 +86,6 @@ export default function BrowserPage({
     () => connections.find((c) => c.id === connId),
     [connections, connId],
   );
-
-  // View mode: browse (default), query (index query), pk (PK lookup)
-  const [viewMode, setViewMode] = useState<ViewMode>("browse");
 
   const [selectedPKs, setSelectedPKs] = useState<Set<string>>(new Set());
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
@@ -105,25 +105,30 @@ export default function BrowserPage({
   ]);
   const [useCodeEditor, setUseCodeEditor] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    fetchRecords(connId, decodeURIComponent(ns), decodeURIComponent(set));
-  }, [connId, ns, set, fetchRecords]);
+  const decodedNs = decodeURIComponent(ns);
+  const decodedSet = decodeURIComponent(set);
 
-  // Reset query store when leaving
+  // Fetch secondary indexes for this connection
+  const [indexes, setIndexes] = useState<SecondaryIndex[]>([]);
+  useEffect(() => {
+    api.getIndexes(connId).then(setIndexes).catch(() => setIndexes([]));
+  }, [connId]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchFilteredRecords(connId, decodedNs, decodedSet);
+  }, [connId, decodedNs, decodedSet, fetchFilteredRecords]);
+
+  // Reset filter store when leaving
   useEffect(() => {
     return () => {
-      queryStore.reset();
+      filterStore.reset();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const decodedNs = decodeURIComponent(ns);
-  const decodedSet = decodeURIComponent(set);
-
-  // Active data source depends on view mode
-  const isQueryMode = viewMode !== "browse";
-  const displayRecords = isQueryMode ? queryStore.results : records;
-  const displayLoading = isQueryMode ? queryStore.loading : loading;
+  const displayRecords = records;
+  const displayLoading = loading;
 
   // Detect dynamic bin columns from active records
   const binColumns = useMemo(() => {
@@ -134,20 +139,47 @@ export default function BrowserPage({
     return Array.from(allBins).sort();
   }, [displayRecords]);
 
-  const handleViewModeChange = useCallback(
-    (mode: ViewMode) => {
-      setViewMode(mode);
-      setSelectedPKs(new Set());
-      if (mode === "browse") {
-        queryStore.reset();
+  // Auto-detect bin types for the filter toolbar
+  const binTypeHints = useMemo(() => detectBinTypes(displayRecords), [displayRecords]);
+
+  // Only bins with secondary indexes on this namespace/set are filterable
+  const indexedBinSet = useMemo(() => {
+    const set_ = new Map<string, SecondaryIndex>();
+    for (const idx of indexes) {
+      if (idx.namespace === decodedNs && idx.set === decodedSet && idx.state === "ready") {
+        set_.set(idx.bin, idx);
       }
-    },
-    [queryStore],
+    }
+    return set_;
+  }, [indexes, decodedNs, decodedSet]);
+
+  // Build available bins from index metadata (not from current records, which may be empty after filtering)
+  const availableBins = useMemo(
+    () =>
+      Array.from(indexedBinSet.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, idx]) => {
+          const indexType = idx.type === "numeric" ? "integer" : idx.type === "geo2dsphere" ? "geo" : idx.type;
+          return { name, type: binTypeHints[name] ?? (indexType as import("@/lib/api/types").BinDataType) };
+        }),
+    [binTypeHints, indexedBinSet],
   );
 
-  const handleQueryExecuted = useCallback(() => {
+  // Execute filtered query
+  const handleFilterExecute = useCallback(() => {
     setSelectedPKs(new Set());
-  }, []);
+    const filters = filterStore.toFilterGroup();
+    fetchFilteredRecords(connId, decodedNs, decodedSet, filters, 1, pageSize);
+  }, [connId, decodedNs, decodedSet, pageSize, filterStore, fetchFilteredRecords]);
+
+  // PK lookup
+  const handlePKLookup = useCallback(
+    (pk: string) => {
+      setSelectedPKs(new Set());
+      fetchFilteredRecords(connId, decodedNs, decodedSet, undefined, 1, pageSize, pk);
+    },
+    [connId, decodedNs, decodedSet, pageSize, fetchFilteredRecords],
+  );
 
   const openEditor = useCallback(
     (mode: "create" | "edit" | "duplicate", record?: AerospikeRecord) => {
@@ -216,10 +248,9 @@ export default function BrowserPage({
             : "Record updated",
       );
       setEditorOpen(false);
-      // Re-execute query if in query mode to refresh results
-      if (isQueryMode && queryStore.hasExecuted) {
-        await queryStore.executeQuery(connId);
-      }
+      // Refresh current view
+      const filters = filterStore.toFilterGroup();
+      await fetchFilteredRecords(connId, decodedNs, decodedSet, filters, page, pageSize);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -239,10 +270,9 @@ export default function BrowserPage({
       );
       toast.success("Record deleted");
       setDeleteTarget(null);
-      // Re-execute query if in query mode to refresh results
-      if (isQueryMode && queryStore.hasExecuted) {
-        await queryStore.executeQuery(connId);
-      }
+      // Refresh current view
+      const filters = filterStore.toFilterGroup();
+      await fetchFilteredRecords(connId, decodedNs, decodedSet, filters, page, pageSize);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -253,17 +283,19 @@ export default function BrowserPage({
   const handlePageChange = useCallback(
     (newPage: number) => {
       setPage(newPage);
-      fetchRecords(connId, decodedNs, decodedSet, newPage);
+      const filters = filterStore.toFilterGroup();
+      fetchFilteredRecords(connId, decodedNs, decodedSet, filters, newPage);
     },
-    [connId, decodedNs, decodedSet, setPage, fetchRecords],
+    [connId, decodedNs, decodedSet, setPage, filterStore, fetchFilteredRecords],
   );
 
   const handlePageSizeChange = useCallback(
     (newSize: number) => {
       setPageSize(newSize);
-      fetchRecords(connId, decodedNs, decodedSet, 1, newSize);
+      const filters = filterStore.toFilterGroup();
+      fetchFilteredRecords(connId, decodedNs, decodedSet, filters, 1, newSize);
     },
-    [connId, decodedNs, decodedSet, setPageSize, fetchRecords],
+    [connId, decodedNs, decodedSet, setPageSize, filterStore, fetchFilteredRecords],
   );
 
   const togglePK = useCallback((pk: string) => {
@@ -304,9 +336,9 @@ for result in batch_results:
     print(result.key, result.bins)`;
   }, [displayRecords, selectedPKs, decodedNs, decodedSet, currentConnection]);
 
-  // Export handlers for query results
+  // Export handlers for current records
   const handleExportJSON = useCallback(() => {
-    const data = queryStore.results.map((r) => ({
+    const data = records.map((r) => ({
       key: r.key,
       meta: r.meta,
       bins: r.bins,
@@ -317,18 +349,18 @@ for result in batch_results:
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `query-results-${Date.now()}.json`;
+    a.download = `records-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Exported as JSON");
-  }, [queryStore.results]);
+  }, [records]);
 
   const handleExportCSV = useCallback(() => {
-    if (queryStore.results.length === 0) return;
+    if (records.length === 0) return;
     const binNames = new Set<string>();
-    queryStore.results.forEach((r) => Object.keys(r.bins).forEach((b) => binNames.add(b)));
+    records.forEach((r) => Object.keys(r.bins).forEach((b) => binNames.add(b)));
     const headers = ["pk", "generation", "ttl", ...Array.from(binNames)];
-    const rows = queryStore.results.map((r) => [
+    const rows = records.map((r) => [
       r.key.pk,
       r.meta.generation,
       r.meta.ttl,
@@ -347,11 +379,11 @@ for result in batch_results:
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `query-results-${Date.now()}.csv`;
+    a.download = `records-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Exported as CSV");
-  }, [queryStore.results]);
+  }, [records]);
 
   const padLength = String(pagination.end).length;
   const { isDesktop } = useBreakpoint();
@@ -413,9 +445,7 @@ for result in batch_results:
         header: () => <span className="grid-row-num font-mono">#</span>,
         cell: ({ row }) => (
           <span className="grid-row-num font-mono">
-            {isQueryMode
-              ? String(row.index + 1).padStart(padLength, "0")
-              : String(pagination.start + row.index).padStart(padLength, "0")}
+            {String(pagination.start + row.index).padStart(padLength, "0")}
           </span>
         ),
         meta: { className: "px-4 text-right" },
@@ -570,7 +600,6 @@ for result in batch_results:
       togglePK,
       pagination.start,
       padLength,
-      isQueryMode,
     ],
   );
 
@@ -602,7 +631,7 @@ for result in batch_results:
               </span>
             </nav>
 
-            {!isQueryMode && total > 0 && (
+            {total > 0 && (
               <div className="bg-accent/8 border-accent/15 flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="bg-accent absolute inline-flex h-full w-full animate-ping rounded-full opacity-40" />
@@ -628,60 +657,48 @@ for result in batch_results:
         </div>
       </div>
 
-      {/* ── Query Toolbar ─────────────────────────────── */}
-      <QueryToolbar
+      {/* ── Filter Toolbar ─────────────────────────────── */}
+      <FilterToolbar
         connId={connId}
         namespace={decodedNs}
         set={decodedSet}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
-        onQueryExecuted={handleQueryExecuted}
+        availableBins={availableBins}
+        onExecute={handleFilterExecute}
+        onPKLookup={handlePKLookup}
+        loading={loading}
+        error={error}
+        stats={
+          filterStore.conditions.length > 0
+            ? { executionTimeMs, scannedRecords, returnedRecords: total }
+            : undefined
+        }
       />
 
-      {/* ── Query Stats Bar ───────────────────────────── */}
-      {isQueryMode && queryStore.hasExecuted && (
-        <div className="bg-card/60 animate-fade-in flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2 backdrop-blur-sm sm:px-6">
-          <div className="flex flex-wrap items-center gap-3 text-sm sm:gap-4">
-            <span>
-              <span className="text-muted-foreground text-xs tracking-wider uppercase">Time</span>{" "}
-              <span className="metric-value font-mono font-medium">
-                {formatDuration(queryStore.executionTimeMs)}
-              </span>
-            </span>
-            <span>
-              <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                Scanned
-              </span>{" "}
-              <span className="metric-value font-mono font-medium">
-                {formatNumber(queryStore.scannedRecords)}
-              </span>
-            </span>
-            <span>
-              <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                Returned
-              </span>{" "}
-              <span className="metric-value font-mono font-medium">
-                {formatNumber(queryStore.returnedRecords)}
-              </span>
-            </span>
-          </div>
-          {queryStore.results.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportJSON} data-compact>
-                <FileJson className="mr-1 h-4 w-4" />
-                <span className="hidden sm:inline">JSON</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExportCSV} data-compact>
-                <FileSpreadsheet className="mr-1 h-4 w-4" />
-                <span className="hidden sm:inline">CSV</span>
-              </Button>
-            </div>
-          )}
+      {/* ── Export bar (when filters active) ─────────── */}
+      {filterStore.conditions.length > 0 && records.length > 0 && (
+        <div className="bg-card/60 animate-fade-in flex items-center justify-end gap-2 border-b px-3 py-1.5 sm:px-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportJSON}
+            data-compact
+            className="h-7"
+          >
+            <FileJson className="mr-1 h-3.5 w-3.5" />
+            <span className="hidden sm:inline">JSON</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            data-compact
+            className="h-7"
+          >
+            <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
+            <span className="hidden sm:inline">CSV</span>
+          </Button>
         </div>
       )}
-
-      {/* ── Error ────────────────────────────────────── */}
-      <InlineAlert message={isQueryMode ? null : error} className="mx-6 mt-3" />
 
       {/* ── Data Grid ────────────────────────────────── */}
       <div className="relative flex-1 overflow-auto">
@@ -781,24 +798,12 @@ for result in batch_results:
               columns={tableColumns}
               loading={displayLoading}
               emptyState={
-                isQueryMode && !queryStore.hasExecuted ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <Database className="text-muted-foreground/30 mb-4 h-16 w-16" />
-                    <h3 className="text-base-content/70 mb-2 text-lg font-semibold">
-                      Configure and Execute
-                    </h3>
-                    <p className="text-base-content/50 max-w-md text-sm">
-                      {viewMode === "pk"
-                        ? "Enter a primary key and click Search to look up a record."
-                        : "Set up your index query predicate and click Execute."}
-                    </p>
-                  </div>
-                ) : isQueryMode && queryStore.hasExecuted ? (
+                filterStore.conditions.length > 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <Database className="text-muted-foreground/30 mb-4 h-16 w-16" />
                     <h3 className="text-base-content/70 mb-2 text-lg font-semibold">No Results</h3>
                     <p className="text-base-content/50 max-w-md text-sm">
-                      The query returned no matching records.
+                      No records match the current filters. Try adjusting or clearing the filters.
                     </p>
                   </div>
                 ) : (
@@ -861,26 +866,15 @@ for result in batch_results:
       )}
 
       {/* ── Bottom Bar ───────────────────────────────── */}
-      {isQueryMode ? (
-        queryStore.hasExecuted && (
-          <div className="border-border/50 bg-card/80 flex items-center justify-end border-t px-3 py-2 backdrop-blur-md sm:px-6">
-            <span className="text-muted-foreground font-mono text-xs">
-              {formatNumber(queryStore.returnedRecords)} record
-              {queryStore.returnedRecords !== 1 ? "s" : ""}
-            </span>
-          </div>
-        )
-      ) : (
-        <TablePagination
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          loading={loading}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
-        />
-      )}
+      <TablePagination
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+        loading={loading}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+      />
 
       <RecordViewDialog record={viewRecord} onClose={() => setViewRecord(null)} />
 

@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 
+from aerospike_py.exception import RecordNotFound
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
 
 from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ, POLICY_WRITE
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
+from aerospike_cluster_manager_api.expression_builder import build_expression
+from aerospike_cluster_manager_api.models.query import FilteredQueryRequest, FilteredQueryResponse, QueryPredicate
 from aerospike_cluster_manager_api.models.record import (
     AerospikeRecord,
     RecordListResponse,
@@ -100,3 +104,109 @@ async def delete_record(
     """Delete a record identified by namespace, set, and primary key."""
     await client.remove((ns, set, _auto_detect_pk(pk)))
     return Response(status_code=204)
+
+
+def _build_predicate_for_filter(pred: QueryPredicate) -> tuple[str, ...]:
+    """Convert a QueryPredicate model into an Aerospike predicate tuple.
+
+    Re-implements the logic from the query router to avoid circular imports.
+    """
+    import json
+
+    from aerospike_py import INDEX_TYPE_LIST, predicates
+
+    op = pred.operator
+    if op == "equals":
+        return predicates.equals(pred.bin, pred.value)
+    if op == "between":
+        return predicates.between(pred.bin, pred.value, pred.value2)
+    if op == "contains":
+        return predicates.contains(pred.bin, INDEX_TYPE_LIST, pred.value)
+    if op == "geo_within_region":
+        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
+        return predicates.geo_within_geojson_region(pred.bin, geo)
+    if op == "geo_contains_point":
+        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
+        return predicates.geo_contains_geojson_point(pred.bin, geo)
+    raise ValueError(f"Unknown predicate operator: {op}")
+
+
+@router.post(
+    "/{conn_id}/filter",
+    summary="Filtered record scan",
+    description="Scan records with optional expression filters and pagination.",
+)
+async def get_filtered_records(
+    body: FilteredQueryRequest,
+    client: AerospikeClient,
+) -> FilteredQueryResponse:
+    """Scan records with optional expression filters and pagination."""
+    start_time = time.monotonic()
+
+    # PK lookup short-circuit
+    if body.primary_key:
+        if not body.set:
+            raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
+
+        pk = _auto_detect_pk(body.primary_key)
+        try:
+            raw_result = await client.get((body.namespace, body.set, pk), policy=POLICY_READ)
+            raw_results = [raw_result]
+        except RecordNotFound:
+            raw_results = []
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        records = [record_to_model(r) for r in raw_results]
+        return FilteredQueryResponse(
+            records=records,
+            total=len(records),
+            page=1,
+            page_size=body.page_size,
+            has_more=False,
+            execution_time_ms=elapsed_ms,
+            scanned_records=len(records),
+            returned_records=len(records),
+        )
+
+    # Build query
+    q = client.query(body.namespace, body.set or "")
+
+    if body.predicate:
+        q.where(_build_predicate_for_filter(body.predicate))
+
+    if body.select_bins:
+        q.select(*body.select_bins)
+
+    # Build policy with optional filter expression
+    policy = dict(POLICY_QUERY)
+    if body.filters:
+        policy["filter_expression"] = build_expression(body.filters)
+
+    raw_results = await q.results(policy)
+
+    elapsed_ms = int((time.monotonic() - start_time) * 1000)
+    scanned = len(raw_results)
+
+    # Apply max_records limit
+    if body.max_records and body.max_records > 0:
+        raw_results = raw_results[: body.max_records]
+    if len(raw_results) > MAX_QUERY_RECORDS:
+        raw_results = raw_results[:MAX_QUERY_RECORDS]
+
+    total = len(raw_results)
+
+    # Paginate
+    start = (body.page - 1) * body.page_size
+    paged = raw_results[start : start + body.page_size]
+    records = [record_to_model(r) for r in paged]
+
+    return FilteredQueryResponse(
+        records=records,
+        total=total,
+        page=body.page,
+        page_size=body.page_size,
+        has_more=start + body.page_size < total,
+        execution_time_ms=elapsed_ms,
+        scanned_records=scanned,
+        returned_records=len(records),
+    )
