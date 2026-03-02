@@ -12,7 +12,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel
 
 from aerospike_cluster_manager_api import config, db
@@ -21,9 +21,15 @@ from aerospike_cluster_manager_api.k8s_client import K8sApiError, k8s_client
 from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 from aerospike_cluster_manager_api.models.k8s_cluster import (
     CreateK8sClusterRequest,
+    K8sClusterCondition,
     K8sClusterDetail,
+    K8sClusterEvent,
     K8sClusterSummary,
     K8sPodStatus,
+    K8sTemplateDetail,
+    K8sTemplateSummary,
+    OperationRequest,
+    OperationStatusResponse,
     ScaleK8sClusterRequest,
     UpdateK8sClusterRequest,
 )
@@ -112,7 +118,7 @@ def _extract_summary(item: dict[str, Any], connection_id: str | None = None) -> 
 
 
 def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
-    """Convert CreateK8sClusterRequest to AerospikeCECluster CR dict."""
+    """Convert CreateK8sClusterRequest to AerospikeCluster CR dict."""
     ns_configs = []
     for ns in req.namespaces:
         storage_engine: dict[str, Any] = {"type": ns.storage_engine.type}
@@ -133,7 +139,7 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     cr: dict[str, Any] = {
         "apiVersion": "acko.io/v1alpha1",
-        "kind": "AerospikeCECluster",
+        "kind": "AerospikeCluster",
         "metadata": {
             "name": req.name,
             "namespace": req.namespace,
@@ -200,6 +206,67 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             }
         }
 
+    # Monitoring
+    if req.monitoring:
+        cr["spec"]["monitoring"] = {
+            "enabled": req.monitoring.enabled,
+            "port": req.monitoring.port,
+        }
+
+    # Template reference and overrides
+    if req.template_ref:
+        cr["spec"]["templateRef"] = {"name": req.template_ref}
+        if req.template_overrides:
+            overrides: dict[str, Any] = {}
+            if req.template_overrides.image:
+                overrides["image"] = req.template_overrides.image
+            if req.template_overrides.size is not None:
+                overrides["size"] = req.template_overrides.size
+            if req.template_overrides.resources:
+                overrides["podSpec"] = {
+                    "aerospikeContainer": {
+                        "resources": {
+                            "requests": {
+                                "cpu": req.template_overrides.resources.requests.cpu,
+                                "memory": req.template_overrides.resources.requests.memory,
+                            },
+                            "limits": {
+                                "cpu": req.template_overrides.resources.limits.cpu,
+                                "memory": req.template_overrides.resources.limits.memory,
+                            },
+                        }
+                    }
+                }
+            if overrides:
+                cr["spec"]["overrides"] = overrides
+
+    # Dynamic config update
+    if req.enable_dynamic_config:
+        cr["spec"]["enableDynamicConfigUpdate"] = True
+
+    # ACL / Access Control
+    if req.acl and req.acl.enabled:
+        acl_config = {
+            "roles": [
+                {"name": r.name, "privileges": r.privileges, **({"whitelist": r.whitelist} if r.whitelist else {})}
+                for r in req.acl.roles
+            ],
+            "users": [{"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in req.acl.users],
+            "adminPolicy": {"timeout": req.acl.admin_policy_timeout},
+        }
+        cr["spec"]["aerospikeAccessControl"] = acl_config
+        # Enable security in aerospike config
+        cr["spec"]["aerospikeConfig"]["security"] = {}
+
+    # Rolling update strategy
+    if req.rolling_update:
+        if req.rolling_update.batch_size is not None:
+            cr["spec"]["rollingUpdateBatchSize"] = req.rolling_update.batch_size
+        if req.rolling_update.max_unavailable is not None:
+            cr["spec"]["maxUnavailable"] = req.rolling_update.max_unavailable
+        if req.rolling_update.disable_pdb:
+            cr["spec"]["disablePDB"] = True
+
     return cr
 
 
@@ -232,7 +299,56 @@ async def get_k8s_cluster(
     pods_raw = await k8s_client.list_pods(
         namespace, f"app.kubernetes.io/name=aerospike-cluster,app.kubernetes.io/instance={name}"
     )
-    pods = [K8sPodStatus(**p) for p in pods_raw]
+
+    # Merge dynamic config status and extended fields from CR status.pods map
+    cr_pods_status = status.get("pods", {})
+    pods = []
+    for p in pods_raw:
+        pod_name = p.get("name", "")
+        cr_pod = cr_pods_status.get(pod_name, {})
+        p["dynamicConfigStatus"] = cr_pod.get("dynamicConfigStatus")
+        p["lastRestartReason"] = cr_pod.get("lastRestartReason")
+        last_restart_time = cr_pod.get("lastRestartTime")
+        if last_restart_time and isinstance(last_restart_time, str):
+            p["lastRestartTime"] = last_restart_time
+        # Rich pod status fields from operator CR status
+        p["nodeId"] = cr_pod.get("nodeID")
+        rack_val = cr_pod.get("rack")
+        p["rackId"] = rack_val if isinstance(rack_val, int) else None
+        p["configHash"] = cr_pod.get("configHash")
+        p["podSpecHash"] = cr_pod.get("podSpecHash")
+        pods.append(K8sPodStatus(**p))
+
+    # Extract operation status
+    op_status_raw = status.get("operationStatus")
+    operation_status = None
+    if op_status_raw:
+        operation_status = OperationStatusResponse(
+            id=op_status_raw.get("id", ""),
+            kind=op_status_raw.get("kind", ""),
+            phase=op_status_raw.get("phase", ""),
+            completedPods=op_status_raw.get("completedPods", []),
+            failedPods=op_status_raw.get("failedPods", []),
+        )
+
+    # Extract conditions from operator status
+    conditions = []
+    for cond in status.get("conditions", []):
+        conditions.append(
+            K8sClusterCondition(
+                type=cond.get("type", ""),
+                status=cond.get("status", ""),
+                reason=cond.get("reason"),
+                message=cond.get("message"),
+                lastTransitionTime=cond.get("lastTransitionTime"),
+            )
+        )
+
+    # Extract lastReconcileTime — may be a string or an RFC3339 timestamp
+    last_reconcile_time_raw = status.get("lastReconcileTime")
+    last_reconcile_time = None
+    if last_reconcile_time_raw and isinstance(last_reconcile_time_raw, str):
+        last_reconcile_time = last_reconcile_time_raw
 
     return K8sClusterDetail(
         name=metadata.get("name", ""),
@@ -240,10 +356,19 @@ async def get_k8s_cluster(
         size=spec.get("size", 0),
         image=spec.get("image", ""),
         phase=status.get("phase", "Unknown"),
+        phaseReason=status.get("phaseReason"),
         age=_calculate_age(metadata.get("creationTimestamp")),
         spec=spec,
         status=status,
         pods=pods,
+        conditions=conditions,
+        operationStatus=operation_status,
+        failedReconcileCount=status.get("failedReconcileCount", 0),
+        lastReconcileError=status.get("lastReconcileError"),
+        aerospikeClusterSize=status.get("aerospikeClusterSize"),
+        pendingRestartPods=status.get("pendingRestartPods", []),
+        lastReconcileTime=last_reconcile_time,
+        operatorVersion=status.get("operatorVersion"),
     )
 
 
@@ -302,7 +427,18 @@ async def update_k8s_cluster(
     _require_k8s()
 
     # Validate that at least one field is provided
-    if body.size is None and body.image is None and body.resources is None:
+    if (
+        body.size is None
+        and body.image is None
+        and body.resources is None
+        and body.monitoring is None
+        and body.paused is None
+        and body.enable_dynamic_config is None
+        and body.aerospike_config is None
+        and body.rolling_update_batch_size is None
+        and body.max_unavailable is None
+        and body.disable_pdb is None
+    ):
         raise HTTPException(status_code=400, detail="At least one field must be provided")
 
     patch: dict[str, Any] = {"spec": {}}
@@ -319,6 +455,23 @@ async def update_k8s_cluster(
                 }
             }
         }
+    if body.monitoring is not None:
+        patch["spec"]["monitoring"] = {
+            "enabled": body.monitoring.enabled,
+            "port": body.monitoring.port,
+        }
+    if body.paused is not None:
+        patch["spec"]["paused"] = body.paused
+    if body.enable_dynamic_config is not None:
+        patch["spec"]["enableDynamicConfigUpdate"] = body.enable_dynamic_config
+    if body.aerospike_config is not None:
+        patch["spec"]["aerospikeConfig"] = body.aerospike_config
+    if body.rolling_update_batch_size is not None:
+        patch["spec"]["rollingUpdateBatchSize"] = body.rolling_update_batch_size
+    if body.max_unavailable is not None:
+        patch["spec"]["maxUnavailable"] = body.max_unavailable
+    if body.disable_pdb is not None:
+        patch["spec"]["disablePDB"] = body.disable_pdb
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return _extract_summary(result)
 
@@ -373,3 +526,110 @@ async def list_k8s_namespaces() -> list[str]:
 async def list_k8s_storage_classes() -> list[str]:
     _require_k8s()
     return await k8s_client.list_storage_classes()
+
+
+@router.get("/secrets", summary="List K8s Secrets in a namespace")
+@_k8s_endpoint("list Kubernetes secrets")
+async def list_k8s_secrets(namespace: str = "aerospike") -> list[str]:
+    _require_k8s()
+    return await k8s_client.list_secrets(namespace)
+
+
+# ---------------------------------------------------------------------------
+# Template endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/templates", summary="List K8s AerospikeClusterTemplates")
+@_k8s_endpoint("list Kubernetes templates")
+async def list_k8s_templates(namespace: str | None = None) -> list[K8sTemplateSummary]:
+    _require_k8s()
+    items = await k8s_client.list_templates(namespace)
+    summaries = []
+    for item in items:
+        metadata = item.get("metadata", {})
+        spec = item.get("spec", {})
+        summaries.append(
+            K8sTemplateSummary(
+                name=metadata.get("name", ""),
+                namespace=metadata.get("namespace", ""),
+                image=spec.get("image"),
+                size=spec.get("size"),
+                age=_calculate_age(metadata.get("creationTimestamp")),
+            )
+        )
+    return summaries
+
+
+@router.get("/templates/{namespace}/{name}", summary="Get K8s AerospikeClusterTemplate detail")
+@_k8s_endpoint("get Kubernetes template")
+async def get_k8s_template(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sTemplateDetail:
+    _require_k8s()
+    item = await k8s_client.get_template(namespace, name)
+    metadata = item.get("metadata", {})
+    return K8sTemplateDetail(
+        name=metadata.get("name", ""),
+        namespace=metadata.get("namespace", ""),
+        spec=item.get("spec", {}),
+        age=_calculate_age(metadata.get("creationTimestamp")),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cluster event & operation endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/clusters/{namespace}/{name}/events", summary="Get K8s cluster events")
+@_k8s_endpoint("get Kubernetes cluster events")
+async def get_k8s_cluster_events(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+    limit: int = Query(default=50, ge=1, le=500, description="Maximum number of events to return"),
+) -> list[K8sClusterEvent]:
+    _require_k8s()
+    field_selector = f"involvedObject.name={name},involvedObject.kind=AerospikeCluster"
+    events_raw = await k8s_client.list_events(namespace, field_selector)
+    events = [K8sClusterEvent(**e) for e in events_raw]
+    return events[:limit]
+
+
+@router.post(
+    "/clusters/{namespace}/{name}/resync-template",
+    summary="Trigger template resync for K8s Aerospike cluster",
+)
+@_k8s_endpoint("resync template for Kubernetes cluster")
+async def resync_k8s_cluster_template(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sClusterSummary:
+    _require_k8s()
+    patch: dict[str, Any] = {
+        "metadata": {
+            "annotations": {
+                "acko.io/resync-template": "true",
+            }
+        }
+    }
+    result = await k8s_client.patch_cluster(namespace, name, patch)
+    return _extract_summary(result)
+
+
+@router.post("/clusters/{namespace}/{name}/operations", summary="Trigger operation on K8s cluster")
+@_k8s_endpoint("trigger operation on Kubernetes cluster")
+async def trigger_k8s_cluster_operation(
+    body: OperationRequest,
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sClusterSummary:
+    _require_k8s()
+    op_id = body.id or f"ui-{uuid.uuid4().hex[:8]}"
+    operation: dict[str, Any] = {"kind": body.kind, "id": op_id}
+    if body.pod_list:
+        operation["podList"] = body.pod_list
+    patch: dict[str, Any] = {"spec": {"operations": [operation]}}
+    result = await k8s_client.patch_cluster(namespace, name, patch)
+    return _extract_summary(result)

@@ -23,19 +23,48 @@ import {
   validateK8sName,
   validateK8sCpu,
   validateK8sMemory,
+  validateNamespaces,
+  MAX_CE_NAMESPACES,
   parseCpuMillis,
   parseMemoryBytes,
 } from "@/lib/validations/k8s";
 import { toast } from "sonner";
-import type { CreateK8sClusterRequest } from "@/lib/api/types";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import type {
+  AerospikeNamespaceConfig,
+  CreateK8sClusterRequest,
+  MonitoringConfig,
+  ACLConfig,
+  ACLRoleSpec,
+  ACLUserSpec,
+  RollingUpdateConfig,
+  TemplateOverrides,
+} from "@/lib/api/types";
 
 const AEROSPIKE_IMAGES = ["aerospike:ce-8.1.1.1", "aerospike:ce-7.2.0.6"];
 
-const STEPS = ["Basic", "Namespace & Storage", "Resources", "Review"];
+const STEPS = [
+  "Basic",
+  "Namespace & Storage",
+  "Monitoring & Options",
+  "Resources",
+  "Security (ACL)",
+  "Rolling Update",
+  "Review",
+];
+
+const AEROSPIKE_PRIVILEGES = [
+  "read",
+  "read-write",
+  "read-write-udf",
+  "sys-admin",
+  "data-admin",
+  "user-admin",
+];
 
 export function K8sClusterWizard() {
   const router = useRouter();
-  const { createCluster } = useK8sClusterStore();
+  const { createCluster, templates, fetchTemplates } = useK8sClusterStore();
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [k8sNamespaces, setK8sNamespaces] = useState<string[]>([]);
@@ -43,6 +72,9 @@ export function K8sClusterWizard() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fetchingOptions, setFetchingOptions] = useState(true);
   const [creationError, setCreationError] = useState<string | null>(null);
+  const [k8sSecrets, setK8sSecrets] = useState<string[]>([]);
+  const [overridesOpen, setOverridesOpen] = useState(false);
+  const [templateOverrides, setTemplateOverrides] = useState<TemplateOverrides>({});
 
   const DEFAULT_RESOURCES = {
     requests: { cpu: "500m", memory: "1Gi" },
@@ -62,7 +94,12 @@ export function K8sClusterWizard() {
       },
     ],
     resources: DEFAULT_RESOURCES,
+    monitoring: undefined as MonitoringConfig | undefined,
+    templateRef: undefined as string | undefined,
+    enableDynamicConfig: false,
     autoConnect: true,
+    acl: undefined as ACLConfig | undefined,
+    rollingUpdate: undefined as RollingUpdateConfig | undefined,
   });
 
   useEffect(() => {
@@ -88,10 +125,23 @@ export function K8sClusterWizard() {
             `Failed to fetch storage classes: ${getErrorMessage(err)}. Using defaults.`,
           );
         }),
+      fetchTemplates().catch(() => {
+        // Templates are optional, silently ignore fetch failures
+      }),
     ]).finally(() => {
       setFetchingOptions(false);
     });
-  }, []);
+  }, [fetchTemplates]);
+
+  // Fetch K8s secrets when on the ACL step and namespace is available
+  useEffect(() => {
+    if (step === 4 && form.acl?.enabled && form.namespace) {
+      api
+        .getK8sSecrets(form.namespace)
+        .then(setK8sSecrets)
+        .catch(() => setK8sSecrets([]));
+    }
+  }, [step, form.acl?.enabled, form.namespace]);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
@@ -122,19 +172,38 @@ export function K8sClusterWizard() {
     });
   };
 
-  const isStoragePersistent = form.namespaces[0]?.storageEngine.type === "device";
+  const isStoragePersistent = form.namespaces.some((ns) => ns.storageEngine.type === "device");
+
+  const addNamespace = () => {
+    if (form.namespaces.length >= MAX_CE_NAMESPACES) return;
+    const newNs: AerospikeNamespaceConfig = {
+      name: "",
+      replicationFactor: Math.min(2, form.size),
+      storageEngine: { type: "memory", dataSize: 1073741824 },
+    };
+    setForm((prev) => ({ ...prev, namespaces: [...prev.namespaces, newNs] }));
+  };
+
+  const removeNamespace = (index: number) => {
+    if (form.namespaces.length <= 1) return;
+    setForm((prev) => ({
+      ...prev,
+      namespaces: prev.namespaces.filter((_, i) => i !== index),
+    }));
+  };
 
   const canProceed = () => {
     if (step === 0) {
       return validateK8sName(form.name) === null;
     }
     if (step === 1) {
-      const ns = form.namespaces[0];
-      if (!ns || !ns.name || ns.name.trim().length === 0) return false;
-      if (ns.replicationFactor > form.size) return false;
-      return true;
+      return validateNamespaces(form.namespaces, form.size) === null;
     }
     if (step === 2) {
+      // Monitoring & Options step - always valid (all fields optional)
+      return true;
+    }
+    if (step === 3) {
       const res = form.resources ?? DEFAULT_RESOURCES;
       if (validateK8sCpu(res.requests.cpu) !== null) return false;
       if (validateK8sCpu(res.limits.cpu) !== null) return false;
@@ -145,6 +214,23 @@ export function K8sClusterWizard() {
       if (parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory)) return false;
       return true;
     }
+    if (step === 4) {
+      // ACL step: if enabled, must have at least one user with admin role
+      if (form.acl?.enabled) {
+        if (form.acl.users.length === 0) return false;
+        for (const user of form.acl.users) {
+          if (!user.name.trim() || !user.secretName.trim() || user.roles.length === 0) return false;
+        }
+        for (const role of form.acl.roles) {
+          if (!role.name.trim() || role.privileges.length === 0) return false;
+        }
+      }
+      return true;
+    }
+    if (step === 5) {
+      // Rolling Update step - always valid (all fields optional)
+      return true;
+    }
     return true;
   };
 
@@ -152,7 +238,15 @@ export function K8sClusterWizard() {
     setCreationError(null);
     setCreating(true);
     try {
-      await createCluster(form);
+      // Only include rollingUpdate if the user actually set non-default values
+      const payload = { ...form };
+      if (payload.rollingUpdate) {
+        const ru = payload.rollingUpdate;
+        if (ru.batchSize == null && !ru.maxUnavailable && !ru.disablePDB) {
+          payload.rollingUpdate = undefined;
+        }
+      }
+      await createCluster(payload);
       toast.success(`Cluster "${form.name}" creation initiated`);
       router.push("/k8s/clusters");
     } catch (err) {
@@ -301,89 +395,165 @@ export function K8sClusterWizard() {
 
           {step === 1 && (
             <>
-              <div className="grid gap-2">
-                <Label htmlFor="ns-name">Aerospike Namespace Name</Label>
-                <Input
-                  id="ns-name"
-                  value={form.namespaces[0]?.name || "test"}
-                  onChange={(e) => updateNamespace(0, { name: e.target.value })}
-                />
-                {form.namespaces[0]?.name !== undefined &&
-                  form.namespaces[0].name.trim().length === 0 && (
-                    <p className="text-destructive text-xs">Namespace name is required</p>
-                  )}
-              </div>
+              <p className="text-muted-foreground text-xs">
+                Aerospike CE supports up to {MAX_CE_NAMESPACES} namespaces per cluster.
+              </p>
 
-              <div className="grid gap-2">
-                <Label htmlFor="storage-type">Storage Type</Label>
-                <div
-                  id="storage-type"
-                  className="flex gap-2"
-                  role="group"
-                  aria-label="Storage type"
-                >
-                  <Button
-                    type="button"
-                    variant={!isStoragePersistent ? "default" : "outline"}
-                    size="sm"
-                    onClick={() =>
-                      updateNamespace(0, {
-                        storageEngine: { type: "memory", dataSize: 1073741824 },
-                      })
-                    }
+              {form.namespaces.map((ns, ni) => {
+                const nsIsDevice = ns.storageEngine.type === "device";
+                return (
+                  <div
+                    key={`ns-${ni}`}
+                    className="space-y-3 rounded-lg border p-4"
                   >
-                    In-Memory
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={isStoragePersistent ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      updateNamespace(0, {
-                        storageEngine: { type: "device", filesize: 4294967296 },
-                      });
-                      if (!form.storage) {
-                        updateForm({
-                          storage: {
-                            storageClass: storageClasses[0] || "standard",
-                            size: "10Gi",
-                            mountPath: "/opt/aerospike/data",
-                          },
-                        });
-                      }
-                    }}
-                  >
-                    Persistent (Device)
-                  </Button>
-                </div>
-              </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        Namespace {ni + 1}
+                      </span>
+                      {form.namespaces.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeNamespace(ni)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
 
-              {!isStoragePersistent && (
-                <div className="grid gap-2">
-                  <Label htmlFor="memory-size">Memory Size</Label>
-                  <Select
-                    value={String(form.namespaces[0]?.storageEngine.dataSize || 1073741824)}
-                    onValueChange={(v) =>
-                      updateNamespace(0, {
-                        storageEngine: { type: "memory", dataSize: parseInt(v) },
-                      })
-                    }
-                  >
-                    <SelectTrigger id="memory-size">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1073741824">1 GiB</SelectItem>
-                      <SelectItem value="2147483648">2 GiB</SelectItem>
-                      <SelectItem value="4294967296">4 GiB</SelectItem>
-                      <SelectItem value="8589934592">8 GiB</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`ns-name-${ni}`}>Namespace Name</Label>
+                      <Input
+                        id={`ns-name-${ni}`}
+                        value={ns.name}
+                        onChange={(e) => updateNamespace(ni, { name: e.target.value })}
+                      />
+                      {ns.name !== undefined && ns.name.trim().length === 0 && (
+                        <p className="text-destructive text-xs">Namespace name is required</p>
+                      )}
+                      {form.namespaces.length > 1 &&
+                        ns.name.trim().length > 0 &&
+                        form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length > 1 && (
+                          <p className="text-destructive text-xs">Namespace names must be unique</p>
+                        )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor={`storage-type-${ni}`}>Storage Type</Label>
+                      <div
+                        id={`storage-type-${ni}`}
+                        className="flex gap-2"
+                        role="group"
+                        aria-label={`Storage type for namespace ${ni + 1}`}
+                      >
+                        <Button
+                          type="button"
+                          variant={!nsIsDevice ? "default" : "outline"}
+                          size="sm"
+                          onClick={() =>
+                            updateNamespace(ni, {
+                              storageEngine: { type: "memory", dataSize: 1073741824 },
+                            })
+                          }
+                        >
+                          In-Memory
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={nsIsDevice ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            updateNamespace(ni, {
+                              storageEngine: { type: "device", filesize: 4294967296 },
+                            });
+                            if (!form.storage) {
+                              updateForm({
+                                storage: {
+                                  storageClass: storageClasses[0] || "standard",
+                                  size: "10Gi",
+                                  mountPath: "/opt/aerospike/data",
+                                },
+                              });
+                            }
+                          }}
+                        >
+                          Persistent (Device)
+                        </Button>
+                      </div>
+                    </div>
+
+                    {!nsIsDevice && (
+                      <div className="grid gap-2">
+                        <Label htmlFor={`memory-size-${ni}`}>Memory Size</Label>
+                        <Select
+                          value={String(ns.storageEngine.dataSize || 1073741824)}
+                          onValueChange={(v) =>
+                            updateNamespace(ni, {
+                              storageEngine: { type: "memory", dataSize: parseInt(v) },
+                            })
+                          }
+                        >
+                          <SelectTrigger id={`memory-size-${ni}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1073741824">1 GiB</SelectItem>
+                            <SelectItem value="2147483648">2 GiB</SelectItem>
+                            <SelectItem value="4294967296">4 GiB</SelectItem>
+                            <SelectItem value="8589934592">8 GiB</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    <div className="grid gap-2">
+                      <Label htmlFor={`repl-factor-${ni}`}>
+                        Replication Factor (1 - {form.size})
+                      </Label>
+                      <Input
+                        id={`repl-factor-${ni}`}
+                        type="number"
+                        min={1}
+                        max={form.size}
+                        value={ns.replicationFactor}
+                        onChange={(e) =>
+                          updateNamespace(ni, {
+                            replicationFactor: Math.min(
+                              form.size,
+                              Math.max(1, parseInt(e.target.value) || 1),
+                            ),
+                          })
+                        }
+                      />
+                      {ns.replicationFactor > form.size && (
+                        <p className="text-destructive text-xs">
+                          Replication factor ({ns.replicationFactor}) cannot exceed cluster size (
+                          {form.size}).
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {form.namespaces.length < MAX_CE_NAMESPACES && (
+                <Button type="button" variant="outline" size="sm" onClick={addNamespace}>
+                  Add Namespace
+                </Button>
               )}
 
+              {validateNamespaces(form.namespaces, form.size) && (
+                <p className="text-destructive text-xs">
+                  {validateNamespaces(form.namespaces, form.size)}
+                </p>
+              )}
+
+              {/* Shared persistent storage settings (shown when any namespace uses device) */}
               {isStoragePersistent && (
-                <>
+                <div className="space-y-3 rounded-lg border border-dashed p-4">
+                  <span className="text-sm font-medium">Persistent Volume Settings</span>
+
                   <div className="grid gap-2">
                     <Label htmlFor="storage-class">Storage Class</Label>
                     <Select
@@ -439,37 +609,346 @@ export function K8sClusterWizard() {
                       </SelectContent>
                     </Select>
                   </div>
-                </>
+                </div>
               )}
-
-              <div className="grid gap-2">
-                <Label htmlFor="repl-factor">Replication Factor (1 - {form.size})</Label>
-                <Input
-                  id="repl-factor"
-                  type="number"
-                  min={1}
-                  max={form.size}
-                  value={form.namespaces[0]?.replicationFactor || 1}
-                  onChange={(e) =>
-                    updateNamespace(0, {
-                      replicationFactor: Math.min(
-                        form.size,
-                        Math.max(1, parseInt(e.target.value) || 1),
-                      ),
-                    })
-                  }
-                />
-                {(form.namespaces[0]?.replicationFactor || 1) > form.size && (
-                  <p className="text-destructive text-xs">
-                    Replication factor ({form.namespaces[0]?.replicationFactor}) cannot exceed
-                    cluster size ({form.size}).
-                  </p>
-                )}
-              </div>
             </>
           )}
 
           {step === 2 && (
+            <>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="monitoring-enabled"
+                  checked={form.monitoring?.enabled ?? false}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      updateForm({ monitoring: { enabled: true, port: 9145 } });
+                    } else {
+                      updateForm({ monitoring: undefined });
+                    }
+                  }}
+                />
+                <Label htmlFor="monitoring-enabled" className="text-sm font-normal">
+                  Enable Prometheus monitoring
+                </Label>
+              </div>
+
+              {form.monitoring?.enabled && (
+                <div className="grid gap-2">
+                  <Label htmlFor="monitoring-port">Exporter Port</Label>
+                  <Input
+                    id="monitoring-port"
+                    type="number"
+                    min={1024}
+                    max={65535}
+                    value={form.monitoring.port}
+                    onChange={(e) =>
+                      updateForm({
+                        monitoring: {
+                          enabled: true,
+                          port: Math.min(65535, Math.max(1024, parseInt(e.target.value) || 9145)),
+                        },
+                      })
+                    }
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    Port for the Aerospike Prometheus exporter sidecar (default: 9145).
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                <Label htmlFor="template-ref">Cluster Template (optional)</Label>
+                <Select
+                  value={form.templateRef || "__none__"}
+                  onValueChange={(v) => {
+                    const selected = v === "__none__" ? undefined : v;
+                    updateForm({ templateRef: selected, templateOverrides: undefined });
+                    if (!selected) {
+                      setTemplateOverrides({});
+                      setOverridesOpen(false);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="template-ref">
+                    <SelectValue placeholder="No template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No template</SelectItem>
+                    {templates
+                      .filter((t) => t.namespace === form.namespace)
+                      .map((t) => (
+                        <SelectItem key={`${t.namespace}/${t.name}`} value={t.name}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">
+                  Apply default settings from an AerospikeClusterTemplate resource.
+                </p>
+              </div>
+
+              {form.templateRef && (
+                <div className="rounded-lg border p-3">
+                  <button
+                    type="button"
+                    className="text-foreground flex w-full items-center gap-2 text-sm font-medium"
+                    onClick={() => setOverridesOpen(!overridesOpen)}
+                  >
+                    {overridesOpen ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                    Template Overrides
+                    {(templateOverrides.image ||
+                      templateOverrides.size != null ||
+                      templateOverrides.resources) && (
+                      <span className="bg-accent/20 text-accent rounded-full px-2 py-0.5 text-[10px]">
+                        Active
+                      </span>
+                    )}
+                  </button>
+                  {overridesOpen && (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-muted-foreground text-xs">
+                        Override specific fields from the template. These values take precedence
+                        over the template defaults.
+                      </p>
+                      <div className="grid gap-2">
+                        <Label htmlFor="override-image" className="text-xs">
+                          Image Override
+                        </Label>
+                        <Select
+                          value={templateOverrides.image || "__default__"}
+                          onValueChange={(v) => {
+                            const updated = {
+                              ...templateOverrides,
+                              image: v === "__default__" ? undefined : v,
+                            };
+                            setTemplateOverrides(updated);
+                            updateForm({
+                              templateOverrides:
+                                updated.image || updated.size != null || updated.resources
+                                  ? updated
+                                  : undefined,
+                            });
+                          }}
+                        >
+                          <SelectTrigger id="override-image">
+                            <SelectValue placeholder="Use template default" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__default__">Use template default</SelectItem>
+                            {AEROSPIKE_IMAGES.map((img) => (
+                              <SelectItem key={img} value={img}>
+                                {img}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="override-size" className="text-xs">
+                          Size Override (1-8 nodes)
+                        </Label>
+                        <Input
+                          id="override-size"
+                          type="number"
+                          min={1}
+                          max={8}
+                          placeholder="Use template default"
+                          value={templateOverrides.size ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value
+                              ? Math.min(8, Math.max(1, parseInt(e.target.value) || 1))
+                              : undefined;
+                            const updated = { ...templateOverrides, size: val };
+                            setTemplateOverrides(updated);
+                            updateForm({
+                              templateOverrides:
+                                updated.image || updated.size != null || updated.resources
+                                  ? updated
+                                  : undefined,
+                            });
+                          }}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-xs">Resource Overrides</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="grid gap-1">
+                            <Label htmlFor="override-cpu-req" className="text-muted-foreground text-[10px]">
+                              CPU Request
+                            </Label>
+                            <Input
+                              id="override-cpu-req"
+                              placeholder="e.g. 500m"
+                              value={templateOverrides.resources?.requests?.cpu ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value || undefined;
+                                const currentRes = templateOverrides.resources ?? {
+                                  requests: { cpu: "", memory: "" },
+                                  limits: { cpu: "", memory: "" },
+                                };
+                                const newRes = {
+                                  requests: { ...currentRes.requests, cpu: val ?? "" },
+                                  limits: { ...currentRes.limits },
+                                };
+                                const hasValues =
+                                  newRes.requests.cpu ||
+                                  newRes.requests.memory ||
+                                  newRes.limits.cpu ||
+                                  newRes.limits.memory;
+                                const updated = {
+                                  ...templateOverrides,
+                                  resources: hasValues ? newRes : undefined,
+                                };
+                                setTemplateOverrides(updated);
+                                updateForm({
+                                  templateOverrides:
+                                    updated.image || updated.size != null || updated.resources
+                                      ? updated
+                                      : undefined,
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="override-cpu-lim" className="text-muted-foreground text-[10px]">
+                              CPU Limit
+                            </Label>
+                            <Input
+                              id="override-cpu-lim"
+                              placeholder="e.g. 2"
+                              value={templateOverrides.resources?.limits?.cpu ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value || undefined;
+                                const currentRes = templateOverrides.resources ?? {
+                                  requests: { cpu: "", memory: "" },
+                                  limits: { cpu: "", memory: "" },
+                                };
+                                const newRes = {
+                                  requests: { ...currentRes.requests },
+                                  limits: { ...currentRes.limits, cpu: val ?? "" },
+                                };
+                                const hasValues =
+                                  newRes.requests.cpu ||
+                                  newRes.requests.memory ||
+                                  newRes.limits.cpu ||
+                                  newRes.limits.memory;
+                                const updated = {
+                                  ...templateOverrides,
+                                  resources: hasValues ? newRes : undefined,
+                                };
+                                setTemplateOverrides(updated);
+                                updateForm({
+                                  templateOverrides:
+                                    updated.image || updated.size != null || updated.resources
+                                      ? updated
+                                      : undefined,
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="override-mem-req" className="text-muted-foreground text-[10px]">
+                              Memory Request
+                            </Label>
+                            <Input
+                              id="override-mem-req"
+                              placeholder="e.g. 1Gi"
+                              value={templateOverrides.resources?.requests?.memory ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value || undefined;
+                                const currentRes = templateOverrides.resources ?? {
+                                  requests: { cpu: "", memory: "" },
+                                  limits: { cpu: "", memory: "" },
+                                };
+                                const newRes = {
+                                  requests: { ...currentRes.requests, memory: val ?? "" },
+                                  limits: { ...currentRes.limits },
+                                };
+                                const hasValues =
+                                  newRes.requests.cpu ||
+                                  newRes.requests.memory ||
+                                  newRes.limits.cpu ||
+                                  newRes.limits.memory;
+                                const updated = {
+                                  ...templateOverrides,
+                                  resources: hasValues ? newRes : undefined,
+                                };
+                                setTemplateOverrides(updated);
+                                updateForm({
+                                  templateOverrides:
+                                    updated.image || updated.size != null || updated.resources
+                                      ? updated
+                                      : undefined,
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="override-mem-lim" className="text-muted-foreground text-[10px]">
+                              Memory Limit
+                            </Label>
+                            <Input
+                              id="override-mem-lim"
+                              placeholder="e.g. 4Gi"
+                              value={templateOverrides.resources?.limits?.memory ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value || undefined;
+                                const currentRes = templateOverrides.resources ?? {
+                                  requests: { cpu: "", memory: "" },
+                                  limits: { cpu: "", memory: "" },
+                                };
+                                const newRes = {
+                                  requests: { ...currentRes.requests },
+                                  limits: { ...currentRes.limits, memory: val ?? "" },
+                                };
+                                const hasValues =
+                                  newRes.requests.cpu ||
+                                  newRes.requests.memory ||
+                                  newRes.limits.cpu ||
+                                  newRes.limits.memory;
+                                const updated = {
+                                  ...templateOverrides,
+                                  resources: hasValues ? newRes : undefined,
+                                };
+                                setTemplateOverrides(updated);
+                                updateForm({
+                                  templateOverrides:
+                                    updated.image || updated.size != null || updated.resources
+                                      ? updated
+                                      : undefined,
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="dynamic-config"
+                  checked={form.enableDynamicConfig ?? false}
+                  onCheckedChange={(checked) =>
+                    updateForm({ enableDynamicConfig: checked === true })
+                  }
+                />
+                <Label htmlFor="dynamic-config" className="text-sm font-normal">
+                  Enable dynamic config (apply config changes without restart)
+                </Label>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -564,7 +1043,341 @@ export function K8sClusterWizard() {
             </>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
+            <>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="acl-enabled"
+                  checked={form.acl?.enabled ?? false}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      updateForm({
+                        acl: {
+                          enabled: true,
+                          roles: [],
+                          users: [],
+                          adminPolicyTimeout: 2000,
+                        },
+                      });
+                    } else {
+                      updateForm({ acl: undefined });
+                    }
+                  }}
+                />
+                <Label htmlFor="acl-enabled" className="text-sm font-normal">
+                  Enable ACL (Access Control)
+                </Label>
+              </div>
+
+              {form.acl?.enabled && (
+                <div className="space-y-6 pt-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="admin-timeout">Admin Policy Timeout (ms)</Label>
+                    <Input
+                      id="admin-timeout"
+                      type="number"
+                      min={100}
+                      max={30000}
+                      value={form.acl.adminPolicyTimeout}
+                      onChange={(e) =>
+                        updateForm({
+                          acl: {
+                            ...form.acl!,
+                            adminPolicyTimeout: parseInt(e.target.value) || 2000,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+
+                  {/* Roles Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Roles</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateForm({
+                            acl: {
+                              ...form.acl!,
+                              roles: [
+                                ...form.acl!.roles,
+                                { name: "", privileges: [], whitelist: [] },
+                              ],
+                            },
+                          })
+                        }
+                      >
+                        Add Role
+                      </Button>
+                    </div>
+                    {form.acl.roles.map((role, ri) => (
+                      <div
+                        key={`role-${ri}-${role.name || ri}`}
+                        className="space-y-2 rounded-lg border p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Role name"
+                            value={role.name}
+                            onChange={(e) => {
+                              const roles = [...form.acl!.roles];
+                              roles[ri] = { ...roles[ri], name: e.target.value };
+                              updateForm({ acl: { ...form.acl!, roles } });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const roles = form.acl!.roles.filter((_, i) => i !== ri);
+                              updateForm({ acl: { ...form.acl!, roles } });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-muted-foreground text-xs">Privileges</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {AEROSPIKE_PRIVILEGES.map((priv) => (
+                              <label key={priv} className="flex items-center gap-1 text-xs">
+                                <Checkbox
+                                  checked={role.privileges.includes(priv)}
+                                  onCheckedChange={(checked) => {
+                                    const roles = [...form.acl!.roles];
+                                    const privileges = checked
+                                      ? [...roles[ri].privileges, priv]
+                                      : roles[ri].privileges.filter((p) => p !== priv);
+                                    roles[ri] = { ...roles[ri], privileges };
+                                    updateForm({ acl: { ...form.acl!, roles } });
+                                  }}
+                                />
+                                {priv}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-muted-foreground text-xs">
+                            Whitelist CIDRs (comma-separated, optional)
+                          </Label>
+                          <Input
+                            placeholder="e.g. 10.0.0.0/8, 192.168.1.0/24"
+                            value={role.whitelist?.join(", ") ?? ""}
+                            onChange={(e) => {
+                              const roles = [...form.acl!.roles];
+                              const raw = e.target.value;
+                              roles[ri] = {
+                                ...roles[ri],
+                                whitelist: raw
+                                  ? raw
+                                      .split(",")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean)
+                                  : [],
+                              };
+                              updateForm({ acl: { ...form.acl!, roles } });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Users Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Users</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateForm({
+                            acl: {
+                              ...form.acl!,
+                              users: [...form.acl!.users, { name: "", secretName: "", roles: [] }],
+                            },
+                          })
+                        }
+                      >
+                        Add User
+                      </Button>
+                    </div>
+                    {form.acl.users.map((user, ui) => (
+                      <div
+                        key={`user-${ui}-${user.name || ui}`}
+                        className="space-y-2 rounded-lg border p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Username"
+                            value={user.name}
+                            onChange={(e) => {
+                              const users = [...form.acl!.users];
+                              users[ui] = { ...users[ui], name: e.target.value };
+                              updateForm({ acl: { ...form.acl!, users } });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const users = form.acl!.users.filter((_, i) => i !== ui);
+                              updateForm({ acl: { ...form.acl!, users } });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-muted-foreground text-xs">
+                            K8s Secret Name (password)
+                          </Label>
+                          {k8sSecrets.length > 0 ? (
+                            <Select
+                              value={user.secretName || "__none__"}
+                              onValueChange={(v) => {
+                                const users = [...form.acl!.users];
+                                users[ui] = {
+                                  ...users[ui],
+                                  secretName: v === "__none__" ? "" : v,
+                                };
+                                updateForm({ acl: { ...form.acl!, users } });
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a secret" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">Select a secret...</SelectItem>
+                                {k8sSecrets.map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {s}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              placeholder="my-aerospike-secret"
+                              value={user.secretName}
+                              onChange={(e) => {
+                                const users = [...form.acl!.users];
+                                users[ui] = { ...users[ui], secretName: e.target.value };
+                                updateForm({ acl: { ...form.acl!, users } });
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-muted-foreground text-xs">Roles</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              ...AEROSPIKE_PRIVILEGES.map((p) => p),
+                              ...form.acl!.roles.map((r) => r.name).filter(Boolean),
+                            ]
+                              .filter((v, i, a) => a.indexOf(v) === i)
+                              .map((roleName) => (
+                                <label key={roleName} className="flex items-center gap-1 text-xs">
+                                  <Checkbox
+                                    checked={user.roles.includes(roleName)}
+                                    onCheckedChange={(checked) => {
+                                      const users = [...form.acl!.users];
+                                      const roles = checked
+                                        ? [...users[ui].roles, roleName]
+                                        : users[ui].roles.filter((r) => r !== roleName);
+                                      users[ui] = { ...users[ui], roles };
+                                      updateForm({ acl: { ...form.acl!, users } });
+                                    }}
+                                  />
+                                  {roleName}
+                                </label>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="batch-size">Batch Size (optional)</Label>
+                <Input
+                  id="batch-size"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 1"
+                  value={form.rollingUpdate?.batchSize ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : undefined;
+                    updateForm({
+                      rollingUpdate: {
+                        batchSize: val,
+                        maxUnavailable: form.rollingUpdate?.maxUnavailable,
+                        disablePDB: form.rollingUpdate?.disablePDB ?? false,
+                      },
+                    });
+                  }}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Number of pods to update at a time during rolling restarts.
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="max-unavailable">Max Unavailable (optional)</Label>
+                <Input
+                  id="max-unavailable"
+                  placeholder='e.g. "1" or "25%"'
+                  value={form.rollingUpdate?.maxUnavailable ?? ""}
+                  onChange={(e) =>
+                    updateForm({
+                      rollingUpdate: {
+                        batchSize: form.rollingUpdate?.batchSize,
+                        maxUnavailable: e.target.value || undefined,
+                        disablePDB: form.rollingUpdate?.disablePDB ?? false,
+                      },
+                    })
+                  }
+                />
+                <p className="text-muted-foreground text-xs">
+                  Maximum number or percentage of pods that can be unavailable during update.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="disable-pdb"
+                  checked={form.rollingUpdate?.disablePDB ?? false}
+                  onCheckedChange={(checked) =>
+                    updateForm({
+                      rollingUpdate: {
+                        batchSize: form.rollingUpdate?.batchSize,
+                        maxUnavailable: form.rollingUpdate?.maxUnavailable,
+                        disablePDB: checked === true,
+                      },
+                    })
+                  }
+                />
+                <Label htmlFor="disable-pdb" className="text-sm font-normal">
+                  Disable PodDisruptionBudget
+                </Label>
+              </div>
+            </>
+          )}
+
+          {step === 6 && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <span className="text-muted-foreground">Name</span>
@@ -581,18 +1394,25 @@ export function K8sClusterWizard() {
                 <span className="text-muted-foreground">Image</span>
                 <span className="font-mono text-xs font-medium">{form.image}</span>
 
-                <span className="text-muted-foreground">Aerospike Namespace</span>
-                <span className="font-medium">{form.namespaces[0]?.name}</span>
+                <span className="text-muted-foreground">Namespaces</span>
+                <span className="font-medium">{form.namespaces.length}</span>
 
-                <span className="text-muted-foreground">Storage</span>
-                <span className="font-medium">
-                  {isStoragePersistent
-                    ? `Persistent (${form.storage?.size || "10Gi"})`
-                    : `In-Memory (${formatBytes(form.namespaces[0]?.storageEngine.dataSize || 1073741824)})`}
-                </span>
-
-                <span className="text-muted-foreground">Replication</span>
-                <span className="font-medium">{form.namespaces[0]?.replicationFactor}</span>
+                {form.namespaces.map((ns, ni) => (
+                  <div key={`review-ns-${ni}`} className="col-span-2 ml-2 rounded border p-2 text-xs">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      <span className="text-muted-foreground">Name</span>
+                      <span className="font-medium">{ns.name}</span>
+                      <span className="text-muted-foreground">Storage</span>
+                      <span className="font-medium">
+                        {ns.storageEngine.type === "device"
+                          ? `Persistent (${form.storage?.size || "10Gi"})`
+                          : `In-Memory (${formatBytes(ns.storageEngine.dataSize || 1073741824)})`}
+                      </span>
+                      <span className="text-muted-foreground">Replication</span>
+                      <span className="font-medium">{ns.replicationFactor}</span>
+                    </div>
+                  </div>
+                ))}
 
                 {form.resources && (
                   <>
@@ -603,6 +1423,69 @@ export function K8sClusterWizard() {
                     </span>
                   </>
                 )}
+
+                <span className="text-muted-foreground">Monitoring</span>
+                <span className="font-medium">
+                  {form.monitoring?.enabled ? `Enabled (port ${form.monitoring.port})` : "Disabled"}
+                </span>
+
+                {form.templateRef && (
+                  <>
+                    <span className="text-muted-foreground">Template</span>
+                    <span className="font-medium">{form.templateRef}</span>
+                  </>
+                )}
+
+                {form.templateRef && form.templateOverrides && (
+                  <>
+                    <span className="text-muted-foreground">Template Overrides</span>
+                    <span className="font-medium">
+                      {[
+                        form.templateOverrides.image && `Image: ${form.templateOverrides.image}`,
+                        form.templateOverrides.size != null &&
+                          `Size: ${form.templateOverrides.size}`,
+                        form.templateOverrides.resources &&
+                          `Resources: CPU ${form.templateOverrides.resources.requests.cpu || "-"}/${form.templateOverrides.resources.limits.cpu || "-"}, Mem ${form.templateOverrides.resources.requests.memory || "-"}/${form.templateOverrides.resources.limits.memory || "-"}`,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  </>
+                )}
+
+                <span className="text-muted-foreground">Dynamic Config</span>
+                <span className="font-medium">
+                  {form.enableDynamicConfig ? "Enabled" : "Disabled"}
+                </span>
+
+                <span className="text-muted-foreground">ACL</span>
+                <span className="font-medium">
+                  {form.acl?.enabled
+                    ? `Enabled (${form.acl.roles.length} role${form.acl.roles.length !== 1 ? "s" : ""}, ${form.acl.users.length} user${form.acl.users.length !== 1 ? "s" : ""})`
+                    : "Disabled"}
+                </span>
+
+                {form.acl?.enabled && (
+                  <>
+                    <span className="text-muted-foreground">ACL Timeout</span>
+                    <span className="font-medium">{form.acl.adminPolicyTimeout}ms</span>
+                  </>
+                )}
+
+                <span className="text-muted-foreground">Rolling Update</span>
+                <span className="font-medium">
+                  {form.rollingUpdate
+                    ? [
+                        form.rollingUpdate.batchSize != null &&
+                          `batch: ${form.rollingUpdate.batchSize}`,
+                        form.rollingUpdate.maxUnavailable &&
+                          `maxUnavail: ${form.rollingUpdate.maxUnavailable}`,
+                        form.rollingUpdate.disablePDB && "PDB disabled",
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Default"
+                    : "Default"}
+                </span>
 
                 <span className="text-muted-foreground">Auto-connect</span>
                 <span className="font-medium">{form.autoConnect ? "Yes" : "No"}</span>

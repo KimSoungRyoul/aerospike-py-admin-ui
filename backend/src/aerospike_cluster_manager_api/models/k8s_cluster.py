@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import warnings
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -106,6 +106,80 @@ class ResourceConfig(BaseModel):
         return self
 
 
+class MonitoringConfig(BaseModel):
+    """Optional monitoring configuration for the cluster."""
+
+    model_config = {"populate_by_name": True}
+
+    enabled: bool = Field(default=False)
+    port: int = Field(default=9145, ge=1024, le=65535)
+
+
+class ACLRoleSpec(BaseModel):
+    """Aerospike role definition."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str = Field(min_length=1, max_length=63)
+    privileges: list[str] = Field(default_factory=lambda: ["read-write"])
+    whitelist: list[str] | None = Field(default=None, description="CIDR allowlist")
+
+
+class ACLUserSpec(BaseModel):
+    """Aerospike user definition."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str = Field(min_length=1, max_length=63)
+    secret_name: str = Field(alias="secretName", description="K8s Secret containing password")
+    roles: list[str] = Field(default_factory=lambda: ["user-admin"])
+
+
+class ACLConfig(BaseModel):
+    """Access control configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    enabled: bool = Field(default=False)
+    roles: list[ACLRoleSpec] = Field(default_factory=list)
+    users: list[ACLUserSpec] = Field(default_factory=list)
+    admin_policy_timeout: int = Field(default=2000, ge=100, le=30000, alias="adminPolicyTimeout")
+
+
+class RollingUpdateConfig(BaseModel):
+    """Rolling update strategy configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    batch_size: int | None = Field(default=None, ge=1, alias="batchSize", description="Pods to restart in parallel")
+    max_unavailable: str | None = Field(
+        default=None, alias="maxUnavailable", description="Max unavailable (e.g. '1' or '25%')"
+    )
+    disable_pdb: bool = Field(default=False, alias="disablePDB")
+
+
+class OperationStatusResponse(BaseModel):
+    """Current operation status from cluster status."""
+
+    model_config = {"populate_by_name": True}
+
+    id: str = ""
+    kind: str = ""
+    phase: str = ""
+    completed_pods: list[str] = Field(default_factory=list, alias="completedPods")
+    failed_pods: list[str] = Field(default_factory=list, alias="failedPods")
+
+
+class TemplateOverrides(BaseModel):
+    """Overrides to apply on top of template defaults."""
+
+    model_config = {"populate_by_name": True}
+
+    image: str | None = None
+    size: int | None = Field(default=None, ge=1, le=8)
+    resources: ResourceConfig | None = None
+
+
 class CreateK8sClusterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
     namespace: str = Field(
@@ -125,6 +199,16 @@ class CreateK8sClusterRequest(BaseModel):
     )
     storage: StorageVolumeConfig | None = None
     resources: ResourceConfig | None = None
+    monitoring: MonitoringConfig | None = None
+    template_ref: str | None = Field(
+        default=None, alias="templateRef", description="Name of AerospikeClusterTemplate to use"
+    )
+    template_overrides: TemplateOverrides | None = Field(
+        default=None, alias="templateOverrides", description="Fields to override from template"
+    )
+    acl: ACLConfig | None = Field(default=None, alias="acl")
+    rolling_update: RollingUpdateConfig | None = Field(default=None, alias="rollingUpdate")
+    enable_dynamic_config: bool = Field(default=False, alias="enableDynamicConfig")
     auto_connect: bool = Field(default=True, alias="autoConnect")
 
     model_config = {"populate_by_name": True}
@@ -147,6 +231,17 @@ class UpdateK8sClusterRequest(BaseModel):
         pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$",
     )
     resources: ResourceConfig | None = None
+    monitoring: MonitoringConfig | None = None
+    paused: bool | None = None
+    enable_dynamic_config: bool | None = Field(default=None, alias="enableDynamicConfig")
+    aerospike_config: dict[str, Any] | None = Field(default=None, alias="aerospikeConfig")
+    rolling_update_batch_size: int | None = Field(
+        default=None, ge=1, alias="rollingUpdateBatchSize", description="Pods to restart in parallel"
+    )
+    max_unavailable: str | None = Field(
+        default=None, alias="maxUnavailable", description="Max unavailable (e.g. '1' or '25%')"
+    )
+    disable_pdb: bool | None = Field(default=None, alias="disablePDB")
 
     model_config = {"populate_by_name": True}
 
@@ -162,6 +257,13 @@ class K8sPodStatus(BaseModel):
     isReady: bool = False
     phase: str = "Unknown"
     image: str | None = None
+    dynamicConfigStatus: str | None = None
+    lastRestartReason: str | None = None
+    lastRestartTime: str | None = None
+    nodeId: str | None = None
+    rackId: int | None = None
+    configHash: str | None = None
+    podSpecHash: str | None = None
 
 
 class K8sClusterSummary(BaseModel):
@@ -175,14 +277,82 @@ class K8sClusterSummary(BaseModel):
     autoConnectWarning: str | None = None
 
 
+class K8sClusterCondition(BaseModel):
+    """Condition from the operator's status.conditions[]."""
+
+    model_config = {"populate_by_name": True}
+
+    type: str
+    status: str
+    reason: str | None = None
+    message: str | None = None
+    lastTransitionTime: str | None = None
+
+
 class K8sClusterDetail(BaseModel):
+    model_config = {"populate_by_name": True}
+
     name: str
     namespace: str
     size: int
     image: str
     phase: str = "Unknown"
+    phaseReason: str | None = None
     age: str | None = None
     spec: dict = Field(default_factory=dict)
     status: dict = Field(default_factory=dict)
     pods: list[K8sPodStatus] = Field(default_factory=list)
+    conditions: list[K8sClusterCondition] = Field(default_factory=list)
     connectionId: str | None = None
+    operation_status: OperationStatusResponse | None = Field(default=None, alias="operationStatus")
+    failed_reconcile_count: int = Field(default=0, alias="failedReconcileCount")
+    last_reconcile_error: str | None = Field(default=None, alias="lastReconcileError")
+    aerospike_cluster_size: int | None = Field(default=None, alias="aerospikeClusterSize")
+    pending_restart_pods: list[str] = Field(default_factory=list, alias="pendingRestartPods")
+    last_reconcile_time: str | None = Field(default=None, alias="lastReconcileTime")
+    operator_version: str | None = Field(default=None, alias="operatorVersion")
+
+
+class K8sClusterEvent(BaseModel):
+    type: str | None = None
+    reason: str | None = None
+    message: str | None = None
+    count: int | None = None
+    firstTimestamp: str | None = None
+    lastTimestamp: str | None = None
+    source: str | None = None
+
+
+class K8sTemplateSummary(BaseModel):
+    name: str
+    namespace: str
+    image: str | None = None
+    size: int | None = None
+    age: str | None = None
+
+
+class K8sTemplateDetail(BaseModel):
+    name: str
+    namespace: str
+    spec: dict = Field(default_factory=dict)
+    age: str | None = None
+
+
+class OperationRequest(BaseModel):
+    """Request to trigger an operation on the cluster.
+
+    Maps to the operator CRD OperationSpec:
+      kind:    OperationKind (WarmRestart | PodRestart) — required
+      id:      unique tracking ID (1-20 chars) — auto-generated if omitted
+      podList: target pods (all pods if empty)
+    """
+
+    model_config = {"populate_by_name": True}
+
+    kind: Literal["WarmRestart", "PodRestart"] = Field(
+        description="Operation kind (maps to CRD spec.operations[].kind)"
+    )
+    id: str | None = Field(
+        default=None, min_length=1, max_length=20, description="Unique operation ID (auto-generated if omitted)"
+    )
+    pod_list: list[str] | None = Field(default=None, alias="podList", description="Specific pods (all if empty)")

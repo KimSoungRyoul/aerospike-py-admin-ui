@@ -371,8 +371,82 @@ export interface CreateSampleDataResponse {
   elapsedMs: number;
 }
 
+// === K8s ACL & Rolling Update ===
+export interface ACLRoleSpec {
+  name: string;
+  privileges: string[];
+  whitelist?: string[];
+}
+
+export interface ACLUserSpec {
+  name: string;
+  secretName: string;
+  roles: string[];
+}
+
+export interface ACLConfig {
+  enabled: boolean;
+  roles: ACLRoleSpec[];
+  users: ACLUserSpec[];
+  adminPolicyTimeout: number;
+}
+
+export interface RollingUpdateConfig {
+  batchSize?: number;
+  maxUnavailable?: string;
+  disablePDB: boolean;
+}
+
+export interface OperationStatusResponse {
+  id: string;
+  kind: string;
+  phase: string;
+  completedPods: string[];
+  failedPods: string[];
+}
+
 // === K8s Cluster Management ===
-export type K8sClusterPhase = "InProgress" | "Completed" | "Error" | "Unknown";
+export type K8sClusterPhase =
+  | "InProgress"
+  | "Completed"
+  | "Error"
+  | "ScalingUp"
+  | "ScalingDown"
+  | "WaitingForMigration"
+  | "RollingRestart"
+  | "ACLSync"
+  | "Paused"
+  | "Deleting"
+  | "Unknown";
+
+/** Phases that indicate the cluster is transitioning and should trigger auto-refresh. */
+export const TRANSITIONAL_PHASES: K8sClusterPhase[] = [
+  "InProgress",
+  "ScalingUp",
+  "ScalingDown",
+  "WaitingForMigration",
+  "RollingRestart",
+  "ACLSync",
+  "Deleting",
+];
+
+export interface K8sClusterCondition {
+  type: string;
+  status: string;
+  reason?: string;
+  message?: string;
+  lastTransitionTime?: string;
+}
+
+export interface K8sClusterEvent {
+  type?: string;
+  reason?: string;
+  message?: string;
+  count?: number;
+  firstTimestamp?: string;
+  lastTimestamp?: string;
+  source?: string;
+}
 
 export interface K8sPodStatus {
   name: string;
@@ -381,6 +455,13 @@ export interface K8sPodStatus {
   isReady: boolean;
   phase: string;
   image: string | null;
+  dynamicConfigStatus?: "Applied" | "Failed" | "Pending";
+  lastRestartReason?: string;
+  lastRestartTime?: string;
+  nodeId?: string;
+  rackId?: number;
+  configHash?: string;
+  podSpecHash?: string;
 }
 
 export interface K8sClusterSummary {
@@ -400,11 +481,20 @@ export interface K8sClusterDetail {
   size: number;
   image: string;
   phase: K8sClusterPhase;
+  phaseReason?: string;
   age: string | null;
   spec: Record<string, unknown>;
   status: Record<string, unknown>;
   pods: K8sPodStatus[];
+  conditions: K8sClusterCondition[];
   connectionId: string | null;
+  operationStatus?: OperationStatusResponse;
+  failedReconcileCount: number;
+  lastReconcileError?: string;
+  aerospikeClusterSize?: number;
+  pendingRestartPods: string[];
+  lastReconcileTime?: string;
+  operatorVersion?: string;
 }
 
 export interface AerospikeNamespaceStorage {
@@ -436,6 +526,11 @@ export interface ResourceConfig {
   limits: ResourceSpec;
 }
 
+export interface MonitoringConfig {
+  enabled: boolean;
+  port: number;
+}
+
 export interface CreateK8sClusterRequest {
   name: string;
   namespace: string;
@@ -444,15 +539,63 @@ export interface CreateK8sClusterRequest {
   namespaces: AerospikeNamespaceConfig[];
   storage?: StorageVolumeConfig;
   resources?: ResourceConfig;
+  monitoring?: MonitoringConfig;
+  templateRef?: string;
+  templateOverrides?: TemplateOverrides;
+  enableDynamicConfig?: boolean;
   autoConnect: boolean;
+  acl?: ACLConfig;
+  rollingUpdate?: RollingUpdateConfig;
 }
 
 export interface UpdateK8sClusterRequest {
   size?: number;
   image?: string;
   resources?: ResourceConfig;
+  monitoring?: MonitoringConfig;
+  paused?: boolean;
+  enableDynamicConfig?: boolean;
+  aerospikeConfig?: Record<string, unknown>;
+  rollingUpdateBatchSize?: number;
+  maxUnavailable?: string;
+  disablePDB?: boolean;
 }
 
 export interface ScaleK8sClusterRequest {
   size: number;
+}
+
+export interface OperationRequest {
+  kind: "WarmRestart" | "PodRestart";
+  id?: string;
+  podList?: string[];
+}
+
+export interface K8sTemplateSummary {
+  name: string;
+  namespace: string;
+  image?: string;
+  size?: number;
+  age?: string;
+}
+
+export interface K8sTemplateDetail {
+  name: string;
+  namespace: string;
+  spec: Record<string, unknown>;
+  age?: string;
+}
+
+export interface TemplateSnapshot {
+  synced?: boolean;
+  templateName?: string;
+  resourceVersion?: string;
+  snapshotTimestamp?: string;
+  spec?: unknown;
+}
+
+export interface TemplateOverrides {
+  image?: string;
+  size?: number;
+  resources?: ResourceConfig;
 }
