@@ -41,6 +41,9 @@ import type {
   RackAwareConfig,
   TemplateOverrides,
   K8sNodeInfo,
+  StorageVolumeConfig,
+  NetworkAccessConfig,
+  NetworkAccessType,
 } from "@/lib/api/types";
 
 const AEROSPIKE_IMAGES = ["aerospike:ce-8.1.1.1", "aerospike:ce-7.2.0.6"];
@@ -268,6 +271,15 @@ export function K8sClusterWizard() {
         if (ru.batchSize == null && !ru.maxUnavailable && !ru.disablePDB) {
           payload.rollingUpdate = undefined;
         }
+      }
+      // Only include networkPolicy if non-default
+      if (
+        payload.networkPolicy &&
+        payload.networkPolicy.accessType === "pod" &&
+        !payload.networkPolicy.alternateAccessType &&
+        !payload.networkPolicy.fabricType
+      ) {
+        payload.networkPolicy = undefined;
       }
       // Include rackConfig only if racks are configured
       if (payload.rackConfig && payload.rackConfig.racks.length > 0) {
@@ -641,6 +653,96 @@ export function K8sClusterWizard() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="init-method">Init Method</Label>
+                      <Select
+                        value={form.storage?.initMethod || "none"}
+                        onValueChange={(v) => {
+                          const base = form.storage ?? {
+                            storageClass: "standard",
+                            size: "10Gi",
+                            mountPath: "/opt/aerospike/data",
+                          };
+                          updateForm({
+                            storage: {
+                              ...base,
+                              initMethod:
+                                v === "none" ? undefined : (v as StorageVolumeConfig["initMethod"]),
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="init-method">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="deleteFiles">Delete Files</SelectItem>
+                          <SelectItem value="dd">DD (zero-fill)</SelectItem>
+                          <SelectItem value="blkdiscard">Block Discard</SelectItem>
+                          <SelectItem value="headerCleanup">Header Cleanup</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="wipe-method">Wipe Method</Label>
+                      <Select
+                        value={form.storage?.wipeMethod || "none"}
+                        onValueChange={(v) => {
+                          const base = form.storage ?? {
+                            storageClass: "standard",
+                            size: "10Gi",
+                            mountPath: "/opt/aerospike/data",
+                          };
+                          updateForm({
+                            storage: {
+                              ...base,
+                              wipeMethod:
+                                v === "none" ? undefined : (v as StorageVolumeConfig["wipeMethod"]),
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="wipe-method">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="deleteFiles">Delete Files</SelectItem>
+                          <SelectItem value="dd">DD (zero-fill)</SelectItem>
+                          <SelectItem value="blkdiscard">Block Discard</SelectItem>
+                          <SelectItem value="headerCleanup">Header Cleanup</SelectItem>
+                          <SelectItem value="blkdiscardWithHeaderCleanup">
+                            Block Discard + Header
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned
+                    on pod restart.
+                  </p>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="cascade-delete"
+                      checked={form.storage?.cascadeDelete ?? true}
+                      onCheckedChange={(checked) => {
+                        const base = form.storage ?? {
+                          storageClass: "standard",
+                          size: "10Gi",
+                          mountPath: "/opt/aerospike/data",
+                        };
+                        updateForm({ storage: { ...base, cascadeDelete: checked === true } });
+                      }}
+                    />
+                    <Label htmlFor="cascade-delete" className="text-sm font-normal">
+                      Delete PVCs when cluster is deleted (cascade delete)
+                    </Label>
+                  </div>
                 </div>
               )}
             </>
@@ -988,6 +1090,68 @@ export function K8sClusterWizard() {
                 <Label htmlFor="dynamic-config" className="text-sm font-normal">
                   Enable dynamic config (apply config changes without restart)
                 </Label>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <span className="text-sm font-medium">Network Access</span>
+                <p className="text-muted-foreground text-xs">
+                  Configure how clients and nodes communicate with the Aerospike cluster.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="access-type" className="text-xs">
+                      Client Access Type
+                    </Label>
+                    <Select
+                      value={form.networkPolicy?.accessType || "pod"}
+                      onValueChange={(v) => {
+                        const current = form.networkPolicy ?? { accessType: "pod" as const };
+                        updateForm({
+                          networkPolicy:
+                            v === "pod" && !current.alternateAccessType && !current.fabricType
+                              ? undefined
+                              : { ...current, accessType: v as NetworkAccessType },
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="access-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pod">Pod IP (default)</SelectItem>
+                        <SelectItem value="hostInternal">Host Internal IP</SelectItem>
+                        <SelectItem value="hostExternal">Host External IP</SelectItem>
+                        <SelectItem value="configuredIP">Configured IP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="fabric-type" className="text-xs">
+                      Fabric Type (inter-node)
+                    </Label>
+                    <Select
+                      value={form.networkPolicy?.fabricType || "pod"}
+                      onValueChange={(v) => {
+                        const current = form.networkPolicy ?? { accessType: "pod" as const };
+                        updateForm({
+                          networkPolicy: {
+                            ...current,
+                            fabricType: v === "pod" ? undefined : (v as NetworkAccessType),
+                          },
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="fabric-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pod">Pod IP (default)</SelectItem>
+                        <SelectItem value="hostInternal">Host Internal IP</SelectItem>
+                        <SelectItem value="hostExternal">Host External IP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -1677,6 +1841,30 @@ export function K8sClusterWizard() {
                         </span>
                       ))}
                     </div>
+                  </>
+                )}
+
+                {form.networkPolicy && form.networkPolicy.accessType !== "pod" && (
+                  <>
+                    <span className="text-muted-foreground">Network Access</span>
+                    <span className="font-medium">
+                      {form.networkPolicy.accessType}
+                      {form.networkPolicy.fabricType
+                        ? `, fabric: ${form.networkPolicy.fabricType}`
+                        : ""}
+                    </span>
+                  </>
+                )}
+
+                {form.storage && (
+                  <>
+                    <span className="text-muted-foreground">Storage</span>
+                    <span className="font-medium">
+                      {form.storage.size} ({form.storage.storageClass})
+                      {form.storage.initMethod ? `, init: ${form.storage.initMethod}` : ""}
+                      {form.storage.wipeMethod ? `, wipe: ${form.storage.wipeMethod}` : ""}
+                      {form.storage.cascadeDelete === false ? ", no cascade delete" : ""}
+                    </span>
                   </>
                 )}
 

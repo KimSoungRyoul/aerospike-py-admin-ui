@@ -33,6 +33,29 @@ class StorageVolumeConfig(BaseModel):
     storage_class: str = Field(default="standard", alias="storageClass")
     size: str = Field(default="10Gi", pattern=r"^[0-9]+[KMGTPE]i$")
     mount_path: str = Field(default="/opt/aerospike/data", alias="mountPath")
+    init_method: Literal["none", "deleteFiles", "dd", "blkdiscard", "headerCleanup"] | None = Field(
+        default=None, alias="initMethod", description="Volume initialization method"
+    )
+    wipe_method: Literal[
+        "none", "deleteFiles", "dd", "blkdiscard", "headerCleanup", "blkdiscardWithHeaderCleanup"
+    ] | None = Field(default=None, alias="wipeMethod", description="Volume wipe method for dirty volumes")
+    cascade_delete: bool = Field(default=True, alias="cascadeDelete", description="Delete PVCs on CR deletion")
+
+
+class NetworkAccessConfig(BaseModel):
+    """Network access type configuration for clients."""
+
+    model_config = {"populate_by_name": True}
+
+    access_type: Literal["pod", "hostInternal", "hostExternal", "configuredIP"] = Field(
+        default="pod", alias="accessType", description="How clients access Aerospike service"
+    )
+    alternate_access_type: Literal["pod", "hostInternal", "hostExternal", "configuredIP"] | None = Field(
+        default=None, alias="alternateAccessType", description="Alternate network access type"
+    )
+    fabric_type: Literal["pod", "hostInternal", "hostExternal", "configuredIP"] | None = Field(
+        default=None, alias="fabricType", description="Network type for inter-node communication"
+    )
 
 
 def _parse_cpu_millis(cpu: str) -> float:
@@ -239,6 +262,8 @@ class CreateK8sClusterRequest(BaseModel):
     rack_config: RackAwareConfig | None = Field(default=None, alias="rackConfig")
     enable_dynamic_config: bool = Field(default=False, alias="enableDynamicConfig")
     auto_connect: bool = Field(default=True, alias="autoConnect")
+    network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
+    k8s_node_block_list: list[str] | None = Field(default=None, alias="k8sNodeBlockList")
 
     model_config = {"populate_by_name": True}
 
@@ -272,6 +297,8 @@ class UpdateK8sClusterRequest(BaseModel):
     )
     disable_pdb: bool | None = Field(default=None, alias="disablePDB")
     rack_config: RackAwareConfig | None = Field(default=None, alias="rackConfig")
+    network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
+    k8s_node_block_list: list[str] | None = Field(default=None, alias="k8sNodeBlockList")
 
     model_config = {"populate_by_name": True}
 

@@ -16,7 +16,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingButton } from "@/components/common/loading-button";
 import { getErrorMessage } from "@/lib/utils";
-import type { K8sClusterDetail, UpdateK8sClusterRequest } from "@/lib/api/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { K8sClusterDetail, UpdateK8sClusterRequest, NetworkAccessType } from "@/lib/api/types";
 
 interface K8sEditDialogProps {
   open: boolean;
@@ -33,6 +40,8 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const [batchSize, setBatchSize] = useState<number | undefined>(undefined);
   const [maxUnavailable, setMaxUnavailable] = useState("");
   const [disablePDB, setDisablePDB] = useState(false);
+  const [accessType, setAccessType] = useState<NetworkAccessType>("pod");
+  const [nodeBlockList, setNodeBlockList] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -47,6 +56,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     (cluster.spec?.maxUnavailable as string | number) ?? ""
   ).toString();
   const initialDisablePDB = Boolean(cluster.spec?.disablePDB);
+  const initialAccessType = ((cluster.spec?.aerospikeNetworkPolicy as Record<string, string>)
+    ?.accessType || "pod") as NetworkAccessType;
+  const initialNodeBlockList = ((cluster.spec?.k8sNodeBlockList as string[]) ?? []).join(", ");
   const initialAerospikeConfig = useMemo(
     () => (cluster.spec?.aerospikeConfig as Record<string, unknown>) ?? {},
     [cluster.spec?.aerospikeConfig],
@@ -66,6 +78,8 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       setBatchSize(initialBatchSize);
       setMaxUnavailable(initialMaxUnavailable);
       setDisablePDB(initialDisablePDB);
+      setAccessType(initialAccessType);
+      setNodeBlockList(initialNodeBlockList);
       setError(null);
       setConfigError(null);
     }
@@ -78,6 +92,8 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     initialBatchSize,
     initialMaxUnavailable,
     initialDisablePDB,
+    initialAccessType,
+    initialNodeBlockList,
   ]);
 
   // Validate JSON on every keystroke
@@ -101,7 +117,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     aerospikeConfigText !== initialAerospikeConfigText ||
     batchSize !== initialBatchSize ||
     maxUnavailable !== initialMaxUnavailable ||
-    disablePDB !== initialDisablePDB;
+    disablePDB !== initialDisablePDB ||
+    accessType !== initialAccessType ||
+    nodeBlockList !== initialNodeBlockList;
 
   const handleSave = async () => {
     setLoading(true);
@@ -130,6 +148,16 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       }
       if (disablePDB !== initialDisablePDB) {
         data.disablePDB = disablePDB;
+      }
+      if (accessType !== initialAccessType) {
+        data.networkPolicy = { accessType };
+      }
+      if (nodeBlockList !== initialNodeBlockList) {
+        const nodes = nodeBlockList
+          .split(",")
+          .map((n) => n.trim())
+          .filter(Boolean);
+        data.k8sNodeBlockList = nodes;
       }
 
       await onSave(data);
@@ -256,6 +284,48 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
               <Label htmlFor="edit-disable-pdb" className="cursor-pointer text-xs">
                 Disable PodDisruptionBudget (PDB)
               </Label>
+            </div>
+          </div>
+
+          {/* Network & Node Block List */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1">
+              <Label htmlFor="edit-access-type" className="text-xs">
+                Network Access Type
+              </Label>
+              <Select
+                value={accessType}
+                onValueChange={(v) => {
+                  setAccessType(v as NetworkAccessType);
+                  setError(null);
+                }}
+              >
+                <SelectTrigger id="edit-access-type" disabled={loading}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pod">Pod IP</SelectItem>
+                  <SelectItem value="hostInternal">Host Internal</SelectItem>
+                  <SelectItem value="hostExternal">Host External</SelectItem>
+                  <SelectItem value="configuredIP">Configured IP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="edit-node-blocklist" className="text-xs">
+                Node Block List
+              </Label>
+              <Input
+                id="edit-node-blocklist"
+                value={nodeBlockList}
+                onChange={(e) => {
+                  setNodeBlockList(e.target.value);
+                  setError(null);
+                }}
+                placeholder="node1, node2"
+                disabled={loading}
+              />
+              <p className="text-muted-foreground text-[10px]">Comma-separated node names</p>
             </div>
           </div>
 

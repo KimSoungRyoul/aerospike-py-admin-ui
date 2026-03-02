@@ -547,6 +547,23 @@ export interface StorageVolumeConfig {
   storageClass: string;
   size: string;
   mountPath: string;
+  initMethod?: "none" | "deleteFiles" | "dd" | "blkdiscard" | "headerCleanup";
+  wipeMethod?:
+    | "none"
+    | "deleteFiles"
+    | "dd"
+    | "blkdiscard"
+    | "headerCleanup"
+    | "blkdiscardWithHeaderCleanup";
+  cascadeDelete?: boolean;
+}
+
+export type NetworkAccessType = "pod" | "hostInternal" | "hostExternal" | "configuredIP";
+
+export interface NetworkAccessConfig {
+  accessType: NetworkAccessType;
+  alternateAccessType?: NetworkAccessType;
+  fabricType?: NetworkAccessType;
 }
 
 export interface ResourceSpec {
@@ -580,6 +597,8 @@ export interface CreateK8sClusterRequest {
   acl?: ACLConfig;
   rollingUpdate?: RollingUpdateConfig;
   rackConfig?: RackAwareConfig;
+  networkPolicy?: NetworkAccessConfig;
+  k8sNodeBlockList?: string[];
 }
 
 export interface UpdateK8sClusterRequest {
@@ -594,6 +613,8 @@ export interface UpdateK8sClusterRequest {
   maxUnavailable?: string;
   disablePDB?: boolean;
   rackConfig?: RackAwareConfig;
+  networkPolicy?: NetworkAccessConfig;
+  k8sNodeBlockList?: string[];
 }
 
 export interface ScaleK8sClusterRequest {

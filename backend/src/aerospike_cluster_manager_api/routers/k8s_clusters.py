@@ -187,20 +187,25 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     # Storage volumes
     if req.storage:
+        data_vol: dict[str, Any] = {
+            "name": "data-vol",
+            "source": {
+                "persistentVolume": {
+                    "storageClass": req.storage.storage_class,
+                    "size": req.storage.size,
+                    "volumeMode": "Filesystem",
+                }
+            },
+            "aerospike": {"path": req.storage.mount_path},
+            "cascadeDelete": req.storage.cascade_delete,
+        }
+        if req.storage.init_method:
+            data_vol["initMethod"] = req.storage.init_method
+        if req.storage.wipe_method:
+            data_vol["wipeMethod"] = req.storage.wipe_method
         cr["spec"]["storage"] = {
             "volumes": [
-                {
-                    "name": "data-vol",
-                    "source": {
-                        "persistentVolume": {
-                            "storageClass": req.storage.storage_class,
-                            "size": req.storage.size,
-                            "volumeMode": "Filesystem",
-                        }
-                    },
-                    "aerospike": {"path": req.storage.mount_path},
-                    "cascadeDelete": True,
-                },
+                data_vol,
                 {
                     "name": "workdir",
                     "source": {"emptyDir": {}},
@@ -290,6 +295,19 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     # Rack config
     if req.rack_config and req.rack_config.racks:
         cr["spec"]["rackConfig"] = {"racks": _build_rack_list(req.rack_config.racks)}
+
+    # Network access policy
+    if req.network_policy:
+        net_policy: dict[str, Any] = {"accessType": req.network_policy.access_type}
+        if req.network_policy.alternate_access_type:
+            net_policy["alternateAccessType"] = req.network_policy.alternate_access_type
+        if req.network_policy.fabric_type:
+            net_policy["fabricType"] = req.network_policy.fabric_type
+        cr["spec"]["aerospikeNetworkPolicy"] = net_policy
+
+    # K8s node block list
+    if req.k8s_node_block_list:
+        cr["spec"]["k8sNodeBlockList"] = req.k8s_node_block_list
 
     return cr
 
@@ -551,6 +569,8 @@ async def update_k8s_cluster(
         and body.max_unavailable is None
         and body.disable_pdb is None
         and body.rack_config is None
+        and body.network_policy is None
+        and body.k8s_node_block_list is None
     ):
         raise HTTPException(status_code=400, detail="At least one field must be provided")
 
@@ -590,6 +610,15 @@ async def update_k8s_cluster(
             patch["spec"]["rackConfig"] = {"racks": _build_rack_list(body.rack_config.racks)}
         else:
             patch["spec"]["rackConfig"] = {"racks": []}
+    if body.network_policy is not None:
+        net_policy: dict[str, Any] = {"accessType": body.network_policy.access_type}
+        if body.network_policy.alternate_access_type:
+            net_policy["alternateAccessType"] = body.network_policy.alternate_access_type
+        if body.network_policy.fabric_type:
+            net_policy["fabricType"] = body.network_policy.fabric_type
+        patch["spec"]["aerospikeNetworkPolicy"] = net_policy
+    if body.k8s_node_block_list is not None:
+        patch["spec"]["k8sNodeBlockList"] = body.k8s_node_block_list
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return _extract_summary(result)
 
