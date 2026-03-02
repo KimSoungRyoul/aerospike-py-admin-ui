@@ -38,6 +38,7 @@ import type {
   ACLRoleSpec,
   ACLUserSpec,
   RollingUpdateConfig,
+  RackAwareConfig,
   TemplateOverrides,
 } from "@/lib/api/types";
 
@@ -50,6 +51,7 @@ const STEPS = [
   "Resources",
   "Security (ACL)",
   "Rolling Update",
+  "Rack Config",
   "Review",
 ];
 
@@ -100,7 +102,10 @@ export function K8sClusterWizard() {
     autoConnect: true,
     acl: undefined as ACLConfig | undefined,
     rollingUpdate: undefined as RollingUpdateConfig | undefined,
+    rackConfig: { racks: [] },
   });
+
+  const [nodes, setNodes] = useState<import("@/lib/api/types").K8sNodeInfo[]>([]);
 
   useEffect(() => {
     setFetchingOptions(true);
@@ -142,6 +147,13 @@ export function K8sClusterWizard() {
         .catch(() => setK8sSecrets([]));
     }
   }, [step, form.acl?.enabled, form.namespace]);
+
+  // Fetch K8s nodes when on the Rack Config step
+  useEffect(() => {
+    if (step === 6) {
+      api.getK8sNodes().then(setNodes).catch(() => {});
+    }
+  }, [step]);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
@@ -231,6 +243,10 @@ export function K8sClusterWizard() {
       // Rolling Update step - always valid (all fields optional)
       return true;
     }
+    if (step === 6) {
+      // Rack Config step - always valid (racks are optional)
+      return true;
+    }
     return true;
   };
 
@@ -245,6 +261,19 @@ export function K8sClusterWizard() {
         if (ru.batchSize == null && !ru.maxUnavailable && !ru.disablePDB) {
           payload.rollingUpdate = undefined;
         }
+      }
+      // Include rackConfig only if racks are configured
+      if (payload.rackConfig && payload.rackConfig.racks.length > 0) {
+        payload.rackConfig = {
+          racks: payload.rackConfig.racks.map((r) => ({
+            id: r.id,
+            ...(r.zone ? { zone: r.zone } : {}),
+            ...(r.region ? { region: r.region } : {}),
+            ...(r.maxPodsPerNode != null ? { maxPodsPerNode: r.maxPodsPerNode } : {}),
+          })),
+        } as typeof payload.rackConfig;
+      } else {
+        payload.rackConfig = undefined;
       }
       await createCluster(payload);
       toast.success(`Cluster "${form.name}" creation initiated`);
@@ -1377,7 +1406,134 @@ export function K8sClusterWizard() {
             </>
           )}
 
-          {step === 6 && (
+          {step === 6 && (() => {
+            const racks = form.rackConfig?.racks ?? [];
+            return (
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Configure multi-rack deployment for zone-aware pod distribution. Each rack
+                  gets its own StatefulSet with optional zone affinity.
+                </p>
+
+                {racks.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center">
+                    <p className="text-muted-foreground text-sm mb-3">
+                      No racks configured. The cluster will use a single default rack.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        updateForm({
+                          rackConfig: {
+                            racks: [{ id: 1, zone: "", region: "" }],
+                          },
+                        });
+                      }}
+                    >
+                      Enable Multi-Rack
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {racks.map((rack, idx) => {
+                      const uniqueZones = [...new Set(nodes.map((n) => n.zone).filter(Boolean))];
+                      return (
+                        <div key={idx} className="rounded-lg border p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-medium">Rack #{rack.id}</Label>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive h-7 px-2"
+                              onClick={() => {
+                                const newRacks = racks.filter((_, i) => i !== idx);
+                                updateForm({ rackConfig: { racks: newRacks } });
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-1">
+                              <Label className="text-xs">Zone</Label>
+                              {uniqueZones.length > 0 ? (
+                                <Select
+                                  value={rack.zone || ""}
+                                  onValueChange={(v) => {
+                                    const newRacks = [...racks];
+                                    newRacks[idx] = { ...rack, zone: v };
+                                    updateForm({ rackConfig: { racks: newRacks } });
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select zone" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {uniqueZones.map((z) => (
+                                      <SelectItem key={z} value={z}>{z}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  value={rack.zone || ""}
+                                  onChange={(e) => {
+                                    const newRacks = [...racks];
+                                    newRacks[idx] = { ...rack, zone: e.target.value };
+                                    updateForm({ rackConfig: { racks: newRacks } });
+                                  }}
+                                  placeholder="e.g. us-east-1a"
+                                />
+                              )}
+                            </div>
+                            <div className="grid gap-1">
+                              <Label className="text-xs">Max Pods Per Node</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={rack.maxPodsPerNode ?? ""}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value);
+                                  const newRacks = [...racks];
+                                  newRacks[idx] = { ...rack, maxPodsPerNode: isNaN(val) ? undefined : Math.max(1, val) };
+                                  updateForm({ rackConfig: { racks: newRacks } });
+                                }}
+                                placeholder="No limit"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const maxId = Math.max(0, ...racks.map((r) => r.id));
+                        updateForm({
+                          rackConfig: {
+                            racks: [
+                              ...racks,
+                              { id: maxId + 1, zone: "", region: "" },
+                            ],
+                          },
+                        });
+                      }}
+                    >
+                      + Add Rack
+                    </Button>
+                    <p className="text-muted-foreground text-xs">
+                      Tip: For {form.size} nodes across {racks.length} racks,
+                      approximately {Math.ceil(form.size / racks.length)} pods per rack.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {step === 7 && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <span className="text-muted-foreground">Name</span>
@@ -1486,6 +1642,19 @@ export function K8sClusterWizard() {
                         .join(", ") || "Default"
                     : "Default"}
                 </span>
+
+                {(form.rackConfig?.racks ?? []).length > 0 && (
+                  <>
+                    <span className="text-muted-foreground">Racks</span>
+                    <div className="space-y-1">
+                      {form.rackConfig!.racks.map((rack) => (
+                        <span key={rack.id} className="font-mono text-xs block">
+                          Rack #{rack.id}{rack.zone ? ` (zone: ${rack.zone})` : ""}{rack.maxPodsPerNode ? ` max: ${rack.maxPodsPerNode}/node` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 <span className="text-muted-foreground">Auto-connect</span>
                 <span className="font-medium">{form.autoConnect ? "Yes" : "No"}</span>

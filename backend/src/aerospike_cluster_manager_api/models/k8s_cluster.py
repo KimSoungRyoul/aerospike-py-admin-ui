@@ -146,6 +146,34 @@ class ACLConfig(BaseModel):
     admin_policy_timeout: int = Field(default=2000, ge=100, le=30000, alias="adminPolicyTimeout")
 
 
+class RackConfig(BaseModel):
+    """Rack configuration for zone-aware deployment."""
+
+    model_config = {"populate_by_name": True}
+
+    id: int = Field(ge=1, le=100, description="Rack ID (must be unique)")
+    zone: str | None = Field(default=None, description="K8s zone for node affinity")
+    region: str | None = Field(default=None, description="K8s region for node affinity")
+    max_pods_per_node: int | None = Field(default=None, ge=1, alias="maxPodsPerNode")
+    node_name: str | None = Field(default=None, alias="nodeName", description="Specific node name")
+
+
+class RackAwareConfig(BaseModel):
+    """Multi-rack deployment configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    racks: list[RackConfig] = Field(default_factory=list, max_length=10)
+
+    @field_validator("racks")
+    @classmethod
+    def unique_rack_ids(cls, v: list[RackConfig]) -> list[RackConfig]:
+        ids = [r.id for r in v]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Rack IDs must be unique")
+        return v
+
+
 class RollingUpdateConfig(BaseModel):
     """Rolling update strategy configuration."""
 
@@ -208,6 +236,7 @@ class CreateK8sClusterRequest(BaseModel):
     )
     acl: ACLConfig | None = Field(default=None, alias="acl")
     rolling_update: RollingUpdateConfig | None = Field(default=None, alias="rollingUpdate")
+    rack_config: RackAwareConfig | None = Field(default=None, alias="rackConfig")
     enable_dynamic_config: bool = Field(default=False, alias="enableDynamicConfig")
     auto_connect: bool = Field(default=True, alias="autoConnect")
 
@@ -242,6 +271,7 @@ class UpdateK8sClusterRequest(BaseModel):
         default=None, alias="maxUnavailable", description="Max unavailable (e.g. '1' or '25%')"
     )
     disable_pdb: bool | None = Field(default=None, alias="disablePDB")
+    rack_config: RackAwareConfig | None = Field(default=None, alias="rackConfig")
 
     model_config = {"populate_by_name": True}
 

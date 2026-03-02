@@ -272,6 +272,31 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
+    def _list_nodes_sync(self) -> list[dict[str, Any]]:
+        """List K8s nodes with zone labels."""
+        logger.debug("_list_nodes_sync()")
+        self._ensure_initialized()
+        try:
+            from kubernetes.client.rest import ApiException
+
+            result = self._core_api.list_node(_request_timeout=_K8S_API_TIMEOUT)
+            nodes = []
+            for node in result.items:
+                labels = node.metadata.labels or {}
+                nodes.append(
+                    {
+                        "name": node.metadata.name,
+                        "zone": labels.get("topology.kubernetes.io/zone", ""),
+                        "region": labels.get("topology.kubernetes.io/region", ""),
+                        "ready": any(c.status == "True" for c in (node.status.conditions or []) if c.type == "Ready"),
+                    }
+                )
+            return nodes
+        except ApiException as e:
+            raise K8sApiError(status=e.status, reason=e.reason or "", message=str(e.body)) from e
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
     def _list_events_sync(self, namespace: str, field_selector: str) -> list[dict[str, Any]]:
         logger.debug("_list_events_sync(namespace=%s)", namespace)
         self._ensure_initialized()
@@ -338,6 +363,9 @@ class K8sClient:
 
     async def list_events(self, namespace: str, field_selector: str) -> list[dict[str, Any]]:
         return await asyncio.to_thread(self._list_events_sync, namespace, field_selector)
+
+    async def list_nodes(self) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._list_nodes_sync)
 
 
 k8s_client = K8sClient()

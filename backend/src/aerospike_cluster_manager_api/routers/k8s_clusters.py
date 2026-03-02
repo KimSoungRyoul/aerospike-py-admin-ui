@@ -267,6 +267,22 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
         if req.rolling_update.disable_pdb:
             cr["spec"]["disablePDB"] = True
 
+    # Rack config
+    if req.rack_config and req.rack_config.racks:
+        rack_list = []
+        for rack in req.rack_config.racks:
+            r: dict[str, Any] = {"id": rack.id}
+            if rack.zone:
+                r["zone"] = rack.zone
+            if rack.region:
+                r["region"] = rack.region
+            if rack.max_pods_per_node is not None:
+                r["maxPodsPerNode"] = rack.max_pods_per_node
+            if rack.node_name:
+                r["nodeName"] = rack.node_name
+            rack_list.append(r)
+        cr["spec"]["rackConfig"] = {"racks": rack_list}
+
     return cr
 
 
@@ -372,6 +388,51 @@ async def get_k8s_cluster(
     )
 
 
+def _compute_rack_distribution(pods_status: dict) -> list[dict[str, Any]]:
+    """Group pods by rack ID for distribution display."""
+    racks: dict[int, dict[str, int]] = {}
+    for pod_info in pods_status.values():
+        rack_id = pod_info.get("rack", 0)
+        if rack_id not in racks:
+            racks[rack_id] = {"id": rack_id, "total": 0, "ready": 0}
+        racks[rack_id]["total"] += 1
+        if pod_info.get("isRunningAndReady"):
+            racks[rack_id]["ready"] += 1
+    return sorted(racks.values(), key=lambda r: r["id"])
+
+
+@router.get("/clusters/{namespace}/{name}/health", summary="Get cluster health summary")
+@_k8s_endpoint("get cluster health")
+async def get_k8s_cluster_health(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> dict[str, Any]:
+    _require_k8s()
+    item = await k8s_client.get_cluster(namespace, name)
+    status = item.get("status", {})
+    spec = item.get("spec", {})
+
+    pods_status = status.get("pods", {})
+    total_pods = len(pods_status)
+    ready_pods = sum(1 for p in pods_status.values() if p.get("isRunningAndReady"))
+
+    conditions = {c.get("type"): c.get("status") == "True" for c in status.get("conditions", [])}
+
+    return {
+        "phase": status.get("phase", "Unknown"),
+        "totalPods": total_pods,
+        "readyPods": ready_pods,
+        "desiredPods": spec.get("size", 0),
+        "migrating": not conditions.get("MigrationComplete", True),
+        "available": conditions.get("Available", False),
+        "configApplied": conditions.get("ConfigApplied", False),
+        "aclSynced": conditions.get("ACLSynced", True),
+        "failedReconcileCount": status.get("failedReconcileCount", 0),
+        "pendingRestartCount": len(status.get("pendingRestartPods", [])),
+        "rackDistribution": _compute_rack_distribution(pods_status),
+    }
+
+
 @router.post("/clusters", status_code=201, summary="Create K8s Aerospike cluster")
 @_k8s_endpoint("create Kubernetes cluster")
 async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary:
@@ -438,6 +499,7 @@ async def update_k8s_cluster(
         and body.rolling_update_batch_size is None
         and body.max_unavailable is None
         and body.disable_pdb is None
+        and body.rack_config is None
     ):
         raise HTTPException(status_code=400, detail="At least one field must be provided")
 
@@ -472,6 +534,24 @@ async def update_k8s_cluster(
         patch["spec"]["maxUnavailable"] = body.max_unavailable
     if body.disable_pdb is not None:
         patch["spec"]["disablePDB"] = body.disable_pdb
+    if body.rack_config is not None:
+        if body.rack_config.racks:
+            rack_list = []
+            for rack in body.rack_config.racks:
+                r: dict[str, Any] = {"id": rack.id}
+                if rack.zone:
+                    r["zone"] = rack.zone
+                if rack.region:
+                    r["region"] = rack.region
+                if rack.max_pods_per_node is not None:
+                    r["maxPodsPerNode"] = rack.max_pods_per_node
+                if rack.node_name:
+                    r["nodeName"] = rack.node_name
+                rack_list.append(r)
+            patch["spec"]["rackConfig"] = {"racks": rack_list}
+        else:
+            # Empty racks list clears the rack config
+            patch["spec"]["rackConfig"] = {"racks": []}
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return _extract_summary(result)
 
@@ -519,6 +599,13 @@ async def scale_k8s_cluster(
 async def list_k8s_namespaces() -> list[str]:
     _require_k8s()
     return await k8s_client.list_namespaces()
+
+
+@router.get("/nodes", summary="List Kubernetes nodes with zone info")
+@_k8s_endpoint("list Kubernetes nodes")
+async def list_k8s_nodes() -> list[dict[str, Any]]:
+    _require_k8s()
+    return await k8s_client.list_nodes()
 
 
 @router.get("/storageclasses", summary="List Kubernetes storage classes")

@@ -269,6 +269,13 @@ export const api = {
       `/api/k8s/clusters/${namespace}/${name}/events?limit=${limit}`,
     ),
 
+  // K8s Cluster Health
+  getK8sClusterHealth: (namespace: string, name: string) =>
+    request<import("./types").ClusterHealthSummary>(`/api/k8s/clusters/${namespace}/${name}/health`),
+
+  // K8s Nodes
+  getK8sNodes: () => request<import("./types").K8sNodeInfo[]>("/api/k8s/nodes"),
+
   // K8s Cluster Operations
   triggerK8sClusterOperation: (
     namespace: string,

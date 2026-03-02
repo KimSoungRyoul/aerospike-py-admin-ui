@@ -397,6 +397,39 @@ export interface RollingUpdateConfig {
   disablePDB: boolean;
 }
 
+export interface RackConfig {
+  id: number;
+  zone?: string;
+  region?: string;
+  maxPodsPerNode?: number;
+  nodeName?: string;
+}
+
+export interface RackAwareConfig {
+  racks: RackConfig[];
+}
+
+export interface ClusterHealthSummary {
+  phase: K8sClusterPhase;
+  totalPods: number;
+  readyPods: number;
+  desiredPods: number;
+  migrating: boolean;
+  available: boolean;
+  configApplied: boolean;
+  aclSynced: boolean;
+  failedReconcileCount: number;
+  pendingRestartCount: number;
+  rackDistribution: { id: number; total: number; ready: number }[];
+}
+
+export interface K8sNodeInfo {
+  name: string;
+  zone: string;
+  region: string;
+  ready: boolean;
+}
+
 export interface OperationStatusResponse {
   id: string;
   kind: string;
@@ -546,6 +579,7 @@ export interface CreateK8sClusterRequest {
   autoConnect: boolean;
   acl?: ACLConfig;
   rollingUpdate?: RollingUpdateConfig;
+  rackConfig?: RackAwareConfig;
 }
 
 export interface UpdateK8sClusterRequest {
@@ -559,6 +593,7 @@ export interface UpdateK8sClusterRequest {
   rollingUpdateBatchSize?: number;
   maxUnavailable?: string;
   disablePDB?: boolean;
+  rackConfig?: RackAwareConfig;
 }
 
 export interface ScaleK8sClusterRequest {

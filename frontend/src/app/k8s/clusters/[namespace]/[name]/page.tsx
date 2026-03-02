@@ -36,6 +36,7 @@ import {
   type K8sClusterPhase,
   type UpdateK8sClusterRequest,
   type TemplateSnapshot,
+  type ClusterHealthSummary,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
@@ -85,6 +86,7 @@ export default function K8sClusterDetailPage() {
   const [warmRestartConfirmOpen, setWarmRestartConfirmOpen] = useState(false);
   const [podRestartConfirmOpen, setPodRestartConfirmOpen] = useState(false);
   const [pendingPodsExpanded, setPendingPodsExpanded] = useState(false);
+  const [health, setHealth] = useState<ClusterHealthSummary | null>(null);
 
   const namespace = params?.namespace || "";
   const name = params?.name || "";
@@ -98,6 +100,7 @@ export default function K8sClusterDetailPage() {
         .catch((err) => {
           console.error("Failed to fetch cluster events:", err);
         });
+      api.getK8sClusterHealth(namespace, name).then(setHealth).catch(() => {});
     }
   }, [namespace, name, fetchCluster]);
 
@@ -116,6 +119,7 @@ export default function K8sClusterDetailPage() {
         .catch((err) => {
           console.error("Failed to fetch cluster events:", err);
         });
+      api.getK8sClusterHealth(namespace, name).then(setHealth).catch(() => {});
     }, 5000);
     return () => clearInterval(interval);
   }, [selectedCluster?.phase, namespace, name, fetchCluster]);
@@ -338,6 +342,59 @@ export default function K8sClusterDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cluster Health */}
+      {health && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Cluster Health</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold">{health.readyPods}/{health.desiredPods}</p>
+                <p className="text-muted-foreground text-xs">Pods Ready</p>
+              </div>
+              <div className="text-center">
+                <Badge variant="outline" className={cn("text-[11px]", health.migrating ? "bg-warning/10 text-warning border-warning/20" : "bg-success/10 text-success border-success/20")}>
+                  {health.migrating ? "Migrating" : "Stable"}
+                </Badge>
+                <p className="text-muted-foreground text-xs mt-1">Migration</p>
+              </div>
+              <div className="text-center">
+                <Badge variant="outline" className={cn("text-[11px]", health.configApplied ? "bg-success/10 text-success border-success/20" : "bg-warning/10 text-warning border-warning/20")}>
+                  {health.configApplied ? "Applied" : "Pending"}
+                </Badge>
+                <p className="text-muted-foreground text-xs mt-1">Config</p>
+              </div>
+              <div className="text-center">
+                <Badge variant="outline" className={cn("text-[11px]", health.available ? "bg-success/10 text-success border-success/20" : "bg-destructive/10 text-destructive border-destructive/20")}>
+                  {health.available ? "Available" : "Unavailable"}
+                </Badge>
+                <p className="text-muted-foreground text-xs mt-1">Availability</p>
+              </div>
+              {health.pendingRestartCount > 0 && (
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-warning">{health.pendingRestartCount}</p>
+                  <p className="text-muted-foreground text-xs">Pending Restart</p>
+                </div>
+              )}
+              {health.rackDistribution.length > 1 && (
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    {health.rackDistribution.map((r) => (
+                      <Badge key={r.id} variant="outline" className="text-[10px] px-1.5">
+                        R{r.id}: {r.ready}/{r.total}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground text-xs mt-1">Rack Distribution</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status Dashboard: Pending Restart Pods, Last Reconcile, Operator Version */}
       {(selectedCluster.pendingRestartPods.length > 0 ||
