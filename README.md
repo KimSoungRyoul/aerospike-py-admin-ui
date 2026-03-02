@@ -104,6 +104,12 @@ npm run dev                        # http://localhost:3000
   - Reconciliation error monitoring
   - K8s events timeline with auto-refresh
   - K8s secrets picker for ACL credential management
+  - Storage volume policies (init method, wipe method, cascade delete)
+  - Network access type configuration (Pod IP, Host Internal/External, Configured IP)
+  - K8s node block list for excluding specific nodes from scheduling
+  - Cluster health dashboard with rack distribution and migration status
+  - Pod logs viewer with tail lines, copy, and download
+  - Export cluster CR as clean YAML
 - **Light/Dark Mode** — System theme integration
 
 ## K8s Cluster Management
@@ -112,15 +118,16 @@ When running inside a Kubernetes cluster (or with `K8S_MANAGEMENT_ENABLED=true`)
 
 ### Cluster Lifecycle
 
-Create, scale, update, and delete Aerospike clusters through a guided 7-step wizard:
+Create, scale, update, and delete Aerospike clusters through a guided 8-step wizard:
 
 1. **Basic** — Cluster name, Kubernetes namespace, size (1-8 nodes), Aerospike image selection
-2. **Namespace & Storage** — Aerospike namespace configuration with in-memory or persistent (PVC) storage, replication factor, storage class selection
-3. **Monitoring & Options** — Enable Prometheus metrics exporter, select an AerospikeClusterTemplate, enable dynamic configuration updates
-4. **ACL / Security** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
-5. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
-6. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
-7. **Review** — Summary of all settings before creation
+2. **Namespace & Storage** — Aerospike namespace configuration with in-memory or persistent (PVC) storage, replication factor, storage class selection, volume init/wipe methods, cascade delete
+3. **Monitoring & Options** — Enable Prometheus metrics exporter, select an AerospikeClusterTemplate, enable dynamic configuration updates, configure network access type (Pod IP, Host Internal/External)
+4. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
+5. **Security (ACL)** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
+6. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
+7. **Rack Config** — Multi-rack deployment with zone affinity from live K8s node data, max pods per node, distribution preview
+8. **Review** — Summary of all settings before creation
 
 ### Cluster Phases
 
@@ -190,11 +197,16 @@ When creating a cluster, the "Auto-connect" option (enabled by default) automati
 | `POST` | `/api/k8s/clusters/{namespace}/{name}/scale` | Scale cluster to a specific size |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/events` | Get Kubernetes events for the cluster |
 | `POST` | `/api/k8s/clusters/{namespace}/{name}/operations` | Trigger operations (WarmRestart, PodRestart) |
+| `GET` | `/api/k8s/clusters/{namespace}/{name}/health` | Get cluster health summary (pods, migration, conditions) |
+| `GET` | `/api/k8s/clusters/{namespace}/{name}/pods/{pod}/logs` | Get container logs for a pod |
+| `GET` | `/api/k8s/clusters/{namespace}/{name}/yaml` | Export cluster CR as clean YAML |
+| `POST` | `/api/k8s/clusters/{namespace}/{name}/resync-template` | Trigger template resync via annotation |
 | `GET` | `/api/k8s/templates` | List AerospikeClusterTemplate resources |
 | `GET` | `/api/k8s/templates/{namespace}/{name}` | Get template detail |
 | `GET` | `/api/k8s/namespaces` | List available Kubernetes namespaces |
 | `GET` | `/api/k8s/storageclasses` | List available Kubernetes storage classes |
 | `GET` | `/api/k8s/secrets` | List K8s Secrets (for ACL picker) |
+| `GET` | `/api/k8s/nodes` | List K8s nodes with zone/region info (for rack config) |
 
 All K8s endpoints are gated by the `K8S_MANAGEMENT_ENABLED` configuration flag. When disabled, a 404 is returned so the frontend can hide K8s features gracefully.
 
