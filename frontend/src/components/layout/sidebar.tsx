@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Boxes, FileCode, MoreHorizontal, Plus, Search, Server, Table2, Settings, X } from "lucide-react";
+import { FileCode, MoreHorizontal, Plus, Search, Server, Table2, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -199,19 +199,10 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
-              onClick={() => handleNavigation("/k8s/clusters")}
-            >
-              <Boxes className="h-3.5 w-3.5" />
-              K8s Clusters
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
               onClick={() => handleNavigation("/k8s/templates")}
             >
               <FileCode className="h-3.5 w-3.5" />
-              K8s Templates
+              AerospikeClusterTemplate
             </Button>
           </>
         )}

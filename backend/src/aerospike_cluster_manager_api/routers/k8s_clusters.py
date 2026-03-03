@@ -328,7 +328,23 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 async def list_k8s_clusters(namespace: str | None = None) -> list[K8sClusterSummary]:
     _require_k8s()
     items = await k8s_client.list_clusters(namespace)
-    return [_extract_summary(item) for item in items]
+
+    # Build a map of K8s headless service hostname -> connection ID
+    # so that each cluster summary can include its linked connection.
+    connections = await db.get_all_connections()
+    conn_by_host: dict[str, str] = {}
+    for conn in connections:
+        for host in conn.hosts:
+            conn_by_host[host.lower()] = conn.id
+
+    def _find_connection_id(item: dict[str, Any]) -> str | None:
+        meta = item.get("metadata", {})
+        name = meta.get("name", "")
+        ns = meta.get("namespace", "")
+        service_host = f"{name}.{ns}.svc.cluster.local"
+        return conn_by_host.get(service_host.lower())
+
+    return [_extract_summary(item, connection_id=_find_connection_id(item)) for item in items]
 
 
 @router.get("/clusters/{namespace}/{name}", summary="Get K8s Aerospike cluster detail")
@@ -716,6 +732,7 @@ async def list_k8s_templates(namespace: str | None = None) -> list[K8sTemplateSu
                 image=spec.get("image"),
                 size=spec.get("size"),
                 age=_calculate_age(metadata.get("creationTimestamp")),
+                description=spec.get("description"),
             )
         )
     return summaries
@@ -751,6 +768,8 @@ def _build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
         "spec": {},
     }
 
+    if req.description:
+        cr["spec"]["description"] = req.description
     if req.image:
         cr["spec"]["image"] = req.image
     if req.size is not None:
@@ -804,6 +823,7 @@ async def create_k8s_template(body: CreateK8sTemplateRequest) -> K8sTemplateSumm
         image=spec.get("image"),
         size=spec.get("size"),
         age=_calculate_age(metadata.get("creationTimestamp")),
+        description=spec.get("description"),
     )
 
 

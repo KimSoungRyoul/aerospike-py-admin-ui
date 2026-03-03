@@ -1,147 +1,161 @@
 "use client";
 
-import { use, useEffect, useMemo } from "react";
-import dynamic from "next/dynamic";
-import {
-  Activity,
-  Clock,
-  Database,
-  Network,
-  RefreshCw,
-  Server,
-  TrendingUp,
-  TrendingDown,
-  Wifi,
-} from "lucide-react";
+import { use, useEffect, useState } from "react";
+import { Pencil, RefreshCw, Scale, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/common/page-header";
 import { FullPageError } from "@/components/common/full-page-error";
-import { EmptyState } from "@/components/common/empty-state";
-import { StatusBadge } from "@/components/common/status-badge";
-import { StatCard } from "@/components/common/stat-card";
+import { InlineAlert } from "@/components/common/inline-alert";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { K8sScaleDialog } from "@/components/k8s/k8s-scale-dialog";
+import { K8sDeleteDialog } from "@/components/k8s/k8s-delete-dialog";
+import { K8sEditDialog } from "@/components/k8s/k8s-edit-dialog";
+import { ClusterOverviewTab } from "@/components/k8s/cluster-overview-tab";
+import { ClusterAckoInfoTab } from "@/components/k8s/cluster-acko-info-tab";
 import { useAsyncData } from "@/hooks/use-async-data";
-import { useMetricsStore } from "@/stores/metrics-store";
+import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { api } from "@/lib/api/client";
-import type { MetricPoint, MetricSeries } from "@/lib/api/types";
-import { formatBytes, formatNumber, formatUptime, formatPercent } from "@/lib/formatters";
-import { METRIC_INTERVAL_MS } from "@/lib/constants";
-import { cn } from "@/lib/utils";
-
-const ClusterCharts = dynamic(
-  () =>
-    import("@/components/cluster/cluster-charts").then((m) => ({
-      default: m.ClusterCharts,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Skeleton className="h-[300px]" />
-        <Skeleton className="h-[300px]" />
-        <Skeleton className="h-[300px]" />
-        <Skeleton className="h-[300px]" />
-      </div>
-    ),
-  },
-);
-
-// ---------------------------------------------------------------------------
-// Chart helpers
-// ---------------------------------------------------------------------------
-
-function formatTimestamp(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getHours().toString().padStart(2, "0")}:${d
-    .getMinutes()
-    .toString()
-    .padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
-}
-
-function buildTpsChartData(readTps: MetricPoint[], writeTps: MetricPoint[]) {
-  return readTps.map((r, i) => ({
-    time: formatTimestamp(r.timestamp),
-    reads: Math.round(r.value),
-    writes: Math.round(writeTps[i]?.value ?? 0),
-  }));
-}
-
-function buildConnectionChartData(history: MetricPoint[]) {
-  return history.map((p) => ({
-    time: formatTimestamp(p.timestamp),
-    connections: Math.round(p.value),
-  }));
-}
-
-function buildNsChartData(series: MetricSeries[]) {
-  if (series.length === 0) return [];
-  const len = series[0].data.length;
-  const result = [];
-  for (let i = 0; i < len; i++) {
-    const point: Record<string, string | number> = {
-      time: formatTimestamp(series[0].data[i].timestamp),
-    };
-    for (const s of series) {
-      point[s.label] = Math.round((s.data[i]?.value ?? 0) * 100) / 100;
-    }
-    result.push(point);
-  }
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+import {
+  TRANSITIONAL_PHASES,
+  type ClusterHealthSummary,
+  type K8sClusterEvent,
+  type UpdateK8sClusterRequest,
+} from "@/lib/api/types";
+import { getErrorMessage } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function ClusterPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
 
-  // Static cluster data
+  // Static cluster data (Aerospike direct API)
   const {
     data: cluster,
     loading: clusterLoading,
     error: clusterError,
-    refetch: fetchCluster,
+    refetch: refetchCluster,
   } = useAsyncData(() => api.getCluster(connId), [connId]);
 
-  // Real-time metrics
-  const { metrics, startPolling, stopPolling } = useMetricsStore();
+  // K8s cluster store
+  const k8sClusters = useK8sClusterStore((s) => s.clusters);
+  const k8sDetail = useK8sClusterStore((s) => s.selectedCluster);
+  const k8sLoading = useK8sClusterStore((s) => s.loading);
+  const k8sAvailable = useK8sClusterStore((s) => s.k8sAvailable);
+  const fetchClusters = useK8sClusterStore((s) => s.fetchClusters);
+  const fetchK8sCluster = useK8sClusterStore((s) => s.fetchCluster);
+  const scaleCluster = useK8sClusterStore((s) => s.scaleCluster);
+  const deleteCluster = useK8sClusterStore((s) => s.deleteCluster);
+  const updateCluster = useK8sClusterStore((s) => s.updateCluster);
+  const triggerOperation = useK8sClusterStore((s) => s.triggerOperation);
+  const pauseCluster = useK8sClusterStore((s) => s.pauseCluster);
+  const resumeCluster = useK8sClusterStore((s) => s.resumeCluster);
 
+  // Ensure K8s clusters are loaded (may not be if navigated directly to this page)
   useEffect(() => {
-    startPolling(connId);
-    return () => stopPolling();
-  }, [connId, startPolling, stopPolling]);
+    if (k8sClusters.length === 0) {
+      fetchClusters().catch(() => {
+        // K8s not available — silently ignore
+      });
+    }
+  }, [k8sClusters.length, fetchClusters, k8sAvailable]);
 
-  // Memoized chart data
-  const tpsData = useMemo(
-    () => (metrics ? buildTpsChartData(metrics.readTps, metrics.writeTps) : []),
-    [metrics],
-  );
-  const connData = useMemo(
-    () => (metrics ? buildConnectionChartData(metrics.connectionHistory) : []),
-    [metrics],
-  );
-  const memData = useMemo(
-    () => (metrics ? buildNsChartData(metrics.memoryUsageByNs) : []),
-    [metrics],
-  );
-  const devData = useMemo(
-    () => (metrics ? buildNsChartData(metrics.deviceUsageByNs) : []),
-    [metrics],
-  );
+  // Derived K8s info — link connection to K8s cluster via connectionId field
+  const linkedK8s = k8sClusters.find((c) => c.connectionId === connId);
+  const isK8s = !!linkedK8s;
+  const k8sNamespace = linkedK8s?.namespace ?? "";
+  const k8sName = linkedK8s?.name ?? "";
+
+  // K8s auxiliary state
+  const [events, setEvents] = useState<K8sClusterEvent[]>([]);
+  const [health, setHealth] = useState<ClusterHealthSummary | null>(null);
+  const [selectedPods, setSelectedPods] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"overview" | "acko-info">("overview");
+
+  // K8s dialog state
+  const [scaleOpen, setScaleOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [warmRestartConfirmOpen, setWarmRestartConfirmOpen] = useState(false);
+  const [podRestartConfirmOpen, setPodRestartConfirmOpen] = useState(false);
+
+  // Fetch K8s data when linked cluster is found
+  useEffect(() => {
+    if (!isK8s || !k8sNamespace || !k8sName) return;
+    fetchK8sCluster(k8sNamespace, k8sName);
+    api
+      .getK8sClusterEvents(k8sNamespace, k8sName)
+      .then(setEvents)
+      .catch((err) => console.error("Failed to fetch cluster events:", err));
+    api
+      .getK8sClusterHealth(k8sNamespace, k8sName)
+      .then(setHealth)
+      .catch((err) => console.error("Failed to fetch cluster health:", err));
+  }, [isK8s, k8sNamespace, k8sName, fetchK8sCluster]);
+
+  // Auto-refresh when K8s cluster is in transitional phase
+  useEffect(() => {
+    if (!k8sDetail?.phase || !(TRANSITIONAL_PHASES as string[]).includes(k8sDetail.phase)) return;
+    const interval = setInterval(() => {
+      fetchK8sCluster(k8sNamespace, k8sName);
+      api.getK8sClusterEvents(k8sNamespace, k8sName).then(setEvents).catch(console.error);
+      api.getK8sClusterHealth(k8sNamespace, k8sName).then(setHealth).catch(console.error);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [k8sDetail?.phase, k8sNamespace, k8sName, fetchK8sCluster]);
+
+  const handleRefresh = () => {
+    refetchCluster();
+    if (isK8s && k8sNamespace && k8sName) {
+      fetchK8sCluster(k8sNamespace, k8sName);
+      api.getK8sClusterEvents(k8sNamespace, k8sName).then(setEvents).catch(console.error);
+      api.getK8sClusterHealth(k8sNamespace, k8sName).then(setHealth).catch(console.error);
+    }
+  };
+
+  const handleK8sEdit = async (data: UpdateK8sClusterRequest) => {
+    try {
+      await updateCluster(k8sNamespace, k8sName, data);
+      toast.success("Cluster updated successfully");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  const handleK8sScale = async (size: number) => {
+    try {
+      await scaleCluster(k8sNamespace, k8sName, size);
+      toast.success(`Cluster scaled to ${size} nodes`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  const handleK8sDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteCluster(k8sNamespace, k8sName);
+      toast.success(`Cluster "${k8sName}" deletion initiated`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Loading state
   if (clusterLoading) {
     return (
       <div className="space-y-6 p-6 lg:p-8">
-        <div className="grid gap-4 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-[100px] rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-[140px] rounded-xl" />
+          ))}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-[180px] rounded-xl" />
           ))}
         </div>
         <Skeleton className="h-[400px] rounded-xl" />
@@ -155,7 +169,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
       <FullPageError
         title="Failed to load cluster info"
         message={clusterError}
-        onRetry={fetchCluster}
+        onRetry={refetchCluster}
       />
     );
   }
@@ -165,329 +179,217 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
   const firstNode = cluster.nodes[0];
   const edition = firstNode?.edition ?? "Unknown";
   const build = firstNode?.build ?? "Unknown";
-  const readSuccessRate =
-    metrics && metrics.totalReadReqs > 0
-      ? Math.min(100, (metrics.totalReadSuccess / metrics.totalReadReqs) * 100).toFixed(1)
-      : "100.0";
-  const writeSuccessRate =
-    metrics && metrics.totalWriteReqs > 0
-      ? Math.min(100, (metrics.totalWriteSuccess / metrics.totalWriteReqs) * 100).toFixed(1)
-      : "100.0";
 
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
+      {/* ── Page Header ── */}
       <PageHeader
         title="Overview"
         description={
-          <>
-            {edition} &middot; Build {build}
-          </>
+          isK8s && k8sDetail ? (
+            <span className="font-mono text-xs">
+              {k8sDetail.namespace} / {k8sDetail.image}
+            </span>
+          ) : (
+            <>
+              {edition} &middot; Build {build}
+            </>
+          )
         }
         actions={
-          <div className="flex items-center gap-3">
-            {metrics && (
-              <>
-                <StatusBadge status={metrics.connected ? "live" : "disconnected"} />
-                <Badge variant="outline" className="font-mono text-xs">
-                  {METRIC_INTERVAL_MS / 1000}s interval
-                </Badge>
-              </>
-            )}
-            <Button variant="outline" size="sm" onClick={fetchCluster}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
+            {isK8s && k8sDetail && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setScaleOpen(true)}>
+                  <Scale className="mr-2 h-4 w-4" />
+                  Scale
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={k8sLoading}
+                  onClick={() => setWarmRestartConfirmOpen(true)}
+                >
+                  Warm Restart
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={k8sLoading}
+                  onClick={() => setPodRestartConfirmOpen(true)}
+                >
+                  Pod Restart
+                </Button>
+                {k8sDetail.phase === "Paused" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={k8sLoading}
+                    onClick={async () => {
+                      try {
+                        await resumeCluster(k8sNamespace, k8sName);
+                        toast.success("Reconciliation resumed");
+                      } catch (err) {
+                        toast.error(getErrorMessage(err));
+                      }
+                    }}
+                  >
+                    Resume
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={k8sLoading}
+                    onClick={async () => {
+                      try {
+                        await pauseCluster(k8sNamespace, k8sName);
+                        toast.success("Reconciliation paused");
+                      } catch (err) {
+                        toast.error(getErrorMessage(err));
+                      }
+                    }}
+                  >
+                    Pause
+                  </Button>
+                )}
+                <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              </>
+            )}
           </div>
         }
       />
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="card-interactive">
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
-              <Server className="text-accent h-3.5 w-3.5" />
-              Nodes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="metric-value text-3xl font-bold">{cluster.nodes.length}</div>
-            <p className="text-muted-foreground mt-1 font-mono text-xs">
-              {edition} {build}
-            </p>
-          </CardContent>
-        </Card>
+      {/* ── Reconcile Error Alert ── */}
+      {isK8s && k8sDetail && k8sDetail.failedReconcileCount > 0 && (
+        <InlineAlert
+          message={`Reconcile errors: ${k8sDetail.failedReconcileCount} failures. ${k8sDetail.lastReconcileError || ""}`}
+        />
+      )}
 
-        <Card className="card-interactive">
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
-              <Database className="text-accent h-3.5 w-3.5" />
-              Namespaces
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="metric-value text-3xl font-bold">{cluster.namespaces.length}</div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {cluster.namespaces.map((n) => n.name).join(", ")}
-            </p>
-          </CardContent>
-        </Card>
+      {/* ══════════════════════════════════════════════
+          ACKO 클러스터 전용 레이아웃 — Overview | ACKO INFO 탭
+          ══════════════════════════════════════════════ */}
+      {isK8s && k8sDetail && (
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as "overview" | "acko-info")}
+        >
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="acko-info">ACKO INFO</TabsTrigger>
+          </TabsList>
 
-        <Card className="card-interactive">
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
-              <Network className="text-accent h-3.5 w-3.5" />
-              Node Names
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-1.5">
-              {cluster.nodes.map((node) => (
-                <Badge key={node.name} variant="outline" className="font-mono text-[11px]">
-                  {node.name}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <TabsContent value="overview" className="mt-6 space-y-6">
+            <ClusterOverviewTab cluster={cluster} />
+          </TabsContent>
 
-      {/* Tabs */}
-      <Tabs defaultValue="nodes">
-        <TabsList>
-          <TabsTrigger value="nodes">
-            <Server className="mr-1.5 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Nodes ({cluster.nodes.length})</span>
-            <span className="sm:hidden">{cluster.nodes.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="dashboard" className="gap-1">
-            <Activity className="mr-1.5 h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Dashboard</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* === Nodes Tab === */}
-        <TabsContent value="nodes" className="mt-4 space-y-4">
-          {cluster.nodes.length === 0 ? (
-            <EmptyState
-              icon={Server}
-              title="No nodes"
-              description="No nodes found in this cluster."
+          <TabsContent value="acko-info" className="mt-6">
+            <ClusterAckoInfoTab
+              k8sDetail={k8sDetail}
+              health={health}
+              events={events}
+              selectedPods={selectedPods}
+              onSelectPods={setSelectedPods}
+              namespace={k8sNamespace}
+              clusterName={k8sName}
             />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {cluster.nodes.map((node, idx) => (
-                <Card
-                  key={node.name}
-                  className="animate-fade-in-up"
-                  style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="font-mono text-base">{node.name}</CardTitle>
-                      <StatusBadge status="connected" label="Active" />
-                    </div>
-                    <CardDescription className="font-mono text-xs">
-                      {node.address}:{node.port}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                          Build
-                        </span>
-                        <p className="mt-0.5 font-medium">{node.build}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                          Edition
-                        </span>
-                        <p className="mt-0.5 font-medium">{node.edition}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                          Uptime
-                        </span>
-                        <p className="mt-0.5 flex items-center gap-1 font-medium">
-                          <Clock className="text-muted-foreground h-3 w-3" />
-                          {formatUptime(node.uptime)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                          Connections
-                        </span>
-                        <p className="metric-value mt-0.5 font-medium">
-                          {formatNumber(node.clientConnections)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                          Cluster Size
-                        </span>
-                        <p className="metric-value mt-0.5 font-medium">{node.clusterSize}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+          </TabsContent>
+        </Tabs>
+      )}
 
-        {/* === Dashboard Tab === */}
-        <TabsContent value="dashboard" className="mt-4 space-y-6">
-          {!metrics ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-[90px] rounded-lg" />
-                ))}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-[280px] rounded-lg" />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Summary cards */}
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
-                <StatCard
-                  label="Read Requests"
-                  value={formatNumber(metrics.totalReadReqs)}
-                  icon={TrendingUp}
-                  trend="up"
-                  subtitle={`${readSuccessRate}% success`}
-                />
-                <StatCard
-                  label="Write Requests"
-                  value={formatNumber(metrics.totalWriteReqs)}
-                  icon={TrendingDown}
-                  trend="up"
-                  subtitle={`${writeSuccessRate}% success`}
-                />
-                <StatCard
-                  label="Read Success"
-                  value={`${readSuccessRate}%`}
-                  icon={Activity}
-                  trend={Number(readSuccessRate) > 99 ? "up" : "down"}
-                />
-                <StatCard
-                  label="Write Success"
-                  value={`${writeSuccessRate}%`}
-                  icon={Activity}
-                  trend={Number(writeSuccessRate) > 99 ? "up" : "down"}
-                />
-                <StatCard
-                  label="Client Connections"
-                  value={formatNumber(metrics.clientConnections)}
-                  icon={Wifi}
-                />
-                <StatCard label="Uptime" value={formatUptime(metrics.uptime)} icon={Clock} />
-              </div>
+      {/* ══════════════════════════════════════════════
+          Direct Connection 클러스터 레이아웃 (isK8s=false)
+          ══════════════════════════════════════════════ */}
+      {!isK8s && <ClusterOverviewTab cluster={cluster} />}
 
-              {/* Charts 2x2 grid */}
-              <ClusterCharts
-                tpsData={tpsData}
-                connData={connData}
-                memData={memData}
-                devData={devData}
-                memoryUsageByNs={metrics.memoryUsageByNs}
-                deviceUsageByNs={metrics.deviceUsageByNs}
-              />
-
-              {/* Namespace detail cards */}
-              <div>
-                <h2 className="mb-3 text-lg font-semibold tracking-tight">Namespace Detail</h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {metrics.namespaces.map((ns) => {
-                    const memPct = formatPercent(ns.memoryUsed, ns.memoryTotal);
-                    const devPct = formatPercent(ns.deviceUsed, ns.deviceTotal);
-                    return (
-                      <Card key={ns.namespace}>
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base">{ns.namespace}</CardTitle>
-                            <Badge variant="secondary" className="font-mono text-xs">
-                              {formatNumber(ns.objects)} objects
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Memory</span>
-                              <span className="font-mono text-xs">
-                                {formatBytes(ns.memoryUsed)} / {formatBytes(ns.memoryTotal)} (
-                                {memPct}%)
-                              </span>
-                            </div>
-                            <Progress
-                              value={memPct}
-                              className={cn("h-2", memPct > 80 && "[&>div]:bg-destructive")}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Device</span>
-                              <span className="font-mono text-xs">
-                                {formatBytes(ns.deviceUsed)} / {formatBytes(ns.deviceTotal)} (
-                                {devPct}%)
-                              </span>
-                            </div>
-                            <Progress
-                              value={devPct}
-                              className={cn("h-2", devPct > 80 && "[&>div]:bg-destructive")}
-                            />
-                          </div>
-                          <Separator />
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                                Reads
-                              </span>
-                              <p className="metric-value font-mono font-medium">
-                                {formatNumber(ns.readReqs)}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                                Writes
-                              </span>
-                              <p className="metric-value font-mono font-medium">
-                                {formatNumber(ns.writeReqs)}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                                Read Success
-                              </span>
-                              <p className="metric-value font-mono font-medium">
-                                {formatNumber(ns.readSuccess)}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground text-xs tracking-wider uppercase">
-                                Write Success
-                              </span>
-                              <p className="metric-value font-mono font-medium">
-                                {formatNumber(ns.writeSuccess)}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* ── K8s Dialogs ── */}
+      {isK8s && k8sDetail && (
+        <>
+          <K8sScaleDialog
+            open={scaleOpen}
+            onOpenChange={setScaleOpen}
+            clusterName={k8sDetail.name}
+            currentSize={k8sDetail.size}
+            onScale={handleK8sScale}
+          />
+          <K8sDeleteDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            clusterName={k8sDetail.name}
+            onConfirm={handleK8sDelete}
+            loading={deleting}
+          />
+          <K8sEditDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            cluster={k8sDetail}
+            onSave={handleK8sEdit}
+          />
+          <ConfirmDialog
+            open={warmRestartConfirmOpen}
+            onOpenChange={setWarmRestartConfirmOpen}
+            title="Confirm Warm Restart"
+            description={
+              selectedPods.length > 0
+                ? `This will warm-restart ${selectedPods.length} selected pod(s). The operation applies configuration changes without a full pod restart but may briefly affect ongoing requests.`
+                : "This will warm-restart all pods in the cluster. The operation applies configuration changes without a full pod restart but may briefly affect ongoing requests."
+            }
+            confirmLabel="Warm Restart"
+            onConfirm={async () => {
+              try {
+                const pods = selectedPods.length > 0 ? selectedPods : undefined;
+                await triggerOperation(k8sNamespace, k8sName, "WarmRestart", pods);
+                toast.success(
+                  pods
+                    ? `Warm restart initiated for ${pods.length} pod(s)`
+                    : "Warm restart initiated",
+                );
+                setSelectedPods([]);
+              } catch (err) {
+                toast.error(getErrorMessage(err));
+              }
+            }}
+          />
+          <ConfirmDialog
+            open={podRestartConfirmOpen}
+            onOpenChange={setPodRestartConfirmOpen}
+            title="Confirm Pod Restart"
+            description={
+              selectedPods.length > 0
+                ? `This will restart ${selectedPods.length} selected pod(s). Pods will be deleted and recreated, which is disruptive and will temporarily reduce cluster capacity.`
+                : "This will restart all pods in the cluster. Pods will be deleted and recreated one by one, which is disruptive and will temporarily reduce cluster capacity."
+            }
+            confirmLabel="Pod Restart"
+            variant="destructive"
+            onConfirm={async () => {
+              try {
+                const pods = selectedPods.length > 0 ? selectedPods : undefined;
+                await triggerOperation(k8sNamespace, k8sName, "PodRestart", pods);
+                toast.success(
+                  pods
+                    ? `Pod restart initiated for ${pods.length} pod(s)`
+                    : "Pod restart initiated for all pods",
+                );
+                setSelectedPods([]);
+              } catch (err) {
+                toast.error(getErrorMessage(err));
+              }
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
