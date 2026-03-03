@@ -46,7 +46,6 @@ async def init_db() -> None:
     _pool = await asyncpg.create_pool(config.DATABASE_URL, min_size=2, max_size=10)
     async with _pool.acquire() as conn:
         await conn.execute(CREATE_TABLE_SQL)
-    await _seed_if_empty()
     logger.info("Database initialized")
 
 
@@ -164,26 +163,3 @@ async def delete_connection(conn_id: str) -> bool:
     result = await pool.execute("DELETE FROM connections WHERE id = $1", conn_id)
     return result == "DELETE 1"
 
-
-# ---------------------------------------------------------------------------
-# Seed
-# ---------------------------------------------------------------------------
-
-
-async def _seed_if_empty() -> None:
-    pool = _get_pool()
-    row = await pool.fetchrow("SELECT COUNT(*) AS cnt FROM connections")
-    if row["cnt"] > 0:
-        return
-
-    now = datetime.now(UTC).isoformat()
-    default = ConnectionProfile(
-        id="conn-default",
-        name="Default Aerospike",
-        hosts=[config.AEROSPIKE_HOST],
-        port=config.AEROSPIKE_PORT,
-        color="#0097D3",
-        createdAt=now,
-        updatedAt=now,
-    )
-    await create_connection(default)
