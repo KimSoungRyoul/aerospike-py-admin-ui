@@ -30,6 +30,40 @@ function isRetryable(status: number): boolean {
   return status >= 500 || status === 429;
 }
 
+function toErrorMessage(detail: unknown): string | undefined {
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => toErrorMessage(item))
+      .filter((message): message is string => Boolean(message));
+
+    if (messages.length > 0) {
+      return messages.join("; ");
+    }
+  }
+
+  if (detail && typeof detail === "object") {
+    const value = detail as Record<string, unknown>;
+
+    if (typeof value.msg === "string" && value.msg.trim()) {
+      return value.msg;
+    }
+
+    if (typeof value.message === "string" && value.message.trim()) {
+      return value.message;
+    }
+
+    if (value.detail !== undefined) {
+      return toErrorMessage(value.detail);
+    }
+  }
+
+  return undefined;
+}
+
 async function request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
   let lastError: Error | null = null;
@@ -52,10 +86,14 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
 
       if (!res.ok) {
         const error = await res.json().catch(() => ({ message: res.statusText }));
+        const message =
+          toErrorMessage((error as { message?: unknown; detail?: unknown }).message) ??
+          toErrorMessage((error as { detail?: unknown }).detail) ??
+          `Request failed: ${res.status}`;
         const apiError = new ApiError(
-          error.message || `Request failed: ${res.status}`,
+          message,
           res.status,
-          error.code,
+          (error as { code?: string }).code,
         );
 
         // Only retry on server errors

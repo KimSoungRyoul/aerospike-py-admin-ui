@@ -171,6 +171,31 @@ describe("api client", () => {
       });
     });
 
+    it("uses FastAPI detail string when message is missing", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(401, { detail: "Not authenticated" }));
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Not authenticated",
+        status: 401,
+      });
+    });
+
+    it("joins validation detail list into a readable message", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createResponse(422, {
+          detail: [
+            { msg: "Field required", loc: ["body", "name"] },
+            { msg: "Input should be a valid integer", loc: ["body", "port"] },
+          ],
+        }),
+      );
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Field required; Input should be a valid integer",
+        status: 422,
+      });
+    });
+
     it("does NOT retry 400 Bad Request", async () => {
       mockFetch.mockResolvedValue(createResponse(400, { message: "Bad request" }));
 
