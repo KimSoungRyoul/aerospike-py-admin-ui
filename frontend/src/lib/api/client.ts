@@ -31,6 +31,11 @@ function isRetryable(status: number): boolean {
   return status >= 500 || status === 429 || status === 408;
 }
 
+function isRetryableMethod(method?: string): boolean {
+  const normalizedMethod = method?.toUpperCase() ?? "GET";
+  return normalizedMethod === "GET" || normalizedMethod === "HEAD" || normalizedMethod === "OPTIONS";
+}
+
 function getRetryDelay(attempt: number, retryAfter: string | null): number {
   if (!retryAfter) {
     return RETRY_BASE_DELAY * 2 ** attempt;
@@ -102,6 +107,7 @@ async function parseResponseBody<T>(res: Response): Promise<T | undefined> {
 
 async function request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
+  const method = fetchOptions.method?.toUpperCase() ?? "GET";
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -130,8 +136,8 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
           `Request failed: ${res.status}`;
         const apiError = new ApiError(message, res.status, error.code);
 
-        // Only retry on server errors
-        if (isRetryable(res.status) && attempt < MAX_RETRIES) {
+        // Retry only safe/idempotent reads to avoid duplicate write side-effects.
+        if (isRetryableMethod(method) && isRetryable(res.status) && attempt < MAX_RETRIES) {
           lastError = apiError;
           const retryAfter = typeof res.headers?.get === "function" ? res.headers.get("Retry-After") : null;
           const delay = getRetryDelay(attempt, retryAfter);
@@ -160,8 +166,12 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
 
       if (err instanceof ApiError) throw err;
 
-      // Retry on network errors
-      if (attempt < MAX_RETRIES && !(err instanceof DOMException && err.name === "AbortError")) {
+      // Retry only safe/idempotent reads to avoid duplicate write side-effects.
+      if (
+        isRetryableMethod(method) &&
+        attempt < MAX_RETRIES &&
+        !(err instanceof DOMException && err.name === "AbortError")
+      ) {
         lastError = err as Error;
         await new Promise((r) => setTimeout(r, RETRY_BASE_DELAY * 2 ** attempt));
         continue;

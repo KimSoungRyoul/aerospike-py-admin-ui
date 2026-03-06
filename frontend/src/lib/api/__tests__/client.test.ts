@@ -328,6 +328,25 @@ describe("api client", () => {
       expect(result).toEqual(data);
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
+
+    it("does NOT retry POST requests on 5xx responses", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(503, { message: "Unavailable" }));
+
+      await expect(
+        api.createConnection({
+          name: "cluster",
+          hosts: ["127.0.0.1"],
+          port: 3000,
+          color: "#000000",
+        }),
+      ).rejects.toMatchObject({
+        status: 503,
+        message: "Unavailable",
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("timeout", () => {
@@ -380,6 +399,24 @@ describe("api client", () => {
 
       expect(result).toEqual(data);
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("does NOT retry POST requests on network failure", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+      await expect(
+        api.createConnection({
+          name: "cluster",
+          hosts: ["127.0.0.1"],
+          port: 3000,
+          color: "#000000",
+        }),
+      ).rejects.toMatchObject({
+        status: 0,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 });
