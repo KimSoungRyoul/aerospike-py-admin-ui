@@ -5,11 +5,17 @@ import { api } from "../client";
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-function createResponse(status: number, body: unknown) {
+function createResponse(status: number, body: unknown, headers?: Record<string, string>) {
+  const rawBody = typeof body === "string" ? body : JSON.stringify(body);
+
   return {
     ok: status >= 200 && status < 300,
     status,
     statusText: `Status ${status}`,
+    headers: {
+      get: (name: string) => headers?.[name] ?? null,
+    },
+    text: vi.fn().mockResolvedValue(rawBody),
     json: vi.fn().mockResolvedValue(body),
   };
 }
@@ -47,13 +53,10 @@ describe("api client", () => {
 
       expect(result).toEqual(data);
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/connections",
-        expect.objectContaining({
-          headers: expect.objectContaining({ "Content-Type": "application/json" }),
-          signal: expect.any(AbortSignal),
-        }),
-      );
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Headers;
+      expect(headers.get("Content-Type")).toBeNull();
+      expect(init.signal).toBeInstanceOf(AbortSignal);
     });
 
     it("sends body and returns JSON for a POST request", async () => {
@@ -74,13 +77,72 @@ describe("api client", () => {
       const result = await api.createConnection(connectionData);
 
       expect(result).toEqual(responseData);
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/connections",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify(connectionData),
-        }),
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Headers;
+
+      expect(url).toBe("/api/connections");
+      expect(init.method).toBe("POST");
+      expect(init.body).toBe(JSON.stringify(connectionData));
+      expect(headers.get("Content-Type")).toBe("application/json");
+    });
+
+    it("encodes record query parameters with special characters", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createResponse(200, { records: [], total: 0, page: 1, pageSize: 25 }),
       );
+
+      await api.getRecords("conn-1", "ns test", "set/a&b", 2, 10);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/records/conn-1?ns=ns+test&set=set%2Fa%26b&page=2&pageSize=10",
+        expect.any(Object),
+      );
+    });
+
+    it("omits optional pod logs container query parameter when undefined", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(200, { lines: [] }));
+
+      await api.getK8sPodLogs("team-a", "cluster-1", "pod-1", 250);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/k8s/clusters/team-a/cluster-1/pods/pod-1/logs?tail=250",
+        expect.any(Object),
+      );
+    });
+
+    it("encodes connection ID path segments for connection health requests", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(200, { isConnected: true }));
+
+      await api.getConnectionHealth("team/a connection");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/connections/team%2Fa%20connection/health",
+        expect.any(Object),
+      );
+    });
+
+    it("encodes pod log path segments with special characters", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(200, { lines: [] }));
+
+      await api.getK8sPodLogs("team/a", "cluster name", "pod#1", 100, "x/y");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/k8s/clusters/team%2Fa/cluster%20name/pods/pod%231/logs?tail=100&container=x%2Fy",
+        expect.any(Object),
+      );
+    });
+
+    it("returns undefined when a successful response has an empty body", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: vi.fn().mockResolvedValue(""),
+      });
+
+      const result = await api.getConnections();
+
+      expect(result).toBeUndefined();
     });
   });
 
@@ -105,12 +167,26 @@ describe("api client", () => {
         ok: false,
         status: 403,
         statusText: "Forbidden",
-        json: vi.fn().mockRejectedValue(new SyntaxError("invalid json")),
+        text: vi.fn().mockResolvedValue("{invalid"),
       });
 
       await expect(api.getConnections()).rejects.toMatchObject({
         message: "Forbidden",
         status: 403,
+      });
+    });
+
+    it("throws a readable ApiError when a success response contains invalid JSON", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: vi.fn().mockResolvedValue("{invalid"),
+      });
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Invalid JSON response",
+        status: 200,
       });
     });
 
@@ -122,6 +198,31 @@ describe("api client", () => {
       await expect(api.getConnections()).rejects.toMatchObject({
         status: 422,
         code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("uses FastAPI detail string when message is missing", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(401, { detail: "Not authenticated" }));
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Not authenticated",
+        status: 401,
+      });
+    });
+
+    it("joins validation detail list into a readable message", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createResponse(422, {
+          detail: [
+            { msg: "Field required", loc: ["body", "name"] },
+            { msg: "Input should be a valid integer", loc: ["body", "port"] },
+          ],
+        }),
+      );
+
+      await expect(api.getConnections()).rejects.toMatchObject({
+        message: "Field required; Input should be a valid integer",
+        status: 422,
       });
     });
 
@@ -171,6 +272,31 @@ describe("api client", () => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
     });
 
+    it("retries 408 Request Timeout up to MAX_RETRIES times", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(408, { message: "Upstream timeout" }));
+
+      const error = await expectRejection(() => api.getConnections());
+
+      expect(error.status).toBe(408);
+      expect(error.message).toBe("Upstream timeout");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("respects Retry-After header delay for retryable responses", async () => {
+      vi.useFakeTimers();
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+      mockFetch
+        .mockResolvedValueOnce(createResponse(429, { message: "Rate limited" }, { "Retry-After": "3" }))
+        .mockResolvedValueOnce(createResponse(200, [{ id: "1" }]));
+
+      const promise = api.getConnections();
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 3000);
+    });
+
     it("retries 502 Bad Gateway", async () => {
       vi.useFakeTimers();
       mockFetch.mockResolvedValue(createResponse(502, { message: "Bad gateway" }));
@@ -198,6 +324,25 @@ describe("api client", () => {
 
       expect(result).toEqual(data);
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("does NOT retry POST requests on 5xx responses", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(503, { message: "Unavailable" }));
+
+      await expect(
+        api.createConnection({
+          name: "cluster",
+          hosts: ["127.0.0.1"],
+          port: 3000,
+          color: "#000000",
+        }),
+      ).rejects.toMatchObject({
+        status: 503,
+        message: "Unavailable",
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -251,6 +396,24 @@ describe("api client", () => {
 
       expect(result).toEqual(data);
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("does NOT retry POST requests on network failure", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+      await expect(
+        api.createConnection({
+          name: "cluster",
+          hosts: ["127.0.0.1"],
+          port: 3000,
+          color: "#000000",
+        }),
+      ).rejects.toMatchObject({
+        status: 0,
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 });
