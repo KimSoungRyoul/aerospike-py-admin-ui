@@ -470,11 +470,11 @@ kbd {
 @keyframes grid-row-enter {
   from {
     opacity: 0;
-    transform: translateX(-8px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
@@ -488,17 +488,16 @@ kbd {
 }
 
 .record-grid-row {
-  animation: grid-row-enter 0.3s ease-out both;
+  animation: grid-row-enter 0.25s ease-out both;
+  transition: background-color 0.15s ease;
 }
 
 .record-grid-row:hover {
-  background: hsl(var(--accent) / 0.03);
-  box-shadow: inset 2px 0 0 hsl(var(--accent));
+  background: hsl(var(--muted) / 0.5);
 }
 
 .dark .record-grid-row:hover {
-  background: hsl(var(--accent) / 0.05);
-  box-shadow: inset 2px 0 0 hsl(var(--accent));
+  background: hsl(var(--muted) / 0.3);
 }
 
 .record-grid-row .row-actions-group {
@@ -514,7 +513,11 @@ kbd {
 
 /* Grid header bottom border via box-shadow on each th (no ::after on thead to avoid sticky issues) */
 .grid-header th {
-  box-shadow: inset 0 -1px 0 hsl(var(--border) / 0.4);
+  box-shadow: inset 0 -1px 0 hsl(var(--border) / 0.5);
+}
+
+.dark .grid-header th {
+  box-shadow: inset 0 -1px 0 hsl(var(--border) / 0.3);
 }
 
 /* Row number styling */
@@ -596,7 +599,7 @@ kbd {
 
 /* Loading bar animation */
 .loading-bar {
-  animation: loading-slide 1.5s infinite ease-in-out;
+  animation: loading-slide 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 /* Grid skeleton shimmer */

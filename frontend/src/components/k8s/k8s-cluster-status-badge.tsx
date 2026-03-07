@@ -1,51 +1,52 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { STATUS_COLORS } from "@/lib/status-colors";
 import type { K8sClusterPhase } from "@/lib/api/types";
 
 const phaseConfig = {
   InProgress: {
     label: "In Progress",
-    className: "bg-warning/10 text-warning border-warning/20",
+    className: STATUS_COLORS.warning,
   },
   Completed: {
     label: "Running",
-    className: "bg-success/10 text-success border-success/20",
+    className: STATUS_COLORS.success,
   },
   Error: {
     label: "Error",
-    className: "bg-destructive/10 text-destructive border-destructive/20",
+    className: STATUS_COLORS.error,
   },
   ScalingUp: {
     label: "Scaling Up",
-    className: "bg-info/10 text-info border-info/20",
+    className: STATUS_COLORS.info,
   },
   ScalingDown: {
     label: "Scaling Down",
-    className: "bg-info/10 text-info border-info/20",
+    className: STATUS_COLORS.info,
   },
   WaitingForMigration: {
     label: "Migrating",
-    className: "bg-warning/10 text-warning border-warning/20",
+    className: STATUS_COLORS.warning,
   },
   RollingRestart: {
     label: "Restarting",
-    className: "bg-warning/10 text-warning border-warning/20",
+    className: STATUS_COLORS.warning,
   },
   ACLSync: {
     label: "ACL Sync",
-    className: "bg-info/10 text-info border-info/20",
+    className: STATUS_COLORS.info,
   },
   Paused: {
     label: "Paused",
-    className: "bg-muted text-muted-foreground border-muted",
+    className: STATUS_COLORS.neutral,
   },
   Deleting: {
     label: "Deleting",
-    className: "bg-destructive/10 text-destructive border-destructive/20",
+    className: STATUS_COLORS.error,
   },
   Unknown: {
     label: "Unknown",
-    className: "bg-muted text-muted-foreground border-muted",
+    className: STATUS_COLORS.neutral,
   },
 } satisfies Partial<Record<K8sClusterPhase, { label: string; className: string }>>;
 
