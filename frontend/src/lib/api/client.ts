@@ -7,6 +7,19 @@ const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 1000;
 const MAX_RETRY_DELAY = 30_000;
 
+function buildHeaders(
+  headersInit: HeadersInit | undefined,
+  body: BodyInit | null | undefined,
+): Headers {
+  const headers = new Headers(headersInit);
+
+  if (body !== undefined && body !== null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return headers;
+}
+
 function withQuery(
   path: string,
   params: Record<string, string | number | boolean | undefined>,
@@ -113,15 +126,13 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const headers = buildHeaders(fetchOptions.headers, fetchOptions.body);
 
     try {
       const res = await fetch(`${BASE_URL}${path}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...fetchOptions?.headers,
-        },
-        signal: controller.signal,
         ...fetchOptions,
+        headers,
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);

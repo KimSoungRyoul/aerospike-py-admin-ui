@@ -56,7 +56,7 @@ describe("api client", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/connections",
         expect.objectContaining({
-          headers: expect.objectContaining({ "Content-Type": "application/json" }),
+          headers: expect.not.objectContaining({ "Content-Type": "application/json" }),
           signal: expect.any(AbortSignal),
         }),
       );
@@ -85,6 +85,7 @@ describe("api client", () => {
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify(connectionData),
+          headers: expect.objectContaining({ "Content-Type": "application/json" }),
         }),
       );
     });
