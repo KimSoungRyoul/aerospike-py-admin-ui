@@ -256,6 +256,9 @@
 }
 
 /* Ambient gradient orb for page backgrounds */
+.ambient-glow {
+  position: relative;
+}
 .ambient-glow::before {
   content: "";
   position: fixed;
@@ -265,7 +268,7 @@
   height: 40%;
   background: radial-gradient(ellipse, hsl(var(--accent) / 0.04) 0%, transparent 70%);
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 .dark .ambient-glow::before {
   background: radial-gradient(ellipse, hsl(var(--accent) / 0.06) 0%, transparent 70%);
@@ -298,6 +301,7 @@
   --terminal-text-dim: 215 15% 35%;
   --terminal-border: 220 25% 14%;
   --terminal-input: 222 45% 8%;
+  --terminal-prompt: 142 71% 45%;
 }
 
 /* Scrollbar */

@@ -99,7 +99,7 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
                 <span className="text-xs whitespace-nowrap text-[hsl(var(--terminal-text-dim))]">
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
-                <span className="text-green-400">$</span>
+                <span className="text-[hsl(var(--terminal-prompt))]">$</span>
                 <span className="text-[hsl(var(--terminal-text))]">{entry.command}</span>
               </div>
               {/* Output */}
@@ -121,7 +121,7 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
       {/* Input */}
       <div className="border-t bg-[hsl(var(--terminal-bg))] px-4 py-3">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <span className="font-mono text-sm text-green-400">$</span>
+          <span className="font-mono text-sm text-[hsl(var(--terminal-prompt))]">$</span>
           <Input
             ref={inputRef}
             value={input}
