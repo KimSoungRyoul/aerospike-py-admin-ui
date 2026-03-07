@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { STATUS_COLORS } from "@/lib/status-colors";
 
 type StatusType =
   | "connected"
@@ -16,12 +17,12 @@ type StatusType =
 const statusConfig: Record<StatusType, { label: string; className: string; dotColor: string }> = {
   connected: {
     label: "Connected",
-    className: "bg-success/10 text-success border-success/20",
+    className: STATUS_COLORS.success,
     dotColor: "bg-success",
   },
   disconnected: {
     label: "Disconnected",
-    className: "bg-destructive/10 text-destructive border-destructive/20",
+    className: STATUS_COLORS.error,
     dotColor: "bg-destructive",
   },
   checking: {
@@ -31,27 +32,27 @@ const statusConfig: Record<StatusType, { label: string; className: string; dotCo
   },
   ready: {
     label: "Ready",
-    className: "bg-success/10 text-success border-success/20",
+    className: STATUS_COLORS.success,
     dotColor: "bg-success",
   },
   building: {
     label: "Building",
-    className: "bg-warning/10 text-warning border-warning/20",
+    className: STATUS_COLORS.warning,
     dotColor: "bg-warning",
   },
   error: {
     label: "Error",
-    className: "bg-destructive/10 text-destructive border-destructive/20",
+    className: STATUS_COLORS.error,
     dotColor: "bg-destructive",
   },
   live: {
     label: "Live",
-    className: "bg-success/10 text-success border-success/20",
+    className: STATUS_COLORS.success,
     dotColor: "bg-success",
   },
   warning: {
     label: "Warning",
-    className: "bg-warning/10 text-warning border-warning/20",
+    className: STATUS_COLORS.warning,
     dotColor: "bg-warning",
   },
 };
@@ -61,9 +62,10 @@ interface StatusBadgeProps {
   label?: string;
   className?: string;
   pulse?: boolean;
+  showDot?: boolean;
 }
 
-export function StatusBadge({ status, label, className, pulse }: StatusBadgeProps) {
+export function StatusBadge({ status, label, className, pulse, showDot = true }: StatusBadgeProps) {
   const config = statusConfig[status];
   const showPulse =
     pulse ||
@@ -77,17 +79,19 @@ export function StatusBadge({ status, label, className, pulse }: StatusBadgeProp
       variant="outline"
       className={cn("gap-1.5 py-0.5 text-[11px] font-medium", config.className, className)}
     >
-      <span className="relative flex h-1.5 w-1.5">
-        {showPulse && (
-          <span
-            className={cn(
-              "absolute inline-flex h-full w-full animate-ping rounded-full opacity-60",
-              config.dotColor,
-            )}
-          />
-        )}
-        <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", config.dotColor)} />
-      </span>
+      {showDot && (
+        <span className="relative flex h-1.5 w-1.5">
+          {showPulse && (
+            <span
+              className={cn(
+                "absolute inline-flex h-full w-full animate-ping rounded-full opacity-60",
+                config.dotColor,
+              )}
+            />
+          )}
+          <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", config.dotColor)} />
+        </span>
+      )}
       {label || config.label}
     </Badge>
   );
