@@ -73,9 +73,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     | NetworkAccessType
     | "";
   const initialCustomAccessNames = (networkPolicy?.customAccessNetworkNames ?? []).join(", ");
-  const initialCustomAltAccessNames = (
-    networkPolicy?.customAlternateAccessNetworkNames ?? []
-  ).join(", ");
+  const initialCustomAltAccessNames = (networkPolicy?.customAlternateAccessNetworkNames ?? []).join(
+    ", ",
+  );
   const initialCustomFabricNames = (networkPolicy?.customFabricNetworkNames ?? []).join(", ");
   const initialNetworkPolicyConfig = cluster.spec?.networkPolicyConfig ?? null;
   const initialNodeBlockList = (cluster.spec?.k8sNodeBlockList ?? []).join(", ");
@@ -219,9 +219,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
             : {}),
         };
       }
-      if (
-        JSON.stringify(networkPolicyConfig) !== JSON.stringify(initialNetworkPolicyConfig)
-      ) {
+      if (JSON.stringify(networkPolicyConfig) !== JSON.stringify(initialNetworkPolicyConfig)) {
         data.networkPolicyConfig = networkPolicyConfig ?? undefined;
       }
       if (nodeBlockList !== initialNodeBlockList) {
