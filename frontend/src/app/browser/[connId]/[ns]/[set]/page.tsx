@@ -129,7 +129,7 @@ export default function BrowserPage({
     () => api.getIndexes(connId),
     [connId],
   );
-  const indexes: SecondaryIndex[] = indexesData ?? [];
+  const indexes = useMemo<SecondaryIndex[]>(() => indexesData ?? [], [indexesData]);
 
   // Reset filter store when leaving
   useEffect(() => {
@@ -237,6 +237,8 @@ export default function BrowserPage({
       const href = query ? `${pathname}?${query}` : pathname;
       router.replace(href, { scroll: false });
     },
+    // filterStore is only referenced in the TypeScript type annotation (typeof), not at runtime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pathname, router],
   );
 
@@ -782,7 +784,6 @@ asyncio.run(main())`;
     ],
     // selectedPKs intentionally omitted — read via selectedPKsRef to avoid
     // rebuilding all column definitions on every checkbox toggle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       binColumns,
       displayRecords.length,
