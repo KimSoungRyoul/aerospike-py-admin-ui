@@ -413,18 +413,33 @@ export interface RollingUpdateConfig {
   disablePDB: boolean;
 }
 
+export interface RackPodSpecConfig {
+  affinity?: Record<string, unknown>;
+  tolerations?: TolerationConfig[];
+  nodeSelector?: Record<string, string>;
+}
+
+export interface RackStorageConfig {
+  volumes?: Record<string, unknown>[];
+}
+
 export interface RackConfig {
   id: number;
   zone?: string;
   region?: string;
   rackLabel?: string;
   nodeName?: string;
+  aerospikeConfig?: Record<string, unknown>;
+  storage?: RackStorageConfig;
+  podSpec?: RackPodSpecConfig;
 }
 
 export interface RackAwareConfig {
   racks: RackConfig[];
   namespaces?: string[];
   scaleDownBatchSize?: string;
+  maxIgnorablePods?: string;
+  rollingUpdateBatchSize?: string;
 }
 
 export interface ClusterHealthSummary {
@@ -663,6 +678,11 @@ export interface TolerationConfig {
   tolerationSeconds?: number;
 }
 
+export interface PodMetadataConfig {
+  labels?: Record<string, string>;
+  annotations?: Record<string, string>;
+}
+
 export interface PodSchedulingConfig {
   nodeSelector?: Record<string, string>;
   tolerations?: TolerationConfig[];
@@ -670,6 +690,10 @@ export interface PodSchedulingConfig {
   hostNetwork?: boolean;
   serviceAccountName?: string;
   terminationGracePeriodSeconds?: number;
+  readinessGateEnabled?: boolean;
+  podManagementPolicy?: "OrderedReady" | "Parallel";
+  dnsPolicy?: string;
+  metadata?: PodMetadataConfig;
 }
 
 export interface ServiceMonitorConfig {
@@ -733,6 +757,7 @@ export interface CreateK8sClusterRequest {
   headlessService?: ServiceMetadataConfig;
   podService?: ServiceMetadataConfig;
   enableRackIDOverride?: boolean;
+  podMetadata?: PodMetadataConfig;
 }
 
 export interface UpdateK8sClusterRequest {
@@ -758,6 +783,7 @@ export interface UpdateK8sClusterRequest {
   headlessService?: ServiceMetadataConfig;
   podService?: ServiceMetadataConfig;
   enableRackIDOverride?: boolean;
+  podMetadata?: PodMetadataConfig;
 }
 
 export interface ScaleK8sClusterRequest {

@@ -202,6 +202,15 @@ class TolerationConfig(BaseModel):
     toleration_seconds: int | None = Field(default=None, alias="tolerationSeconds")
 
 
+class PodMetadataConfig(BaseModel):
+    """Extra labels and annotations for pods."""
+
+    model_config = {"populate_by_name": True}
+
+    labels: dict[str, str] | None = Field(default=None, description="Additional pod labels")
+    annotations: dict[str, str] | None = Field(default=None, description="Additional pod annotations")
+
+
 class PodSchedulingConfig(BaseModel):
     """Pod scheduling configuration (nodeSelector, tolerations, affinity)."""
 
@@ -221,6 +230,18 @@ class PodSchedulingConfig(BaseModel):
     termination_grace_period: int | None = Field(
         default=None, ge=0, alias="terminationGracePeriodSeconds", description="Grace period for termination"
     )
+    readiness_gate_enabled: bool | None = Field(
+        default=None,
+        alias="readinessGateEnabled",
+        description="Enable custom Pod Readiness Gate (acko.io/aerospike-ready)",
+    )
+    pod_management_policy: Literal["OrderedReady", "Parallel"] | None = Field(
+        default=None, alias="podManagementPolicy", description="Pod management policy (OrderedReady or Parallel)"
+    )
+    dns_policy: str | None = Field(
+        default=None, alias="dnsPolicy", description="DNS policy for pods (e.g. ClusterFirst, Default)"
+    )
+    metadata: PodMetadataConfig | None = Field(default=None, description="Extra labels and annotations for pods")
 
 
 class ServiceMonitorConfig(BaseModel):
@@ -293,6 +314,28 @@ class ACLConfig(BaseModel):
     admin_policy_timeout: int = Field(default=2000, ge=100, le=30000, alias="adminPolicyTimeout")
 
 
+class RackPodSpecConfig(BaseModel):
+    """Rack-level pod scheduling overrides."""
+
+    model_config = {"populate_by_name": True}
+
+    affinity: dict[str, Any] | None = Field(default=None, description="Rack-level affinity override (K8s Affinity)")
+    tolerations: list[TolerationConfig] | None = Field(default=None, description="Rack-level tolerations override")
+    node_selector: dict[str, str] | None = Field(
+        default=None, alias="nodeSelector", description="Rack-level node selector override"
+    )
+
+
+class RackStorageConfig(BaseModel):
+    """Rack-level storage overrides."""
+
+    model_config = {"populate_by_name": True}
+
+    volumes: list[dict[str, Any]] | None = Field(
+        default=None, description="Rack-level volume definitions (same schema as spec.storage.volumes)"
+    )
+
+
 class RackConfig(BaseModel):
     """Rack configuration for zone-aware deployment."""
 
@@ -303,6 +346,17 @@ class RackConfig(BaseModel):
     region: str | None = Field(default=None, description="K8s region for node affinity")
     rack_label: str | None = Field(default=None, alias="rackLabel", description="Custom label for rack scheduling")
     node_name: str | None = Field(default=None, alias="nodeName", description="Specific node name")
+    aerospike_config: dict[str, Any] | None = Field(
+        default=None,
+        alias="aerospikeConfig",
+        description="Rack-specific Aerospike config override",
+    )
+    storage: RackStorageConfig | None = Field(default=None, description="Rack-specific storage config override")
+    pod_spec: RackPodSpecConfig | None = Field(
+        default=None,
+        alias="podSpec",
+        description="Rack-specific pod scheduling override (affinity, tolerations, nodeSelector)",
+    )
 
 
 class RackAwareConfig(BaseModel):
@@ -316,6 +370,16 @@ class RackAwareConfig(BaseModel):
     )
     scale_down_batch_size: str | None = Field(
         default=None, alias="scaleDownBatchSize", description="Batch size for scale-down (int or percentage)"
+    )
+    max_ignorable_pods: str | None = Field(
+        default=None,
+        alias="maxIgnorablePods",
+        description="Max pending/failed pods to ignore during reconciliation (int or percentage)",
+    )
+    rolling_update_batch_size: str | None = Field(
+        default=None,
+        alias="rollingUpdateBatchSize",
+        description="Per-rack rolling update batch size (int or percentage), overrides spec-level",
     )
 
     @field_validator("racks")
@@ -468,6 +532,9 @@ class CreateK8sClusterRequest(BaseModel):
     enable_rack_id_override: bool | None = Field(
         default=None, alias="enableRackIDOverride", description="Enable dynamic rack ID assignment"
     )
+    pod_metadata: PodMetadataConfig | None = Field(
+        default=None, alias="podMetadata", description="Extra labels and annotations for pods"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -527,6 +594,9 @@ class UpdateK8sClusterRequest(BaseModel):
     )
     enable_rack_id_override: bool | None = Field(
         default=None, alias="enableRackIDOverride", description="Enable dynamic rack ID assignment"
+    )
+    pod_metadata: PodMetadataConfig | None = Field(
+        default=None, alias="podMetadata", description="Extra labels and annotations for pods"
     )
 
     model_config = {"populate_by_name": True}

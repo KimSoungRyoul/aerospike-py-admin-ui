@@ -71,6 +71,33 @@ def build_rack_list(racks: list[RackConfig]) -> list[dict[str, Any]]:
             r["rackLabel"] = rack.rack_label
         if rack.node_name:
             r["nodeName"] = rack.node_name
+        if rack.aerospike_config:
+            r["aerospikeConfig"] = rack.aerospike_config
+        if rack.storage and rack.storage.volumes:
+            r["storage"] = {"volumes": rack.storage.volumes}
+        if rack.pod_spec:
+            pod_spec: dict[str, Any] = {}
+            if rack.pod_spec.affinity:
+                pod_spec["affinity"] = rack.pod_spec.affinity
+            if rack.pod_spec.tolerations:
+                tols = []
+                for t in rack.pod_spec.tolerations:
+                    tol: dict[str, Any] = {}
+                    if t.key is not None:
+                        tol["key"] = t.key
+                    tol["operator"] = t.operator
+                    if t.value is not None:
+                        tol["value"] = t.value
+                    if t.effect is not None:
+                        tol["effect"] = t.effect
+                    if t.toleration_seconds is not None:
+                        tol["tolerationSeconds"] = t.toleration_seconds
+                    tols.append(tol)
+                pod_spec["tolerations"] = tols
+            if rack.pod_spec.node_selector:
+                pod_spec["nodeSelector"] = rack.pod_spec.node_selector
+            if pod_spec:
+                r["podSpec"] = pod_spec
         result.append(r)
     return result
 
@@ -103,6 +130,20 @@ def build_pod_scheduling(sched: Any) -> dict[str, Any]:
         result["serviceAccountName"] = sched.service_account_name
     if sched.termination_grace_period is not None:
         result["terminationGracePeriodSeconds"] = sched.termination_grace_period
+    if sched.readiness_gate_enabled is not None:
+        result["readinessGateEnabled"] = sched.readiness_gate_enabled
+    if sched.pod_management_policy:
+        result["podManagementPolicy"] = sched.pod_management_policy
+    if sched.dns_policy:
+        result["dnsPolicy"] = sched.dns_policy
+    if sched.metadata:
+        meta: dict[str, Any] = {}
+        if sched.metadata.labels:
+            meta["labels"] = sched.metadata.labels
+        if sched.metadata.annotations:
+            meta["annotations"] = sched.metadata.annotations
+        if meta:
+            result["metadata"] = meta
     return result
 
 
@@ -349,6 +390,10 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             rack_config["namespaces"] = req.rack_config.namespaces
         if req.rack_config.scale_down_batch_size:
             rack_config["scaleDownBatchSize"] = req.rack_config.scale_down_batch_size
+        if req.rack_config.max_ignorable_pods:
+            rack_config["maxIgnorablePods"] = req.rack_config.max_ignorable_pods
+        if req.rack_config.rolling_update_batch_size:
+            rack_config["rollingUpdateBatchSize"] = req.rack_config.rolling_update_batch_size
         cr["spec"]["rackConfig"] = rack_config
 
     # Network access policy
@@ -409,6 +454,18 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     # Enable rack ID override
     if req.enable_rack_id_override is not None:
         cr["spec"]["enableRackIDOverride"] = req.enable_rack_id_override
+
+    # Pod metadata (extra labels/annotations on pods)
+    if req.pod_metadata:
+        pod_spec = cr["spec"].get("podSpec", {})
+        meta: dict[str, Any] = {}
+        if req.pod_metadata.labels:
+            meta["labels"] = req.pod_metadata.labels
+        if req.pod_metadata.annotations:
+            meta["annotations"] = req.pod_metadata.annotations
+        if meta:
+            pod_spec["metadata"] = meta
+            cr["spec"]["podSpec"] = pod_spec
 
     return cr
 
@@ -609,6 +666,7 @@ def has_update_fields(body: UpdateK8sClusterRequest) -> bool:
             body.headless_service,
             body.pod_service,
             body.enable_rack_id_override,
+            body.pod_metadata,
         )
     )
 
@@ -645,7 +703,16 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
         patch["spec"]["disablePDB"] = body.disable_pdb
     if body.rack_config is not None:
         if body.rack_config.racks:
-            patch["spec"]["rackConfig"] = {"racks": build_rack_list(body.rack_config.racks)}
+            rc: dict[str, Any] = {"racks": build_rack_list(body.rack_config.racks)}
+            if body.rack_config.namespaces:
+                rc["namespaces"] = body.rack_config.namespaces
+            if body.rack_config.scale_down_batch_size:
+                rc["scaleDownBatchSize"] = body.rack_config.scale_down_batch_size
+            if body.rack_config.max_ignorable_pods:
+                rc["maxIgnorablePods"] = body.rack_config.max_ignorable_pods
+            if body.rack_config.rolling_update_batch_size:
+                rc["rollingUpdateBatchSize"] = body.rack_config.rolling_update_batch_size
+            patch["spec"]["rackConfig"] = rc
         else:
             patch["spec"]["rackConfig"] = {"racks": []}
     if body.network_policy is not None:
@@ -705,6 +772,15 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
         patch["spec"]["podService"] = pod_svc
     if body.enable_rack_id_override is not None:
         patch["spec"]["enableRackIDOverride"] = body.enable_rack_id_override
+    if body.pod_metadata is not None:
+        pod_spec = patch["spec"].get("podSpec", {})
+        pod_meta: dict[str, Any] = {}
+        if body.pod_metadata.labels:
+            pod_meta["labels"] = body.pod_metadata.labels
+        if body.pod_metadata.annotations:
+            pod_meta["annotations"] = body.pod_metadata.annotations
+        pod_spec["metadata"] = pod_meta if pod_meta else None
+        patch["spec"]["podSpec"] = pod_spec
     return patch
 
 
