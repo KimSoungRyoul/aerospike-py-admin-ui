@@ -452,11 +452,11 @@ export const api = {
     ),
 
   // K8s Cluster Events
-  getK8sClusterEvents: (namespace: string, name: string, limit = 50) =>
+  getK8sClusterEvents: (namespace: string, name: string, limit = 50, category?: string) =>
     request<import("./types").K8sClusterEvent[]>(
       withQuery(
         `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/events`,
-        { limit },
+        { limit, category },
       ),
     ),
 
@@ -464,6 +464,18 @@ export const api = {
   getK8sClusterHealth: (namespace: string, name: string) =>
     request<import("./types").ClusterHealthSummary>(
       `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/health`,
+    ),
+
+  // K8s Config Drift
+  getK8sClusterConfigDrift: (namespace: string, name: string) =>
+    request<import("./types").ConfigDriftResponse>(
+      `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/config-drift`,
+    ),
+
+  // K8s Reconciliation Status
+  getK8sReconciliationStatus: (namespace: string, name: string) =>
+    request<import("./types").ReconciliationStatus>(
+      `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/reconciliation-status`,
     ),
 
   // K8s Pod Logs

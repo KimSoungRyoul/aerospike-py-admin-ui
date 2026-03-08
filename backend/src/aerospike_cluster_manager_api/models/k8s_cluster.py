@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 import re
 import warnings
+from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -598,6 +599,20 @@ class K8sClusterDetail(BaseModel):
     operator_version: str | None = Field(default=None, alias="operatorVersion")
 
 
+class EventCategory(StrEnum):
+    ROLLING_RESTART = "Rolling Restart"
+    CONFIG = "Configuration"
+    ACL = "ACL Security"
+    RACK = "Rack Management"
+    SCALING = "Scaling"
+    LIFECYCLE = "Lifecycle"
+    MONITORING = "Monitoring"
+    NETWORK = "Network"
+    TEMPLATE = "Template"
+    CIRCUIT_BREAKER = "Circuit Breaker"
+    OTHER = "Other"
+
+
 class K8sClusterEvent(BaseModel):
     type: str | None = None
     reason: str | None = None
@@ -606,6 +621,7 @@ class K8sClusterEvent(BaseModel):
     firstTimestamp: str | None = None
     lastTimestamp: str | None = None
     source: str | None = None
+    category: str | None = None
 
 
 class K8sTemplateSummary(BaseModel):
@@ -710,3 +726,33 @@ class ClusterHealthResponse(BaseModel):
     failed_reconcile_count: int = Field(default=0, alias="failedReconcileCount")
     pending_restart_count: int = Field(default=0, alias="pendingRestartCount")
     rack_distribution: list[RackDistribution] = Field(default_factory=list, alias="rackDistribution")
+
+
+class PodHashGroup(BaseModel):
+    config_hash: str | None = Field(None, alias="configHash")
+    pod_spec_hash: str | None = Field(None, alias="podSpecHash")
+    pods: list[str] = []
+    is_current: bool = Field(False, alias="isCurrent")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ConfigDriftResponse(BaseModel):
+    has_drift: bool = Field(False, alias="hasDrift")
+    changed_fields: list[str] = Field(default_factory=list, alias="changedFields")
+    pod_hash_groups: list[PodHashGroup] = Field(default_factory=list, alias="podHashGroups")
+    desired_config_hash: str | None = Field(None, alias="desiredConfigHash")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ReconciliationStatus(BaseModel):
+    circuit_breaker_active: bool = Field(False, alias="circuitBreakerActive")
+    failed_reconcile_count: int = Field(0, alias="failedReconcileCount")
+    circuit_breaker_threshold: int = Field(10, alias="circuitBreakerThreshold")
+    last_reconcile_error: str | None = Field(None, alias="lastReconcileError")
+    last_reconcile_time: str | None = Field(None, alias="lastReconcileTime")
+    estimated_backoff_seconds: int | None = Field(None, alias="estimatedBackoffSeconds")
+    phase: str = "Unknown"
+
+    model_config = ConfigDict(populate_by_name=True)

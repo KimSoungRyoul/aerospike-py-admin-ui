@@ -489,6 +489,33 @@ export interface K8sClusterCondition {
   lastTransitionTime?: string;
 }
 
+export type EventCategory =
+  | "Rolling Restart"
+  | "Configuration"
+  | "ACL Security"
+  | "Rack Management"
+  | "Scaling"
+  | "Lifecycle"
+  | "Monitoring"
+  | "Network"
+  | "Template"
+  | "Circuit Breaker"
+  | "Other";
+
+export const EVENT_CATEGORIES: EventCategory[] = [
+  "Lifecycle",
+  "Rolling Restart",
+  "Configuration",
+  "ACL Security",
+  "Scaling",
+  "Rack Management",
+  "Network",
+  "Monitoring",
+  "Template",
+  "Circuit Breaker",
+  "Other",
+];
+
 export interface K8sClusterEvent {
   type?: string;
   reason?: string;
@@ -497,6 +524,7 @@ export interface K8sClusterEvent {
   firstTimestamp?: string;
   lastTimestamp?: string;
   source?: string;
+  category?: EventCategory;
 }
 
 export interface K8sPodStatus {
@@ -546,6 +574,16 @@ export interface K8sClusterDetail {
   pendingRestartPods: string[];
   lastReconcileTime?: string;
   operatorVersion?: string;
+}
+
+export interface ReconciliationStatus {
+  circuitBreakerActive: boolean;
+  failedReconcileCount: number;
+  circuitBreakerThreshold: number;
+  lastReconcileError: string | null;
+  lastReconcileTime: string | null;
+  estimatedBackoffSeconds: number | null;
+  phase: string;
 }
 
 export interface AerospikeNamespaceStorage {
@@ -805,6 +843,21 @@ export interface BinEntry {
   name: string;
   value: string;
   type: "string" | "integer" | "float" | "bool" | "list" | "map" | "bytes" | "geojson";
+}
+
+// === Config Drift ===
+export interface PodHashGroup {
+  configHash: string | null;
+  podSpecHash: string | null;
+  pods: string[];
+  isCurrent: boolean;
+}
+
+export interface ConfigDriftResponse {
+  hasDrift: boolean;
+  changedFields: string[];
+  podHashGroups: PodHashGroup[];
+  desiredConfigHash: string | null;
 }
 
 // === AerospikeCluster Spec (typed subset of the CRD spec) ===

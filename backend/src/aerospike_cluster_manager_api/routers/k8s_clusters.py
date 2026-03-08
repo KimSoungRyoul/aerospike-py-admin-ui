@@ -37,9 +37,11 @@ from aerospike_cluster_manager_api.services.k8s_service import (
     build_template_cr,
     build_update_patch,
     calculate_age,
+    categorize_event,
     clean_cr_for_export,
     extract_detail,
     extract_health,
+    extract_reconciliation_status,
     extract_summary,
     extract_template_summary,
     has_update_fields,
@@ -142,6 +144,22 @@ async def get_k8s_cluster(
     return extract_detail(item, pods_raw)
 
 
+@router.get("/clusters/{namespace}/{name}/config-drift", summary="Get cluster config drift")
+@_k8s_endpoint("get cluster config drift")
+async def get_cluster_config_drift(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+):
+    """Compare desired spec vs applied spec and detect configuration drift."""
+    from ..models.k8s_cluster import ConfigDriftResponse
+    from ..services.k8s_service import compute_config_drift
+
+    _require_k8s()
+    cr = await k8s_client.get_cluster(namespace, name)
+    result = compute_config_drift(cr)
+    return ConfigDriftResponse(**result)
+
+
 @router.get("/clusters/{namespace}/{name}/health", summary="Get cluster health summary")
 @_k8s_endpoint("get cluster health")
 async def get_k8s_cluster_health(
@@ -151,6 +169,21 @@ async def get_k8s_cluster_health(
     _require_k8s()
     item = await k8s_client.get_cluster(namespace, name)
     return extract_health(item)
+
+
+@router.get("/clusters/{namespace}/{name}/reconciliation-status", summary="Get reconciliation health")
+@_k8s_endpoint("get reconciliation status")
+async def get_cluster_reconciliation_status(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+):
+    """Get reconciliation health including circuit breaker state."""
+    from ..models.k8s_cluster import ReconciliationStatus
+
+    _require_k8s()
+    cr = await k8s_client.get_cluster(namespace, name)
+    result = extract_reconciliation_status(cr)
+    return ReconciliationStatus(**result)
 
 
 @router.get("/clusters/{namespace}/{name}/pods/{pod}/logs", summary="Get pod logs")
@@ -388,11 +421,16 @@ async def get_k8s_cluster_events(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
     limit: int = Query(default=50, ge=1, le=500, description="Maximum number of events to return"),
+    category: str | None = Query(default=None, description="Filter events by category"),
 ) -> list[K8sClusterEvent]:
     _require_k8s()
     field_selector = f"involvedObject.name={name},involvedObject.kind=AerospikeCluster"
     events_raw = await k8s_client.list_events(namespace, field_selector)
     events = [K8sClusterEvent(**e) for e in events_raw]
+    for event in events:
+        event.category = categorize_event(event.reason)
+    if category:
+        events = [e for e in events if e.category == category]
     return events[:limit]
 
 

@@ -719,6 +719,155 @@ def extract_template_summary(item: dict[str, Any]) -> K8sTemplateSummary:
     )
 
 
+_EVENT_CATEGORY_MAP: dict[str, str] = {
+    # Rolling Restart
+    "RollingRestartStarted": "Rolling Restart",
+    "RollingRestartCompleted": "Rolling Restart",
+    "RestartFailed": "Rolling Restart",
+    "PodRestarted": "Rolling Restart",
+    # Quiesce
+    "QuiesceStarted": "Rolling Restart",
+    "QuiesceCompleted": "Rolling Restart",
+    "QuiesceFailed": "Rolling Restart",
+    # Config
+    "ConfigMapCreated": "Configuration",
+    "ConfigMapUpdated": "Configuration",
+    "DynamicConfigApplied": "Configuration",
+    "DynamicConfigStatusFailed": "Configuration",
+    "DynamicConfigRollback": "Configuration",
+    # StatefulSet / Rack
+    "StatefulSetCreated": "Rack Management",
+    "StatefulSetUpdated": "Rack Management",
+    "RackScaled": "Scaling",
+    "RackRemoved": "Rack Management",
+    # ACL
+    "ACLSyncStarted": "ACL Security",
+    "ACLSyncCompleted": "ACL Security",
+    "ACLSyncFailed": "ACL Security",
+    # PDB
+    "PDBCreated": "Network",
+    "PDBUpdated": "Network",
+    # Service
+    "ServiceCreated": "Network",
+    "ServiceUpdated": "Network",
+    # Lifecycle
+    "ClusterCreated": "Lifecycle",
+    "ClusterDeletionStarted": "Lifecycle",
+    "FinalizerRemoved": "Lifecycle",
+    "ReconcileError": "Lifecycle",
+    # Template
+    "TemplateApplied": "Template",
+    "TemplateOutOfSync": "Template",
+    # Readiness
+    "ReadinessGateUpdated": "Lifecycle",
+    # PVC
+    "PVCCleanupCompleted": "Scaling",
+    "PVCCleanupFailed": "Scaling",
+    # Circuit Breaker
+    "CircuitBreakerActive": "Circuit Breaker",
+    "CircuitBreakerReset": "Circuit Breaker",
+    # Misc
+    "WarmRestartTriggered": "Rolling Restart",
+    "PodRestartTriggered": "Rolling Restart",
+    "NetworkPolicyCreated": "Network",
+    "NetworkPolicyUpdated": "Network",
+    "MonitoringConfigured": "Monitoring",
+}
+
+
+def categorize_event(reason: str | None) -> str:
+    if not reason:
+        return "Other"
+    return _EVENT_CATEGORY_MAP.get(reason, "Other")
+
+
+def compute_config_drift(cr: dict) -> dict:
+    """Compare spec vs status.appliedSpec and group pods by config hash."""
+    spec = cr.get("spec", {})
+    status = cr.get("status", {})
+    applied_spec = status.get("appliedSpec", {})
+
+    # Find changed fields between spec and appliedSpec
+    changed_fields = []
+    if applied_spec:
+        for key in set(list(spec.keys()) + list(applied_spec.keys())):
+            if key in ("aerospikeConfig",):
+                # Deep compare for aerospikeConfig
+                spec_val = spec.get(key, {})
+                applied_val = applied_spec.get(key, {})
+                if spec_val != applied_val:
+                    changed_fields.append(key)
+            else:
+                if spec.get(key) != applied_spec.get(key):
+                    changed_fields.append(key)
+
+    has_drift = len(changed_fields) > 0
+
+    # Group pods by configHash + podSpecHash
+    pods_status = status.get("pods", {})
+    hash_groups: dict[str, dict] = {}
+    desired_config_hash = None
+
+    for pod_name, pod_status in pods_status.items():
+        if isinstance(pod_status, dict):
+            config_hash = pod_status.get("configHash", "")
+            pod_spec_hash = pod_status.get("podSpecHash", "")
+            key = f"{config_hash}|{pod_spec_hash}"
+
+            if key not in hash_groups:
+                hash_groups[key] = {
+                    "configHash": config_hash,
+                    "podSpecHash": pod_spec_hash,
+                    "pods": [],
+                    "isCurrent": False,
+                }
+            hash_groups[key]["pods"].append(pod_name)
+
+    # The most common hash group is likely "current"
+    if hash_groups:
+        max_group_key = max(hash_groups, key=lambda k: len(hash_groups[k]["pods"]))
+        hash_groups[max_group_key]["isCurrent"] = True
+        desired_config_hash = hash_groups[max_group_key].get("configHash")
+
+    # Check if pods have mismatched hashes (pod-level drift)
+    if len(hash_groups) > 1:
+        has_drift = True
+
+    return {
+        "hasDrift": has_drift,
+        "changedFields": changed_fields,
+        "podHashGroups": list(hash_groups.values()),
+        "desiredConfigHash": desired_config_hash,
+    }
+
+
+def extract_reconciliation_status(cr: dict) -> dict:
+    """Extract reconciliation health info including circuit breaker state."""
+    status = cr.get("status", {})
+    phase = status.get("phase", "Unknown")
+    failed_count = status.get("failedReconcileCount", 0)
+    last_error = status.get("lastReconcileError")
+    last_time = status.get("lastReconcileTime")
+
+    threshold = 10
+    circuit_breaker_active = failed_count >= threshold
+
+    # Estimate backoff: min(30s * 2^count, 300s)
+    backoff_seconds = None
+    if circuit_breaker_active:
+        backoff_seconds = min(30 * (2 ** failed_count), 300)
+
+    return {
+        "circuitBreakerActive": circuit_breaker_active,
+        "failedReconcileCount": failed_count,
+        "circuitBreakerThreshold": threshold,
+        "lastReconcileError": last_error,
+        "lastReconcileTime": last_time,
+        "estimatedBackoffSeconds": backoff_seconds,
+        "phase": phase,
+    }
+
+
 def clean_cr_for_export(item: dict[str, Any]) -> dict[str, Any]:
     """Strip internal metadata fields from a CR for clean YAML export."""
     metadata = dict(item.get("metadata", {}))
