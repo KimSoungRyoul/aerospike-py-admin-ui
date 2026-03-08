@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 import asyncpg
 
 from aerospike_cluster_manager_api import config
+from aerospike_cluster_manager_api.crypto import decrypt_password, encrypt_password
 from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 logger = logging.getLogger(__name__)
@@ -121,7 +122,7 @@ def _row_to_profile(row: asyncpg.Record) -> ConnectionProfile:
         port=row["port"],
         clusterName=row["cluster_name"],
         username=row["username"],
-        password=row["password"],
+        password=decrypt_password(row["password"]),
         color=row["color"],
         createdAt=row["created_at"],
         updatedAt=row["updated_at"],
@@ -156,7 +157,7 @@ async def create_connection(conn: ConnectionProfile) -> None:
         conn.port,
         conn.clusterName,
         conn.username,
-        conn.password,
+        encrypt_password(conn.password),
         conn.color,
         conn.createdAt,
         conn.updatedAt,
@@ -185,7 +186,7 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
             merged["port"],
             merged.get("clusterName"),
             merged.get("username"),
-            merged.get("password"),
+            encrypt_password(merged.get("password")),
             merged["color"],
             merged["updatedAt"],
             conn_id,
