@@ -181,6 +181,8 @@ def build_monitoring(mon: Any) -> dict[str, Any]:
         if mon.prometheus_rule.labels:
             pr["labels"] = mon.prometheus_rule.labels
         result["prometheusRule"] = pr
+    if mon.exporter_env:
+        result["env"] = mon.exporter_env
     return result
 
 
@@ -517,6 +519,12 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
             scheduling["podAntiAffinityLevel"] = req.scheduling.pod_anti_affinity_level
         if req.scheduling.pod_management_policy:
             scheduling["podManagementPolicy"] = req.scheduling.pod_management_policy
+        if req.scheduling.tolerations:
+            scheduling["tolerations"] = req.scheduling.tolerations
+        if req.scheduling.node_affinity:
+            scheduling["nodeAffinity"] = req.scheduling.node_affinity
+        if req.scheduling.topology_spread_constraints:
+            scheduling["topologySpreadConstraints"] = req.scheduling.topology_spread_constraints
         if scheduling:
             cr["spec"]["scheduling"] = scheduling
     if req.storage:
@@ -562,6 +570,9 @@ def extract_detail(item: dict[str, Any], pods_raw: list[dict[str, Any]]) -> K8sC
         p["rackId"] = rack_val if isinstance(rack_val, int) else None
         p["configHash"] = cr_pod.get("configHash")
         p["podSpecHash"] = cr_pod.get("podSpecHash")
+        p["accessEndpoints"] = cr_pod.get("accessEndpoints")
+        p["readinessGateSatisfied"] = cr_pod.get("readinessGateSatisfied")
+        p["unstableSince"] = cr_pod.get("unstableSince")
         pods.append(K8sPodStatus(**p))
 
     # Extract operation status

@@ -556,6 +556,9 @@ export interface K8sPodStatus {
   rackId?: number;
   configHash?: string;
   podSpecHash?: string;
+  accessEndpoints?: string[];
+  readinessGateSatisfied?: boolean;
+  unstableSince?: string;
 }
 
 export interface K8sClusterSummary {
@@ -715,6 +718,7 @@ export interface MonitoringConfig {
   prometheusRule?: PrometheusRuleConfig;
   resources?: ResourceConfig;
   metricLabels?: Record<string, string>;
+  exporterEnv?: Record<string, string>[];
 }
 
 export interface BandwidthConfig {
@@ -814,6 +818,9 @@ export interface K8sTemplateDetail {
 export interface TemplateSchedulingConfig {
   podAntiAffinityLevel?: "none" | "preferred" | "required";
   podManagementPolicy?: "OrderedReady" | "Parallel";
+  tolerations?: Record<string, unknown>[];
+  nodeAffinity?: Record<string, unknown>;
+  topologySpreadConstraints?: Record<string, unknown>[];
 }
 
 export interface TemplateStorageConfig {

@@ -281,6 +281,9 @@ class MonitoringConfig(BaseModel):
     prometheus_rule: PrometheusRuleConfig | None = Field(
         default=None, alias="prometheusRule", description="PrometheusRule configuration"
     )
+    exporter_env: list[dict[str, str]] | None = Field(
+        default=None, alias="exporterEnv", description="Additional env vars for the Prometheus exporter container"
+    )
 
 
 class ACLRoleSpec(BaseModel):
@@ -620,6 +623,9 @@ class K8sPodStatus(BaseModel):
     rackId: int | None = None
     configHash: str | None = None
     podSpecHash: str | None = None
+    access_endpoints: list[str] | None = Field(default=None, alias="accessEndpoints", description="Network endpoints for direct client access")
+    readiness_gate_satisfied: bool | None = Field(default=None, alias="readinessGateSatisfied", description="Whether readiness gate is satisfied")
+    unstable_since: str | None = Field(default=None, alias="unstableSince", description="First time pod became NotReady (ISO timestamp)")
 
 
 class K8sClusterSummary(BaseModel):
@@ -718,6 +724,13 @@ class TemplateSchedulingConfig(BaseModel):
         default=None, alias="podAntiAffinityLevel"
     )
     pod_management_policy: Literal["OrderedReady", "Parallel"] | None = Field(default=None, alias="podManagementPolicy")
+    tolerations: list[dict[str, Any]] | None = Field(default=None, description="Pod tolerations for template scheduling")
+    node_affinity: dict[str, Any] | None = Field(
+        default=None, alias="nodeAffinity", description="Node affinity rules for template scheduling"
+    )
+    topology_spread_constraints: list[dict[str, Any]] | None = Field(
+        default=None, alias="topologySpreadConstraints", description="Topology spread constraints for template scheduling"
+    )
 
 
 class TemplateStorageConfig(BaseModel):
