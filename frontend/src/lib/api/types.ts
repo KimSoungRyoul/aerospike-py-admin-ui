@@ -556,6 +556,9 @@ export interface K8sPodStatus {
   rackId?: number;
   configHash?: string;
   podSpecHash?: string;
+  accessEndpoints?: string[] | null;
+  readinessGateSatisfied?: boolean | null;
+  unstableSince?: string | null;
 }
 
 export interface K8sClusterSummary {
@@ -690,6 +693,7 @@ export interface PodSchedulingConfig {
   hostNetwork?: boolean;
   serviceAccountName?: string;
   terminationGracePeriodSeconds?: number;
+  imagePullSecrets?: string[];
   readinessGateEnabled?: boolean;
   podManagementPolicy?: "OrderedReady" | "Parallel";
   dnsPolicy?: string;
@@ -802,6 +806,7 @@ export interface K8sTemplateSummary {
   size?: number;
   age?: string;
   description?: string;
+  usedBy?: string[];
 }
 
 export interface K8sTemplateDetail {

@@ -141,6 +141,12 @@ def build_pod_scheduling(sched: Any) -> dict[str, Any]:
         result["podManagementPolicy"] = sched.pod_management_policy
     if sched.dns_policy:
         result["dnsPolicy"] = sched.dns_policy
+    if sched.image_pull_secrets:
+        result["imagePullSecrets"] = [{"name": s} for s in sched.image_pull_secrets]
+    if sched.security_context:
+        result["securityContext"] = sched.security_context
+    if sched.topology_spread_constraints:
+        result["topologySpreadConstraints"] = sched.topology_spread_constraints
     if sched.metadata:
         meta: dict[str, Any] = {}
         if sched.metadata.labels:
@@ -482,6 +488,16 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             pod_spec["metadata"] = meta
             cr["spec"]["podSpec"] = pod_spec
 
+    # Sidecars and init containers
+    if req.sidecars:
+        pod_spec = cr["spec"].get("podSpec", {})
+        pod_spec["sidecars"] = [s.model_dump(exclude_none=True) for s in req.sidecars]
+        cr["spec"]["podSpec"] = pod_spec
+    if req.init_containers:
+        pod_spec = cr["spec"].get("podSpec", {})
+        pod_spec["initContainers"] = [c.model_dump(exclude_none=True) for c in req.init_containers]
+        cr["spec"]["podSpec"] = pod_spec
+
     return cr
 
 
@@ -616,6 +632,13 @@ def extract_detail(item: dict[str, Any], pods_raw: list[dict[str, Any]]) -> K8sC
         p["rackId"] = rack_val if isinstance(rack_val, int) else None
         p["configHash"] = cr_pod.get("configHash")
         p["podSpecHash"] = cr_pod.get("podSpecHash")
+        # Extended operator status fields
+        access_endpoints = cr_pod.get("accessEndpoints")
+        p["accessEndpoints"] = access_endpoints if isinstance(access_endpoints, list) else None
+        readiness_gate = cr_pod.get("readinessGateSatisfied")
+        p["readinessGateSatisfied"] = readiness_gate if isinstance(readiness_gate, bool) else None
+        unstable_since = cr_pod.get("unstableSince")
+        p["unstableSince"] = unstable_since if isinstance(unstable_since, str) else None
         pods.append(K8sPodStatus(**p))
 
     # Extract operation status
@@ -725,6 +748,8 @@ def has_update_fields(body: UpdateK8sClusterRequest) -> bool:
             body.pod_service,
             body.enable_rack_id_override,
             body.pod_metadata,
+            body.sidecars,
+            body.init_containers,
         )
     )
 
@@ -839,6 +864,14 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
             pod_meta["annotations"] = body.pod_metadata.annotations
         pod_spec["metadata"] = pod_meta if pod_meta else None
         patch["spec"]["podSpec"] = pod_spec
+    if body.sidecars is not None:
+        pod_spec = patch["spec"].get("podSpec", {})
+        pod_spec["sidecars"] = [s.model_dump(exclude_none=True) for s in body.sidecars]
+        patch["spec"]["podSpec"] = pod_spec
+    if body.init_containers is not None:
+        pod_spec = patch["spec"].get("podSpec", {})
+        pod_spec["initContainers"] = [c.model_dump(exclude_none=True) for c in body.init_containers]
+        patch["spec"]["podSpec"] = pod_spec
     return patch
 
 
@@ -846,12 +879,15 @@ def extract_template_summary(item: dict[str, Any]) -> K8sTemplateSummary:
     """Build a K8sTemplateSummary from a raw template CR dict."""
     metadata = item.get("metadata", {})
     spec = item.get("spec", {})
+    status = item.get("status", {})
+    used_by = status.get("usedBy", []) if isinstance(status, dict) else []
     return K8sTemplateSummary(
         name=metadata.get("name", ""),
         image=spec.get("image"),
         size=spec.get("size"),
         age=calculate_age(metadata.get("creationTimestamp")),
         description=spec.get("description"),
+        usedBy=used_by if isinstance(used_by, list) else [],
     )
 
 
