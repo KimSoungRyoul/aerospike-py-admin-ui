@@ -15,13 +15,16 @@ import { WizardMonitoringStep } from "./WizardMonitoringStep";
 import { WizardAclStep } from "./WizardAclStep";
 import { WizardRollingUpdateStep } from "./WizardRollingUpdateStep";
 import { WizardRackConfigStep } from "./WizardRackConfigStep";
+import { WizardSidecarsStep } from "./WizardSidecarsStep";
 import type { WizardAdvancedStepProps } from "./types";
+import { Button } from "@/components/ui/button";
 import type {
   PodSchedulingConfig,
   BandwidthConfig,
   ValidationPolicyConfig,
   TolerationConfig,
   K8sNodeInfo,
+  ServiceMetadataConfig,
 } from "@/lib/api/types";
 
 function CollapsibleSection({
@@ -769,6 +772,272 @@ function WizardBandwidthStep({
   );
 }
 
+function ServiceMetadataEditor({
+  title,
+  description,
+  value,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  value: ServiceMetadataConfig | undefined;
+  onChange: (v: ServiceMetadataConfig | undefined) => void;
+}) {
+  const [annotationKey, setAnnotationKey] = useState("");
+  const [annotationVal, setAnnotationVal] = useState("");
+  const [labelKey, setLabelKey] = useState("");
+  const [labelVal, setLabelVal] = useState("");
+
+  const addAnnotation = () => {
+    const k = annotationKey.trim();
+    const v = annotationVal.trim();
+    if (!k) return;
+    const next = { ...value, annotations: { ...(value?.annotations ?? {}), [k]: v } };
+    onChange(next);
+    setAnnotationKey("");
+    setAnnotationVal("");
+  };
+
+  const removeAnnotation = (key: string) => {
+    const annotations = { ...(value?.annotations ?? {}) };
+    delete annotations[key];
+    const next = {
+      ...value,
+      annotations: Object.keys(annotations).length > 0 ? annotations : undefined,
+    };
+    if (!next.annotations && !next.labels) {
+      onChange(undefined);
+    } else {
+      onChange(next);
+    }
+  };
+
+  const addLabel = () => {
+    const k = labelKey.trim();
+    const v = labelVal.trim();
+    if (!k) return;
+    const next = { ...value, labels: { ...(value?.labels ?? {}), [k]: v } };
+    onChange(next);
+    setLabelKey("");
+    setLabelVal("");
+  };
+
+  const removeLabel = (key: string) => {
+    const labels = { ...(value?.labels ?? {}) };
+    delete labels[key];
+    const next = {
+      ...value,
+      labels: Object.keys(labels).length > 0 ? labels : undefined,
+    };
+    if (!next.annotations && !next.labels) {
+      onChange(undefined);
+    } else {
+      onChange(next);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-muted-foreground text-sm">{description}</p>
+
+      {/* Annotations */}
+      <div className="grid gap-2">
+        <Label className="text-xs font-semibold">Annotations</Label>
+        {Object.entries(value?.annotations ?? {}).length > 0 && (
+          <div className="space-y-1">
+            {Object.entries(value!.annotations!).map(([k, v]) => (
+              <div key={k} className="flex items-center gap-1.5">
+                <code className="bg-muted truncate rounded px-1.5 py-0.5 text-[10px]">{k}</code>
+                <span className="text-muted-foreground text-[10px]">=</span>
+                <code className="bg-muted flex-1 truncate rounded px-1.5 py-0.5 text-[10px]">
+                  {v}
+                </code>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={() => removeAnnotation(k)}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <Input
+            className="h-8 text-xs"
+            placeholder="annotation key"
+            value={annotationKey}
+            onChange={(e) => setAnnotationKey(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAnnotation())}
+          />
+          <Input
+            className="h-8 text-xs"
+            placeholder="value"
+            value={annotationVal}
+            onChange={(e) => setAnnotationVal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAnnotation())}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 text-xs"
+            onClick={addAnnotation}
+            disabled={!annotationKey.trim()}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Add
+          </Button>
+        </div>
+      </div>
+
+      {/* Labels */}
+      <div className="grid gap-2">
+        <Label className="text-xs font-semibold">Labels</Label>
+        {Object.entries(value?.labels ?? {}).length > 0 && (
+          <div className="space-y-1">
+            {Object.entries(value!.labels!).map(([k, v]) => (
+              <div key={k} className="flex items-center gap-1.5">
+                <code className="bg-muted truncate rounded px-1.5 py-0.5 text-[10px]">{k}</code>
+                <span className="text-muted-foreground text-[10px]">=</span>
+                <code className="bg-muted flex-1 truncate rounded px-1.5 py-0.5 text-[10px]">
+                  {v}
+                </code>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={() => removeLabel(k)}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <Input
+            className="h-8 text-xs"
+            placeholder="label key"
+            value={labelKey}
+            onChange={(e) => setLabelKey(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLabel())}
+          />
+          <Input
+            className="h-8 text-xs"
+            placeholder="value"
+            value={labelVal}
+            onChange={(e) => setLabelVal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLabel())}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 text-xs"
+            onClick={addLabel}
+            disabled={!labelKey.trim()}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Add
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WizardServiceMetadataStep({
+  form,
+  updateForm,
+}: {
+  form: WizardAdvancedStepProps["form"];
+  updateForm: WizardAdvancedStepProps["updateForm"];
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <Label className="text-sm font-semibold">Pod Service</Label>
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="pod-service-enabled" className="cursor-pointer text-xs">
+              Enable per-pod Service
+            </Label>
+            <p className="text-muted-foreground text-[10px]">
+              Create a dedicated Kubernetes Service for each Aerospike pod, enabling direct pod
+              addressing.
+            </p>
+          </div>
+          <Switch
+            id="pod-service-enabled"
+            checked={form.podService != null}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                updateForm({ podService: {} });
+              } else {
+                updateForm({ podService: undefined });
+              }
+            }}
+          />
+        </div>
+        {form.podService != null && (
+          <ServiceMetadataEditor
+            title="Pod Service Metadata"
+            description="Annotations and labels applied to per-pod Service resources."
+            value={form.podService}
+            onChange={(v) => updateForm({ podService: v ?? {} })}
+          />
+        )}
+      </div>
+
+      <div className="border-t pt-4">
+        <Label className="text-sm font-semibold">Headless Service</Label>
+        <p className="text-muted-foreground mb-3 text-[10px]">
+          Custom annotations and labels for the headless Service used for pod discovery.
+        </p>
+        <ServiceMetadataEditor
+          title="Headless Service Metadata"
+          description="Annotations and labels applied to the headless Service resource."
+          value={form.headlessService}
+          onChange={(v) => updateForm({ headlessService: v })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function WizardRackIDOverrideStep({
+  form,
+  updateForm,
+}: {
+  form: WizardAdvancedStepProps["form"];
+  updateForm: WizardAdvancedStepProps["updateForm"];
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <Label htmlFor="rack-id-override" className="cursor-pointer text-xs">
+            Enable Rack ID Override
+          </Label>
+          <p className="text-muted-foreground text-[10px]">
+            Allow rack ID override for existing data migration. When enabled, the operator
+            dynamically assigns rack IDs to pods, which is useful when migrating data from an
+            existing cluster with different rack configurations.
+          </p>
+        </div>
+        <Switch
+          id="rack-id-override"
+          checked={form.enableRackIDOverride ?? false}
+          onCheckedChange={(checked) => {
+            updateForm({ enableRackIDOverride: checked || undefined });
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function WizardAdvancedStep({
   form,
   updateForm,
@@ -814,6 +1083,18 @@ export function WizardAdvancedStep({
       .filter(Boolean)
       .join(", ") || "Default";
 
+  const sidecarCount = (form.sidecars ?? []).length;
+  const initContainerCount = (form.initContainers ?? []).length;
+  const sidecarsSummary =
+    sidecarCount > 0 || initContainerCount > 0
+      ? [
+          sidecarCount > 0 ? `${sidecarCount} sidecar(s)` : null,
+          initContainerCount > 0 ? `${initContainerCount} init container(s)` : null,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : "None";
+
   const validationPolicySummary = form.validationPolicy?.skipWorkDirValidate
     ? "Skip WorkDir Validate"
     : "Default";
@@ -832,6 +1113,18 @@ export function WizardAdvancedStep({
           .filter(Boolean)
           .join(", ")
       : "No limits";
+
+  const serviceMetadataSummary =
+    [
+      form.podService != null ? "Pod Service" : null,
+      form.headlessService?.annotations || form.headlessService?.labels
+        ? "Headless Service"
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", ") || "Default";
+
+  const rackIDOverrideSummary = form.enableRackIDOverride ? "Enabled" : "Disabled";
 
   return (
     <div className="space-y-3">
@@ -860,6 +1153,10 @@ export function WizardAdvancedStep({
         <WizardPodSettingsStep form={form} updateForm={updateForm} />
       </CollapsibleSection>
 
+      <CollapsibleSection title="Sidecars & Init Containers" summary={sidecarsSummary}>
+        <WizardSidecarsStep form={form} updateForm={updateForm} />
+      </CollapsibleSection>
+
       <CollapsibleSection title="Node Block List" summary={nodeBlockListSummary}>
         <WizardNodeBlockListStep form={form} updateForm={updateForm} nodes={nodes} />
       </CollapsibleSection>
@@ -870,6 +1167,14 @@ export function WizardAdvancedStep({
 
       <CollapsibleSection title="Validation Policy" summary={validationPolicySummary}>
         <WizardValidationPolicyStep form={form} updateForm={updateForm} />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Service Metadata" summary={serviceMetadataSummary}>
+        <WizardServiceMetadataStep form={form} updateForm={updateForm} />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Rack ID Override" summary={rackIDOverrideSummary}>
+        <WizardRackIDOverrideStep form={form} updateForm={updateForm} />
       </CollapsibleSection>
     </div>
   );
