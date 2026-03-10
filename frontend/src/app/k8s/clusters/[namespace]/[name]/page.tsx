@@ -36,11 +36,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { useToastStore } from "@/stores/toast-store";
 import { cn, getErrorMessage } from "@/lib/utils";
-import {
-  TRANSITIONAL_PHASES,
-  type K8sClusterPhase,
-  type UpdateK8sClusterRequest,
-} from "@/lib/api/types";
+import { TRANSITIONAL_PHASES, type UpdateK8sClusterRequest } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
 function formatRelativeTime(isoString: string): string {
