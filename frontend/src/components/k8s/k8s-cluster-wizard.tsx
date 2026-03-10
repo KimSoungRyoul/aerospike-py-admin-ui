@@ -266,7 +266,11 @@ export function K8sClusterWizard() {
         payload.rackConfig = undefined;
       }
       // Clean up empty service metadata
-      if (payload.headlessService && !payload.headlessService.annotations && !payload.headlessService.labels) {
+      if (
+        payload.headlessService &&
+        !payload.headlessService.annotations &&
+        !payload.headlessService.labels
+      ) {
         payload.headlessService = undefined;
       }
       if (payload.podService && !payload.podService.annotations && !payload.podService.labels) {

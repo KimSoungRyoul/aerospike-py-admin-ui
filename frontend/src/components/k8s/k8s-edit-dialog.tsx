@@ -161,14 +161,24 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const initialSkipWorkDirValidate = Boolean(cluster.spec?.validationPolicy?.skipWorkDirValidate);
   // Service Metadata initial values
   const kvsToString = (kv: Record<string, string> | undefined) =>
-    kv ? Object.entries(kv).map(([k, v]) => `${k}=${v}`).join(", ") : "";
+    kv
+      ? Object.entries(kv)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(", ")
+      : "";
   const initialHeadlessServiceAnnotations = kvsToString(
-    (cluster.spec?.headlessService as Record<string, Record<string, Record<string, string>>> | undefined)
-      ?.metadata?.annotations,
+    (
+      cluster.spec?.headlessService as
+        | Record<string, Record<string, Record<string, string>>>
+        | undefined
+    )?.metadata?.annotations,
   );
   const initialHeadlessServiceLabels = kvsToString(
-    (cluster.spec?.headlessService as Record<string, Record<string, Record<string, string>>> | undefined)
-      ?.metadata?.labels,
+    (
+      cluster.spec?.headlessService as
+        | Record<string, Record<string, Record<string, string>>>
+        | undefined
+    )?.metadata?.labels,
   );
   const initialPodServiceAnnotations = kvsToString(
     (cluster.spec?.podService as Record<string, Record<string, Record<string, string>>> | undefined)
@@ -464,7 +474,10 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
 
       // Service Metadata
       const parseKvString = (s: string): Record<string, string> | undefined => {
-        const entries = s.split(",").map((e) => e.trim()).filter(Boolean);
+        const entries = s
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean);
         const result: Record<string, string> = {};
         for (const entry of entries) {
           const eqIdx = entry.indexOf("=");
@@ -1150,9 +1163,7 @@ function EditCustomRulesEditor({
   onChange: (v: Record<string, unknown>[] | undefined) => void;
   disabled?: boolean;
 }) {
-  const [rawText, setRawText] = useState(() =>
-    value ? JSON.stringify(value, null, 2) : "",
-  );
+  const [rawText, setRawText] = useState(() => (value ? JSON.stringify(value, null, 2) : ""));
   const [parseError, setParseError] = useState<string | null>(null);
 
   const handleChange = (text: string) => {
