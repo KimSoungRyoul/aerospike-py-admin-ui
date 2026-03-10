@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,10 @@ function RackStorageVolumeEditor({
   const items = volumes ?? [];
 
   const addVolume = () => {
-    onChange([...items, { name: "", storageClass: "", size: "10Gi", mountPath: "/opt/aerospike/data" }]);
+    onChange([
+      ...items,
+      { name: "", storageClass: "", size: "10Gi", mountPath: "/opt/aerospike/data" },
+    ]);
   };
 
   const updateVolume = (idx: number, field: string, value: string) => {
@@ -63,7 +66,10 @@ function RackStorageVolumeEditor({
         Override storage volumes for this rack (e.g. different storage class or size).
       </p>
       {items.map((vol, idx) => (
-        <div key={idx} className="grid grid-cols-[1fr_1fr_auto_1fr_auto] items-end gap-2 rounded border p-2">
+        <div
+          key={idx}
+          className="grid grid-cols-[1fr_1fr_auto_1fr_auto] items-end gap-2 rounded border p-2"
+        >
           <div className="grid gap-1">
             <Label className="text-[10px]">Name</Label>
             <Input
@@ -257,10 +263,9 @@ function RackAffinityEditor({
   // Extract existing node selector terms from the nested affinity structure
   const getExpressions = (): { key: string; operator: string; values: string }[] => {
     try {
-      const terms = (affinity as Record<string, Record<string, Record<string, Record<string, unknown>[]>>>)
-        ?.nodeAffinity
-        ?.requiredDuringSchedulingIgnoredDuringExecution
-        ?.nodeSelectorTerms?.[0]
+      const terms = (
+        affinity as Record<string, Record<string, Record<string, Record<string, unknown>[]>>>
+      )?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms?.[0]
         ?.matchExpressions as { key: string; operator: string; values?: string[] }[] | undefined;
       return (terms ?? []).map((expr) => ({
         key: expr.key ?? "",
@@ -272,9 +277,9 @@ function RackAffinityEditor({
     }
   };
 
-  const [expressions, setExpressions] = useState<{ key: string; operator: string; values: string }[]>(
-    () => getExpressions(),
-  );
+  const [expressions, setExpressions] = useState<
+    { key: string; operator: string; values: string }[]
+  >(() => getExpressions());
 
   const buildAffinity = (exprs: { key: string; operator: string; values: string }[]) => {
     const valid = exprs.filter((e) => e.key.trim());
@@ -332,7 +337,10 @@ function RackAffinityEditor({
         matching all expressions.
       </p>
       {expressions.map((expr, idx) => (
-        <div key={idx} className="grid grid-cols-[1fr_auto_1fr_auto] items-end gap-2 rounded border p-2">
+        <div
+          key={idx}
+          className="grid grid-cols-[1fr_auto_1fr_auto] items-end gap-2 rounded border p-2"
+        >
           <div className="grid gap-1">
             <Label className="text-[10px]">Key</Label>
             <Input
@@ -390,6 +398,55 @@ function RackAffinityEditor({
   );
 }
 
+/** Aerospike config override editor with JSON validation feedback. */
+function RackConfigJsonEditor({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown> | undefined;
+  onChange: (v: Record<string, unknown> | undefined) => void;
+}) {
+  const [rawText, setRawText] = useState(() => (config ? JSON.stringify(config, null, 2) : ""));
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  const handleChange = useCallback(
+    (text: string) => {
+      setRawText(text);
+      if (!text.trim()) {
+        setParseError(null);
+        onChange(undefined);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
+          setParseError("Must be a JSON object");
+          return;
+        }
+        setParseError(null);
+        onChange(parsed);
+      } catch {
+        setParseError("Invalid JSON");
+      }
+    },
+    [onChange],
+  );
+
+  return (
+    <div className="grid gap-2">
+      <Label className="text-xs">Aerospike Config Override (JSON)</Label>
+      <Textarea
+        value={rawText}
+        onChange={(e) => handleChange(e.target.value)}
+        rows={3}
+        className={`font-mono text-xs ${parseError ? "border-red-500" : ""}`}
+        placeholder='{"namespaces": [...]}'
+      />
+      {parseError && <p className="text-xs text-red-500">{parseError}</p>}
+    </div>
+  );
+}
+
 /** Unified rack overrides content: config, storage, scheduling. */
 function RackOverridesContent({
   rack,
@@ -420,24 +477,10 @@ function RackOverridesContent({
   return (
     <div className="space-y-4">
       {/* Aerospike Config Override */}
-      <div className="grid gap-2">
-        <Label className="text-xs">Aerospike Config Override (JSON)</Label>
-        <Textarea
-          value={rack.aerospikeConfig ? JSON.stringify(rack.aerospikeConfig, null, 2) : ""}
-          onChange={(e) => {
-            let parsed: Record<string, unknown> | undefined;
-            try {
-              parsed = e.target.value ? JSON.parse(e.target.value) : undefined;
-            } catch {
-              return;
-            }
-            updateRack({ aerospikeConfig: parsed });
-          }}
-          rows={3}
-          className="font-mono text-xs"
-          placeholder='{"namespaces": [...]}'
-        />
-      </div>
+      <RackConfigJsonEditor
+        config={rack.aerospikeConfig}
+        onChange={(parsed) => updateRack({ aerospikeConfig: parsed })}
+      />
 
       {/* Node Selector */}
       <div className="grid gap-1">

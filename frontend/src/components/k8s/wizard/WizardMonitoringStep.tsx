@@ -335,9 +335,7 @@ function CustomRulesEditor({
   value: Record<string, unknown>[] | undefined;
   onChange: (v: Record<string, unknown>[] | undefined) => void;
 }) {
-  const [rawText, setRawText] = useState(() =>
-    value ? JSON.stringify(value, null, 2) : "",
-  );
+  const [rawText, setRawText] = useState(() => (value ? JSON.stringify(value, null, 2) : ""));
   const [parseError, setParseError] = useState<string | null>(null);
 
   const handleChange = useCallback(
@@ -368,8 +366,8 @@ function CustomRulesEditor({
       <Label className="text-xs">Custom Rule Groups (JSON)</Label>
       <p className="text-muted-foreground text-xs">
         Define custom Prometheus alerting/recording rule groups. Must be a JSON array of rule group
-        objects following the{" "}
-        <code className="bg-muted rounded px-1 text-[10px]">groups</code> schema.
+        objects following the <code className="bg-muted rounded px-1 text-[10px]">groups</code>{" "}
+        schema.
       </p>
       <Textarea
         value={rawText}
@@ -383,9 +381,13 @@ function CustomRulesEditor({
   );
 }
 
-/** Simple CIDR validation (e.g. 10.0.0.0/8). */
+/** CIDR validation with octet and prefix range checks (e.g. 10.0.0.0/8). */
 function isValidCIDR(v: string): boolean {
-  return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/.test(v);
+  const match = v.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/);
+  if (!match) return false;
+  const octets = [match[1], match[2], match[3], match[4]].map(Number);
+  const prefix = Number(match[5]);
+  return octets.every((o) => o >= 0 && o <= 255) && prefix >= 0 && prefix <= 32;
 }
 
 export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepProps) {
@@ -615,7 +617,8 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                   <div className="space-y-2">
                     <Label className="text-xs">PrometheusRule Labels</Label>
                     <p className="text-muted-foreground text-xs">
-                      Labels for PrometheusRule discovery (must match your Prometheus rule selector).
+                      Labels for PrometheusRule discovery (must match your Prometheus rule
+                      selector).
                     </p>
                     <KeyValueEditor
                       value={monitoring.prometheusRule.labels}
