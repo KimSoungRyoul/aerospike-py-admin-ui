@@ -90,13 +90,13 @@ export function WizardCreationModeStep({
                   type="button"
                   onClick={() => onTemplateSelect(t.name)}
                   disabled={templateLoading}
-                  className={`flex items-start justify-between rounded-lg border p-3 text-left transition-colors ${
+                  className={`flex items-start justify-between overflow-hidden rounded-lg border p-3 text-left transition-colors ${
                     selectedTemplateName === t.name
                       ? "border-accent bg-accent/5"
                       : "hover:border-accent/50"
                   }`}
                 >
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{t.name}</span>
                     </div>
