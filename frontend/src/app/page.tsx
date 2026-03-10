@@ -292,7 +292,16 @@ export default function ConnectionsPage() {
                 style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
                 role="button"
                 tabIndex={0}
-                onClick={() => navigateToConnection(conn)}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.closest('[role="menu"]') ||
+                    target.closest('[role="menuitem"]') ||
+                    target.closest(".dropdown")
+                  )
+                    return;
+                  navigateToConnection(conn);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
