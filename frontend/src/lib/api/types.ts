@@ -837,6 +837,10 @@ export interface TemplateStorageConfig {
   size?: string;
 }
 
+export interface TemplateRackConfig {
+  maxRacksPerNode?: number;
+}
+
 export interface CreateK8sTemplateRequest {
   name: string;
   description?: string;
