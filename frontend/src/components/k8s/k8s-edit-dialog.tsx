@@ -93,8 +93,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const [initContainers, setInitContainers] = useState<SidecarConfig[]>([]);
   // Service Metadata
   const [podServiceConfig, setPodServiceConfig] = useState<ServiceMetadataConfig | null>(null);
-  const [headlessServiceConfig, setHeadlessServiceConfig] =
-    useState<ServiceMetadataConfig | null>(null);
+  const [headlessServiceConfig, setHeadlessServiceConfig] = useState<ServiceMetadataConfig | null>(
+    null,
+  );
   // Rack ID Override
   const [enableRackIDOverride, setEnableRackIDOverride] = useState(false);
   // Storage (multi-volume)
@@ -246,8 +247,11 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       return vol;
     });
   }, [specStorage]);
-  const initialStorageCleanupThreads = (specStorage as Record<string, unknown> | undefined)?.cleanupThreads as number | undefined;
-  const initialStorageDeleteLocalOnRestart = Boolean((specStorage as Record<string, unknown> | undefined)?.deleteLocalStorageOnRestart);
+  const initialStorageCleanupThreads = (specStorage as Record<string, unknown> | undefined)
+    ?.cleanupThreads as number | undefined;
+  const initialStorageDeleteLocalOnRestart = Boolean(
+    (specStorage as Record<string, unknown> | undefined)?.deleteLocalStorageOnRestart,
+  );
   const initialAerospikeConfig = useMemo(
     () => cluster.spec?.aerospikeConfig ?? {},
     [cluster.spec?.aerospikeConfig],
@@ -397,7 +401,10 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     JSON.stringify(initContainers) !== JSON.stringify(initialInitContainers) ||
     JSON.stringify(podServiceConfig) !== JSON.stringify(initialPodServiceConfig) ||
     JSON.stringify(headlessServiceConfig) !== JSON.stringify(initialHeadlessServiceConfig) ||
-    enableRackIDOverride !== initialEnableRackIDOverride;
+    enableRackIDOverride !== initialEnableRackIDOverride ||
+    JSON.stringify(storageVolumes) !== JSON.stringify(initialStorageVolumes) ||
+    storageCleanupThreads !== initialStorageCleanupThreads ||
+    storageDeleteLocalOnRestart !== initialStorageDeleteLocalOnRestart;
 
   const handleSave = async () => {
     setLoading(true);
@@ -1170,9 +1177,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                     <Label className="text-[10px] font-semibold">Pod Service Annotations</Label>
                     <EditKvEditor
                       value={podServiceConfig.annotations}
-                      onChange={(v) =>
-                        setPodServiceConfig({ ...podServiceConfig, annotations: v })
-                      }
+                      onChange={(v) => setPodServiceConfig({ ...podServiceConfig, annotations: v })}
                       keyPlaceholder="annotation key"
                       valuePlaceholder="value"
                       disabled={loading}
@@ -2394,10 +2399,16 @@ function EditStorageSection({
     const vol: VolumeSpec = {
       name: `vol-${n}`,
       source: type,
-      aerospike: { path: type === "persistentVolume" ? "/opt/aerospike/data" : "/opt/aerospike/work" },
+      aerospike: {
+        path: type === "persistentVolume" ? "/opt/aerospike/data" : "/opt/aerospike/work",
+      },
     };
     if (type === "persistentVolume") {
-      vol.persistentVolume = { size: "10Gi", volumeMode: "Filesystem", accessModes: ["ReadWriteOnce"] };
+      vol.persistentVolume = {
+        size: "10Gi",
+        volumeMode: "Filesystem",
+        accessModes: ["ReadWriteOnce"],
+      };
     } else if (type === "emptyDir") {
       vol.emptyDir = {};
     } else if (type === "secret") {
@@ -2415,23 +2426,23 @@ function EditStorageSection({
     <div className="space-y-3">
       {/* Add buttons */}
       <div className="flex flex-wrap gap-1">
-        {(Object.entries(VOLUME_SOURCE_LABELS) as [VolumeSourceType, string][]).map(([type, label]) => (
-          <button
-            key={type}
-            type="button"
-            disabled={loading}
-            onClick={() => addVolume(type)}
-            className="text-accent hover:text-accent/80 flex items-center gap-0.5 text-[10px] font-medium disabled:opacity-50"
-          >
-            <Plus className="h-3 w-3" /> {label}
-          </button>
-        ))}
+        {(Object.entries(VOLUME_SOURCE_LABELS) as [VolumeSourceType, string][]).map(
+          ([type, label]) => (
+            <button
+              key={type}
+              type="button"
+              disabled={loading}
+              onClick={() => addVolume(type)}
+              className="text-accent hover:text-accent/80 flex items-center gap-0.5 text-[10px] font-medium disabled:opacity-50"
+            >
+              <Plus className="h-3 w-3" /> {label}
+            </button>
+          ),
+        )}
       </div>
 
       {volumes.length === 0 && (
-        <p className="text-muted-foreground text-center text-xs py-2">
-          No volumes configured.
-        </p>
+        <p className="text-muted-foreground py-2 text-center text-xs">No volumes configured.</p>
       )}
 
       {volumes.map((vol, vi) => {
@@ -2490,7 +2501,11 @@ function EditStorageSection({
                         const src = v as VolumeSourceType;
                         const updated: VolumeSpec = { ...vol, source: src };
                         if (src === "persistentVolume") {
-                          updated.persistentVolume = { size: "10Gi", volumeMode: "Filesystem", accessModes: ["ReadWriteOnce"] };
+                          updated.persistentVolume = {
+                            size: "10Gi",
+                            volumeMode: "Filesystem",
+                            accessModes: ["ReadWriteOnce"],
+                          };
                           updated.emptyDir = undefined;
                           updated.secret = undefined;
                           updated.configMap = undefined;
@@ -2498,15 +2513,27 @@ function EditStorageSection({
                         } else if (src === "emptyDir") {
                           updated.emptyDir = {};
                           updated.persistentVolume = undefined;
+                          updated.secret = undefined;
+                          updated.configMap = undefined;
+                          updated.hostPath = undefined;
                         } else if (src === "secret") {
                           updated.secret = { secretName: "" };
                           updated.persistentVolume = undefined;
+                          updated.emptyDir = undefined;
+                          updated.configMap = undefined;
+                          updated.hostPath = undefined;
                         } else if (src === "configMap") {
                           updated.configMap = { name: "" };
                           updated.persistentVolume = undefined;
+                          updated.emptyDir = undefined;
+                          updated.secret = undefined;
+                          updated.hostPath = undefined;
                         } else if (src === "hostPath") {
                           updated.hostPath = { path: "", type: "DirectoryOrCreate" };
                           updated.persistentVolume = undefined;
+                          updated.emptyDir = undefined;
+                          updated.secret = undefined;
+                          updated.configMap = undefined;
                         }
                         updateVolume(vi, updated);
                       }}
@@ -2536,7 +2563,10 @@ function EditStorageSection({
                         onChange={(e) =>
                           updateVolume(vi, {
                             ...vol,
-                            persistentVolume: { ...vol.persistentVolume!, storageClass: e.target.value },
+                            persistentVolume: {
+                              ...vol.persistentVolume!,
+                              storageClass: e.target.value,
+                            },
                           })
                         }
                         className="h-7 text-xs"
@@ -2578,8 +2608,12 @@ function EditStorageSection({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Filesystem" className="text-xs">Filesystem</SelectItem>
-                          <SelectItem value="Block" className="text-xs">Block</SelectItem>
+                          <SelectItem value="Filesystem" className="text-xs">
+                            Filesystem
+                          </SelectItem>
+                          <SelectItem value="Block" className="text-xs">
+                            Block
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2593,7 +2627,10 @@ function EditStorageSection({
                     <Input
                       value={(vol.secret as Record<string, string>)?.secretName || ""}
                       onChange={(e) =>
-                        updateVolume(vi, { ...vol, secret: { ...vol.secret, secretName: e.target.value } })
+                        updateVolume(vi, {
+                          ...vol,
+                          secret: { ...vol.secret, secretName: e.target.value },
+                        })
                       }
                       className="h-7 text-xs"
                       disabled={loading}
@@ -2608,7 +2645,10 @@ function EditStorageSection({
                     <Input
                       value={(vol.configMap as Record<string, string>)?.name || ""}
                       onChange={(e) =>
-                        updateVolume(vi, { ...vol, configMap: { ...vol.configMap, name: e.target.value } })
+                        updateVolume(vi, {
+                          ...vol,
+                          configMap: { ...vol.configMap, name: e.target.value },
+                        })
                       }
                       className="h-7 text-xs"
                       disabled={loading}
@@ -2624,7 +2664,10 @@ function EditStorageSection({
                       <Input
                         value={(vol.hostPath as Record<string, string>)?.path || ""}
                         onChange={(e) =>
-                          updateVolume(vi, { ...vol, hostPath: { ...vol.hostPath, path: e.target.value } })
+                          updateVolume(vi, {
+                            ...vol,
+                            hostPath: { ...vol.hostPath, path: e.target.value },
+                          })
                         }
                         className="h-7 text-xs"
                         disabled={loading}
@@ -2633,7 +2676,9 @@ function EditStorageSection({
                     <div className="grid gap-1">
                       <Label className="text-[10px]">Type</Label>
                       <Select
-                        value={(vol.hostPath as Record<string, string>)?.type || "DirectoryOrCreate"}
+                        value={
+                          (vol.hostPath as Record<string, string>)?.type || "DirectoryOrCreate"
+                        }
                         onValueChange={(v) =>
                           updateVolume(vi, { ...vol, hostPath: { ...vol.hostPath, type: v } })
                         }
@@ -2643,8 +2688,12 @@ function EditStorageSection({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="DirectoryOrCreate" className="text-xs">DirectoryOrCreate</SelectItem>
-                          <SelectItem value="Directory" className="text-xs">Directory</SelectItem>
+                          <SelectItem value="DirectoryOrCreate" className="text-xs">
+                            DirectoryOrCreate
+                          </SelectItem>
+                          <SelectItem value="Directory" className="text-xs">
+                            Directory
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2686,11 +2735,21 @@ function EditStorageSection({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none" className="text-xs">None</SelectItem>
-                        <SelectItem value="deleteFiles" className="text-xs">Delete Files</SelectItem>
-                        <SelectItem value="dd" className="text-xs">DD</SelectItem>
-                        <SelectItem value="blkdiscard" className="text-xs">Block Discard</SelectItem>
-                        <SelectItem value="headerCleanup" className="text-xs">Header Cleanup</SelectItem>
+                        <SelectItem value="none" className="text-xs">
+                          None
+                        </SelectItem>
+                        <SelectItem value="deleteFiles" className="text-xs">
+                          Delete Files
+                        </SelectItem>
+                        <SelectItem value="dd" className="text-xs">
+                          DD
+                        </SelectItem>
+                        <SelectItem value="blkdiscard" className="text-xs">
+                          Block Discard
+                        </SelectItem>
+                        <SelectItem value="headerCleanup" className="text-xs">
+                          Header Cleanup
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2710,12 +2769,24 @@ function EditStorageSection({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none" className="text-xs">None</SelectItem>
-                        <SelectItem value="deleteFiles" className="text-xs">Delete Files</SelectItem>
-                        <SelectItem value="dd" className="text-xs">DD</SelectItem>
-                        <SelectItem value="blkdiscard" className="text-xs">Block Discard</SelectItem>
-                        <SelectItem value="headerCleanup" className="text-xs">Header Cleanup</SelectItem>
-                        <SelectItem value="blkdiscardWithHeaderCleanup" className="text-xs">Blk+Header</SelectItem>
+                        <SelectItem value="none" className="text-xs">
+                          None
+                        </SelectItem>
+                        <SelectItem value="deleteFiles" className="text-xs">
+                          Delete Files
+                        </SelectItem>
+                        <SelectItem value="dd" className="text-xs">
+                          DD
+                        </SelectItem>
+                        <SelectItem value="blkdiscard" className="text-xs">
+                          Block Discard
+                        </SelectItem>
+                        <SelectItem value="headerCleanup" className="text-xs">
+                          Header Cleanup
+                        </SelectItem>
+                        <SelectItem value="blkdiscardWithHeaderCleanup" className="text-xs">
+                          Blk+Header
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2738,8 +2809,8 @@ function EditStorageSection({
 
       {/* Global storage policies */}
       {volumes.length > 0 && (
-        <div className="space-y-2 pt-2 border-t">
-          <Label className="text-[10px] text-muted-foreground">Global Policies</Label>
+        <div className="space-y-2 border-t pt-2">
+          <Label className="text-muted-foreground text-[10px]">Global Policies</Label>
           <div className="grid grid-cols-2 gap-2">
             <div className="grid gap-1">
               <Label className="text-[10px]">Cleanup Threads</Label>
