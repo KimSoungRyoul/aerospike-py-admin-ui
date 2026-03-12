@@ -130,6 +130,10 @@ npm run dev                        # http://localhost:3000
   - Service metadata for headless and pod services
   - Extended wizard fields: nodeSelector, tolerations, hostNetwork, multiPodPerHost, imagePullSecrets, serviceAccountName, terminationGracePeriod, validationPolicy
   - Extended backend API fields: sidecars, initContainers, securityContext, topologySpreadConstraints
+  - Multi-volume storage support: configure multiple independent PVC volumes per namespace with different StorageClasses, sizes, and mount paths
+  - Sidecar & init container wizard: add custom sidecar and init containers with full configuration (image, command, args, env, volume mounts, resources)
+  - Topology spread constraints UI: distribute pods across zones/nodes via wizard and edit dialog
+  - Pod security context UI: configure runAsUser, runAsNonRoot, fsGroup, seccompProfile via edit dialog
   - Enhanced pod table: readiness gate status, access endpoints, stability indicators (unstableSince)
   - Accessibility: aria-labels, keyboard navigation, screen-reader support across all K8s components
 - **Light/Dark Mode** — System theme integration
@@ -469,6 +473,67 @@ The Advanced wizard step and cluster edit dialog support custom metadata for Kub
 - **Headless Service Metadata** -- Add custom annotations and labels to the headless service (`<cluster-name>-headless`) used for DNS-based pod discovery. Useful for External DNS integration, Prometheus scrape annotations, and service mesh configuration.
 - **Per-Pod Service Metadata** -- When pod services are enabled, each pod gets an individual ClusterIP Service. Custom annotations and labels can be added for External DNS, load balancer configuration, or service mesh integration.
 - **Pod Metadata** -- Add custom labels and annotations directly to Aerospike pods for service mesh sidecar injection (e.g., Istio), monitoring label selectors, cost allocation tags, or external tool integration.
+
+### Topology Spread Constraints
+
+The cluster creation wizard (Advanced step) and the cluster edit dialog support Kubernetes `topologySpreadConstraints` for distributing Aerospike pods evenly across failure domains (zones, regions, nodes). Each constraint can be configured with:
+
+- **maxSkew** -- Maximum allowed difference in pod count between topology domains
+- **topologyKey** -- The node label key that defines the topology domain (e.g., `topology.kubernetes.io/zone`, `kubernetes.io/hostname`)
+- **whenUnsatisfiable** -- Scheduling behavior when the constraint cannot be satisfied: `DoNotSchedule` (hard) or `ScheduleAnyway` (soft)
+- **labelSelector** -- Label selector to identify which pods are subject to this constraint
+
+Multiple constraints can be added to enforce distribution across both zones and individual nodes simultaneously. For example, you can ensure pods are evenly spread across availability zones while also preventing too many pods on a single node.
+
+Templates also support topology spread constraints in the scheduling configuration, enabling standardized distribution policies across all clusters created from a template.
+
+### Pod Security Context
+
+The cluster edit dialog supports configuring a pod-level `securityContext` for Aerospike pods. This allows operators to enforce security policies such as:
+
+- **runAsUser / runAsGroup** -- Run all containers as a specific UID/GID
+- **runAsNonRoot** -- Enforce non-root execution
+- **fsGroup** -- Set the group ownership of mounted volumes
+- **seccompProfile** -- Apply a Seccomp security profile (e.g., `RuntimeDefault`)
+- **supplementalGroups** -- Additional GIDs for the pod's processes
+
+The security context is applied at the pod level and affects all containers (Aerospike, exporter sidecar, and any custom sidecars/init containers).
+
+### Multi-Volume Storage
+
+The Namespace & Storage wizard step supports configuring multiple storage volumes per Aerospike namespace. Each volume can be independently configured with:
+
+- **Volume Name** -- Unique identifier for the volume within the cluster
+- **Storage Type** -- `memory` (in-memory) or `device` (persistent PVC-backed)
+- **Storage Class** -- Kubernetes StorageClass for PVC provisioning (per volume)
+- **Volume Size** -- Independent size per volume (e.g., 10Gi for data, 5Gi for index)
+- **Volume Mode** -- `Filesystem` or `Block` mode
+- **Mount Path** -- Custom mount path inside the container
+- **Init Method / Wipe Method** -- Per-volume initialization and cleanup methods
+- **Cascade Delete** -- Whether to delete the PVC when the cluster is deleted
+
+This enables advanced storage topologies such as separating data and index volumes on different storage classes (e.g., SSD for data, NVMe for index), or using different volume sizes for different purposes.
+
+### Sidecar & Init Container Wizard
+
+The cluster edit dialog provides a dedicated configuration section for adding custom sidecar containers and init containers to Aerospike pods. Each container is configured with:
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Container name (must be unique within the pod) |
+| **Image** | Container image (e.g., `busybox:latest`, `my-agent:v1.0`) |
+| **Command** | Override the container entrypoint (optional) |
+| **Args** | Arguments to pass to the command (optional) |
+| **Environment Variables** | Key-value pairs for container environment |
+| **Volume Mounts** | Mount paths for shared volumes |
+| **Resources** | CPU/memory requests and limits |
+
+Common use cases include:
+
+- **Log Shipping** -- Sidecar that tails Aerospike logs and forwards them to a central logging system (Fluentd, Filebeat)
+- **Backup Agent** -- Sidecar running periodic backups to object storage (S3, GCS)
+- **Data Initialization** -- Init container that pre-loads data or configuration before Aerospike starts
+- **Certificate Rotation** -- Sidecar that watches and refreshes TLS certificates
 
 ### K8s API Endpoints
 
