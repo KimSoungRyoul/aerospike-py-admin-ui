@@ -118,7 +118,7 @@ npm run dev                        # http://localhost:3000
   - CNI bandwidth annotations for ingress/egress limits (wizard + edit dialog)
   - HorizontalPodAutoscaler (HPA) management: create, view, and delete HPAs targeting AerospikeCluster resources
   - Enhanced monitoring configuration: exporter image, metric labels, exporter resources (CPU/memory), exporter environment variables, ServiceMonitor config (enabled/interval/labels), PrometheusRule config (enabled/labels/custom alerting rules)
-  - Seeds Finder Services advanced config: LoadBalancer annotations, labels, and source ranges
+  - Seeds Finder Services UI: edit dialog with LoadBalancer service port, target port, external traffic policy (Cluster/Local), annotations, labels, load balancer source ranges (CIDR list), and wizard review step display
   - Cluster health dashboard with rack distribution and migration status
   - Pod logs viewer with tail lines, copy, and download
   - Export cluster CR as clean YAML
@@ -132,7 +132,8 @@ npm run dev                        # http://localhost:3000
   - Extended backend API fields: sidecars, initContainers, securityContext, topologySpreadConstraints
   - Multi-volume storage support: configure multiple independent PVC volumes per namespace with different StorageClasses, sizes, and mount paths
   - Sidecar & init container wizard: add custom sidecar and init containers with full configuration (image, command, args, env, volume mounts, resources)
-  - Topology spread constraints UI: distribute pods across zones/nodes via wizard and edit dialog
+  - Topology spread constraints UI: distribute pods across zones/nodes via wizard and edit dialog (maxSkew, topologyKey, whenUnsatisfiable, labelSelector matchLabels)
+  - Template topology spread constraints: configure topology spread constraints in template edit dialog for standardized scheduling policies
   - Pod security context UI: configure runAsUser, runAsNonRoot, fsGroup, seccompProfile via edit dialog
   - Enhanced pod table: readiness gate status, access endpoints, stability indicators (unstableSince)
   - Accessibility: aria-labels, keyboard navigation, screen-reader support across all K8s components
@@ -335,7 +336,7 @@ Create, scale, update, and delete Aerospike clusters through a guided 9-step wiz
 
 1. **Basic** — Cluster name, Kubernetes namespace, size (1-8 nodes), Aerospike image selection
 2. **Namespace & Storage** — Aerospike namespace configuration with in-memory or persistent (PVC) storage, replication factor, storage class selection, volume init/wipe methods, cascade delete, cleanup threads, filesystem volume policy, block volume policy
-3. **Monitoring & Options** — Enable Prometheus metrics exporter (custom image, metric labels, exporter resources, exporter environment variables, ServiceMonitor, PrometheusRule with custom alerting rules), select an AerospikeClusterTemplate, enable dynamic configuration updates, configure network access type (Pod IP, Host Internal/External, Configured IP with custom network names), auto-generate Kubernetes NetworkPolicy (standard or Cilium), configure Seeds Finder LoadBalancer for external seed discovery (annotations, labels, source ranges)
+3. **Monitoring & Options** — Enable Prometheus metrics exporter (custom image, metric labels, exporter resources, exporter environment variables, ServiceMonitor, PrometheusRule with custom alerting rules), select an AerospikeClusterTemplate, enable dynamic configuration updates, configure network access type (Pod IP, Host Internal/External, Configured IP with custom network names), auto-generate Kubernetes NetworkPolicy (standard or Cilium), configure Seeds Finder LoadBalancer for external seed discovery (service port, target port, external traffic policy, annotations, labels, load balancer source ranges)
 4. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
 5. **Security (ACL)** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
 6. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
@@ -375,7 +376,7 @@ Full lifecycle management of `AerospikeClusterTemplate` resources:
 - **View Details** — Inspect template spec, resource defaults, and see which clusters reference the template via the "Referenced By" display
 - **Delete** — Remove unused templates (protected against deletion while referenced by clusters)
 - **Reference** — Select templates during cluster creation via the wizard
-- **Scheduling** — Template scheduling supports tolerations, node affinity rules, and topology spread constraints in addition to pod anti-affinity and pod management policy
+- **Scheduling** — Template scheduling supports tolerations, node affinity rules, and topology spread constraints (maxSkew, topologyKey, whenUnsatisfiable, labelSelector with matchLabels) in addition to pod anti-affinity and pod management policy. Topology spread constraints can be configured directly in the template edit dialog
 - **Extended Template Overrides** — Templates support override fields for scheduling, storage, rackConfig, and aerospikeConfig in addition to the existing image, size, resources, monitoring, and networkPolicy fields. This allows templates to serve as comprehensive baseline configurations for cluster creation
 - **Advanced Config** — Templates support service config (feature key file), network config (heartbeat mode/port/interval/timeout), rack config (maxRacksPerNode), local PV storage requirements, local storage classes, and delete-on-restart policy for local PV workflows
 
@@ -384,7 +385,7 @@ Full lifecycle management of `AerospikeClusterTemplate` resources:
 From the cluster detail page, you can:
 
 - **Scale** — Change cluster size (1-8 nodes) via a scale dialog
-- **Edit** — Modify running cluster settings (image, size, dynamic config, aerospike config, network policy, NetworkPolicy auto-generation, ACL, monitoring config, bandwidth config, node block list, validation policy, service metadata, rack ID override, pod metadata, nodeSelector, tolerations, hostNetwork, imagePullSecrets, serviceAccountName, terminationGracePeriod, sidecars, initContainers, securityContext, topologySpreadConstraints) with diff-based patching
+- **Edit** — Modify running cluster settings (image, size, dynamic config, aerospike config, network policy, NetworkPolicy auto-generation, ACL, monitoring config, bandwidth config, node block list, validation policy, service metadata, rack ID override, pod metadata, nodeSelector, tolerations, hostNetwork, imagePullSecrets, serviceAccountName, terminationGracePeriod, sidecars, initContainers, securityContext, topologySpreadConstraints, Seeds Finder Services) with diff-based patching
 - **HPA** — Create, view, and delete HorizontalPodAutoscaler resources for automatic cluster scaling based on CPU/memory utilization
 - **Warm Restart** — Trigger a warm restart operation (all pods or selected pods via checkboxes)
 - **Pod Restart** — Trigger a full pod restart operation (all pods or selected pods via checkboxes)
@@ -498,6 +499,19 @@ Both the cluster creation wizard (Advanced step) and the cluster edit dialog sup
 - **supplementalGroups** -- Additional GIDs for the pod's processes
 
 The security context is applied at the pod level and affects all containers (Aerospike, exporter sidecar, and any custom sidecars/init containers).
+
+### Seeds Finder Services
+
+The Seeds Finder Services configuration enables external seed discovery for Aerospike clusters using a Kubernetes LoadBalancer service. The edit dialog provides a dedicated UI for configuring the LoadBalancer with the following options:
+
+- **Service Port** -- The port exposed by the LoadBalancer service for external clients
+- **Target Port** -- The target port on the Aerospike pod that the LoadBalancer forwards traffic to
+- **External Traffic Policy** -- Controls how external traffic is routed: `Cluster` (default, distributes across all nodes) or `Local` (preserves client source IP, routes only to node-local endpoints)
+- **Annotations** -- Key-value editor for adding custom annotations to the LoadBalancer service (e.g., cloud provider-specific load balancer configuration)
+- **Labels** -- Key-value editor for adding custom labels to the LoadBalancer service
+- **Load Balancer Source Ranges** -- CIDR list for restricting which source IP ranges can access the LoadBalancer (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
+
+Seeds Finder Services configuration is also displayed in the wizard review step, showing the full LoadBalancer configuration summary before cluster creation.
 
 ### Multi-Volume Storage
 
