@@ -27,6 +27,7 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     RackDistribution,
     StorageSpec,
     StorageVolumeConfig,
+    TemplateServiceConfig,
     TemplateSnapshotStatus,
     UpdateK8sClusterRequest,
     UpdateK8sTemplateRequest,
@@ -671,6 +672,40 @@ def compute_rack_distribution(pods_status: dict) -> list[RackDistribution]:
     return sorted([RackDistribution(**r) for r in racks.values()], key=lambda r: r.id)
 
 
+# Keys managed by explicit TemplateServiceConfig fields; must not be
+# overwritten by extra_params so that typed fields always take precedence.
+_SERVICE_CONFIG_KNOWN_KEYS = frozenset({"proto-fd-max", "feature-key-file"})
+
+
+def _build_aerospike_cfg(
+    aerospike_config: dict[str, Any] | None,
+    service_config: TemplateServiceConfig | None,
+) -> dict[str, Any]:
+    """Build the ``aerospikeConfig`` sub-tree shared by create and update paths.
+
+    ``extra_params`` is applied *first* so that explicit fields always win, and
+    known keys are also stripped from ``extra_params`` to prevent accidental
+    overwrites.
+    """
+    aerospike_cfg: dict[str, Any] = {}
+    if aerospike_config is not None:
+        aerospike_cfg["namespaceDefaults"] = aerospike_config
+    if service_config is not None:
+        svc_cfg: dict[str, Any] = {}
+        # Apply extra_params first so explicit fields can overwrite them.
+        if service_config.extra_params:
+            svc_cfg.update(
+                {k: v for k, v in service_config.extra_params.items() if k not in _SERVICE_CONFIG_KNOWN_KEYS}
+            )
+        if service_config.feature_key_file:
+            svc_cfg["feature-key-file"] = service_config.feature_key_file
+        if service_config.proto_fd_max is not None:
+            svc_cfg["proto-fd-max"] = service_config.proto_fd_max
+        if svc_cfg:
+            aerospike_cfg["service"] = svc_cfg
+    return aerospike_cfg
+
+
 def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
     """Convert CreateK8sTemplateRequest to AerospikeClusterTemplate CR dict."""
     cr: dict[str, Any] = {
@@ -725,14 +760,10 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
             cr["spec"]["storage"] = storage
     if req.network_policy:
         cr["spec"]["aerospikeNetworkPolicy"] = build_network_policy(req.network_policy)
-    if req.aerospike_config:
-        cr["spec"]["aerospikeConfig"] = {"namespaceDefaults": req.aerospike_config}
-    if req.service_config:
-        svc_cfg: dict[str, Any] = {}
-        if req.service_config.feature_key_file:
-            svc_cfg["featureKeyFile"] = req.service_config.feature_key_file
-        if svc_cfg:
-            cr["spec"]["serviceConfig"] = svc_cfg
+    # Build aerospikeConfig with namespaceDefaults and service sub-sections
+    aerospike_cfg = _build_aerospike_cfg(req.aerospike_config, req.service_config)
+    if aerospike_cfg:
+        cr["spec"]["aerospikeConfig"] = aerospike_cfg
     if req.network_config:
         net_cfg: dict[str, Any] = {}
         if req.network_config.heartbeat_mode:
@@ -801,14 +832,10 @@ def build_template_update_patch(body: UpdateK8sTemplateRequest) -> dict[str, Any
             patch["spec"]["storage"] = storage
     if body.network_policy is not None:
         patch["spec"]["aerospikeNetworkPolicy"] = build_network_policy(body.network_policy)
-    if body.aerospike_config is not None:
-        patch["spec"]["aerospikeConfig"] = {"namespaceDefaults": body.aerospike_config}
-    if body.service_config is not None:
-        svc_cfg: dict[str, Any] = {}
-        if body.service_config.feature_key_file:
-            svc_cfg["featureKeyFile"] = body.service_config.feature_key_file
-        if svc_cfg:
-            patch["spec"]["serviceConfig"] = svc_cfg
+    # Build aerospikeConfig with namespaceDefaults and service sub-sections
+    aerospike_cfg = _build_aerospike_cfg(body.aerospike_config, body.service_config)
+    if aerospike_cfg:
+        patch["spec"]["aerospikeConfig"] = aerospike_cfg
     if body.network_config is not None:
         net_cfg: dict[str, Any] = {}
         if body.network_config.heartbeat_mode:
